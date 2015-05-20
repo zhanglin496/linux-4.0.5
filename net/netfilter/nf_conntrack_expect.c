@@ -164,12 +164,18 @@ nf_ct_find_expectation(struct net *net, u16 zone,
 	 * know that the ct is being destroyed.  If it succeeds, we
 	 * can be sure the ct cannot disappear underneath.
 	 */
-	 //增加主链接引用计数
+	 //增加主链接引用计数、
+	 //因为持有锁nf_conntrack_expect_lock
+	 //即使ct超时，会调用nf_ct_remove_expectations，会阻塞
+	 //因此即使ct的引用计数为0，但是ct不会被释放
+	 //这里atomic_inc_not_zero检查到为0时，已经知道ct即将被释放
+	 //但是不能直接调用atomic_inc
+	 //因为ct可能已经在释放中
 	if (unlikely(nf_ct_is_dying(exp->master) ||
 		     !atomic_inc_not_zero(&exp->master->ct_general.use)))
 		return NULL;
 
-	if (exp->flags & NF_CT_EXPECT_PERMANENT) {、
+	if (exp->flags & NF_CT_EXPECT_PERMANENT) {
 		//不释放期待链接，递增引用计数
 		//此时为3
 		atomic_inc(&exp->use);
