@@ -397,16 +397,18 @@ nf_nat_setup_info(struct nf_conn *ct,
 	 */
 	nf_ct_invert_tuplepr(&curr_tuple,
 			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-
+	//获取一个唯一的反向tuple，可能会出现tuple冲突
+	//在ipv4_confirm中会再次检查tuple的唯一性
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {
 		struct nf_conntrack_tuple reply;
-
+	//不需要加锁，因为conntrack 还未加入hash表中，未被确认
+	//conntrack 处于unconfirm 中，是skb 独有的
 		/* Alter conntrack table so will recognize replies. */
 		nf_ct_invert_tuplepr(&reply, &new_tuple);
 		nf_conntrack_alter_reply(ct, &reply);
-
+		//表示需要做NAT修改
 		/* Non-atomic: we own this at the moment. */
 		if (maniptype == NF_NAT_MANIP_SRC)
 			ct->status |= IPS_SRC_NAT;
@@ -430,7 +432,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 				   &net->ct.nat_bysource[srchash]);
 		spin_unlock_bh(&nf_nat_lock);
 	}
-
+	// 表示流头包已完成NAT 信息设置
+	// 后续跟该conntrack相关联的skb不再调用此函数
 	/* It's done. */
 	if (maniptype == NF_NAT_MANIP_DST)
 		ct->status |= IPS_DST_NAT_DONE;
