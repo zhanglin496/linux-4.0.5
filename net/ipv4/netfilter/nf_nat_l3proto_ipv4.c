@@ -329,7 +329,8 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 			// MASQUERADE 是根据规则配置的出口设备动态选择IP地址的
 			// 而SNAT 和DNAT 模块则是完全静态的
 			//会根据你设置的规则来转换
-			//规则不会受出口设备的影响
+			//规则不会受出口设备的影响，这也是他的缺点，如果出口IP地址改变了
+			//则无法正常工作
 			if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
 				goto oif_changed;
 		}
