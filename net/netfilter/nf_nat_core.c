@@ -163,7 +163,7 @@ static int in_range(const struct nf_nat_l3proto *l3proto,
 	if (range->flags & NF_NAT_RANGE_MAP_IPS &&
 	    !l3proto->in_range(tuple, range))
 		return 0;
-	//检查端口是否在range范围?
+	//检查端口是否在range范围内
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
 	    l4proto->in_range(tuple, NF_NAT_MANIP_SRC,
 			      &range->min_proto, &range->max_proto))
@@ -375,6 +375,9 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	//下面就是根据L4协议选择合适的端口
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
+			//如果源端口恰好在指定范围内
+			//并且范围相等或者tuple不冲突
+			//NF_NAT_RANGE_PROTO_SPECIFIED 意思是需要检查端口是否在配置的范围内
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (l4proto->in_range(tuple, maniptype,
 					      &range->min_proto,
@@ -386,7 +389,8 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 			goto out;
 		}
 	}
-
+	//前面的尝试都失败，或者设置了NF_NAT_RANGE_PROTO_RANDOM_ALL标志
+	//则做随机化的端口选择
 	/* Last change: get protocol to try to obtain unique tuple. */
 	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
 out:
