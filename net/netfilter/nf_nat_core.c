@@ -515,7 +515,7 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 	if (dir == IP_CT_DIR_REPLY)
 		statusbit ^= IPS_NAT_MASK;
 
-	//不需要做NAT转换
+	//检查数据包是否需要做NAT转换
 	/* Non-atomic: these bits don't change. */
 	if (ct->status & statusbit) {
 		struct nf_conntrack_tuple target;
