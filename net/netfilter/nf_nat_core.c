@@ -395,10 +395,17 @@ nf_nat_setup_info(struct nf_conn *ct,
 	 * manipulations (future optimization: if num_manips == 0,
 	 * orig_tp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 	 */
+	 //转换的原则是始终都不更改ct IP_CT_DIR_ORIGINAL的值，只会更改IP_CT_DIR_REPLY的值
+	 //假设转换前ct中的tuple值为
+	//original:192.168.18.100:10088 ------->61.139.2.69:80
+	//replay:61.139.2.69:80---------->192.168.18.100:10088
+	//则curr_tuple：192.168.18.100:10088 ------->61.139.2.69:80
 	nf_ct_invert_tuplepr(&curr_tuple,
 			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 	//获取一个唯一的反向tuple，可能会出现tuple冲突
 	//在ipv4_confirm中会再次检查tuple的唯一性
+	//假设做了目的地址转换。则
+	//new_tuple:192.168.18.100:10088 ------->61.139.2.70:90
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {
@@ -406,7 +413,12 @@ nf_nat_setup_info(struct nf_conn *ct,
 	//不需要加锁，因为conntrack 还未加入hash表中，未被确认
 	//conntrack 处于unconfirm 中，是skb 独有的
 		/* Alter conntrack table so will recognize replies. */
+		//reply：61.139.2.70:90---------->192.168.18.100:10088
 		nf_ct_invert_tuplepr(&reply, &new_tuple);
+		//ct->tuplehash[IP_CT_DIR_REPLY].tuple:61.139.2.70:90---------->192.168.18.100:10088
+		//以后reply的数据包在PREOUTING处不做转换，因为没设置IPS_SRC_NAT标志
+		//然后经过POSTROUTING时，设置了IPS_DST_NAT标志，要做SNAT转换
+		//返回数据包被修改为61.139.2.69:80---------->192.168.18.100:10088
 		nf_conntrack_alter_reply(ct, &reply);
 		//表示需要做NAT修改
 		/* Non-atomic: we own this at the moment. */
@@ -471,6 +483,14 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
+//一个数据包要调用该函数2次
+//因为nat在四个规则点注册了NAT函数回调
+//假设是转发的数据包会先PREROUTING---------->FORWARDING----------->POSTROUTING
+//假设是到本机的包PREROUTING--------->LOCAL_IN
+//假设是本机发出的包LOCAL_OUT--------->POSTROUTING
+//因此始终会调用该函数2次
+//即使该数据包不需要做NAT转换
+//也必须经过该函数的检查
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
@@ -492,6 +512,7 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 	if (dir == IP_CT_DIR_REPLY)
 		statusbit ^= IPS_NAT_MASK;
 
+	//不需要做NAT转换
 	/* Non-atomic: these bits don't change. */
 	if (ct->status & statusbit) {
 		struct nf_conntrack_tuple target;
