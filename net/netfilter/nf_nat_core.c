@@ -413,6 +413,11 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {
 		struct nf_conntrack_tuple reply;
+	//正常情况下，NAT信息的设置都是在流首包完成的
+	//也就是说此刻conntrack未被加入到hash表中，是新建的conntrack
+	//该skb独占该conntrack，在conntrack被加入到全局hash表后
+	//不会再调用次函数，因为所需的NAT信息都已经建立完成
+	//这是内核NAT实现的规定
 	//不需要加锁，因为conntrack 还未加入hash表中，未被确认
 	//conntrack 处于unconfirm 中，是skb 独有的
 		/* Alter conntrack table so will recognize replies. */
