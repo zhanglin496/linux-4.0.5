@@ -462,7 +462,8 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 	};
 	return nf_nat_setup_info(ct, &range, manip);
 }
-
+//因为有的数据包做了NAT规则，有的没有
+//为了保证五元组的唯一性，要做空绑定
 unsigned int
 nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
