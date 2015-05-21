@@ -371,7 +371,10 @@ struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct)
 	return nat;
 }
 EXPORT_SYMBOL_GPL(nf_ct_nat_ext_add);
-
+//正常情况下，nf_nat_packet只会调用2次
+//nf_nat_setup_info最多也只调用2次
+//但是如果NAT模块返回了NF_REPEAT，则视情况
+//内核标准的NAT模块实现是不会这么做的
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
 		  const struct nf_nat_range *range,
