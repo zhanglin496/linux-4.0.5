@@ -159,10 +159,11 @@ static int in_range(const struct nf_nat_l3proto *l3proto,
 	/* If we are supposed to map IPs, then we must be in the
 	 * range specified, otherwise let this drag us onto a new src IP.
 	 */
+	//检查src IP地址是否在range范围内
 	if (range->flags & NF_NAT_RANGE_MAP_IPS &&
 	    !l3proto->in_range(tuple, range))
 		return 0;
-
+	//检查端口是否在range范围?
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
 	    l4proto->in_range(tuple, NF_NAT_MANIP_SRC,
 			      &range->min_proto, &range->max_proto))
@@ -200,8 +201,10 @@ find_appropriate_src(struct net *net, u16 zone,
 		ct = nat->ct;
 		if (same_src(ct, tuple) && nf_ct_zone(ct) == zone) {
 			/* Copy source part from reply tuple. */
+			//映射到相同的源地址
 			nf_ct_invert_tuplepr(result,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+			//保存实际的目的地址
 			result->dst = tuple->dst;
 
 			if (in_range(l3proto, l4proto, result, range))
@@ -239,6 +242,7 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 		var_ipp = &tuple->dst.u3;
 
 	/* Fast path: only one choice. */
+	//只有一地址可以选择的情况
 	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {
 		*var_ipp = range->min_addr;
 		return;
@@ -315,17 +319,46 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * So far, we don't do local source mappings, so multiple
 	 * manips not an issue.
 	 */
+	 //只能是源地址nat的情况下才能做相同的映射
+	 //目的地址NAT是不可能映射到相同的目的地址
+	 //否则，数据包会到达错误的目的地址
 	if (maniptype == NF_NAT_MANIP_SRC &&
 	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
+		//
+		//     orig_tuple为192.168.18.100:10088---------->61.139.2.69:80
+		//路由器的wan口ip地址为172.168.3.36
+		//假设对wan口是用了MASQUERADE模块
+		//range指定的ip地址为172.168.3.36
+		//这里先尝试使用原IP地址和端口是否可行
+		//这里192.168.18.100不在range指定的IP地址172.168.3.36范围内
 		if (in_range(l3proto, l4proto, orig_tuple, range)) {
+			//大多是情况下只有本机发出去数据包才会到达这里
+			//可行，检查该tuple是否冲突
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
+				//ok，tuple唯一
 				*tuple = *orig_tuple;
 				goto out;
 			}
+		//在ct.nat_bysource中选择是否可以映射到相同的源地址
+		//这样可以节约端口号
+		//就是说有相同的四层协议和源地址、源端口的映射表已经存在
+		//假设已经存在一个192.168.18.100：1008,TCP的映射
+		//其源地址映射到172.168.3.36:10088--->61.139.2.69:8080
+		//192.168.18.100:10088---------->61.139.2.69:80将会被映射到
+		//172.168.3.36:10088 ---------->61.139.2.69:80
+		//因为这里目的端口不一样
 		} else if (find_appropriate_src(net, zone, l3proto, l4proto,
 						orig_tuple, tuple, range)) {
 			pr_debug("get_unique_tuple: Found current src map\n");
+			//因为这里目的端口不同，tuple不会冲突，如果tuple冲突
+			//进入下面的流程
+			//tuple取反，看是否有冲突的tuple，
+			//61.139.2.69:80------->172.168.3.36:10088
+			//假设192.168.18.110:10088---------->61.139.2.69:80
+			//被映射到了172.168.3.36:10088 ---------->61.139.2.69:80
+			//这个时候就会冲突了
+			//所以只有在目的地址或目的端口不同的情况下才可能做相同的映射
 			if (!nf_nat_used_tuple(tuple, ct))
 				goto out;
 		}
@@ -333,6 +366,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 	/* 2) Select the least-used IP/proto combination in the given range */
 	*tuple = *orig_tuple;
+	//选择一个合适的IP地址
 	find_best_ips_proto(zone, tuple, range, ct, maniptype);
 
 	/* 3) The per-protocol part of the manip is made to map into
