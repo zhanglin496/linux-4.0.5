@@ -323,6 +323,13 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 			pr_debug("Already setup manip %s for ct %p\n",
 				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
 				 ct);
+			//对于MASQUERADE 模块，会记录出口设备的索引到
+			// masq_index, 如果这里的出口索引变更了，表示
+			//设备有变化，比如IP地址变更了，需要销毁conntrack
+			// MASQUERADE 是根据规则配置的出口设备动态选择IP地址的
+			// 而SNAT 和DNAT 模块则是完全静态的
+			//会根据你设置的规则来转换
+			//规则不会受出口设备的影响
 			if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
 				goto oif_changed;
 		}
