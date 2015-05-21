@@ -372,7 +372,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	/* 3) The per-protocol part of the manip is made to map into
 	 * the range to make a unique tuple.
 	 */
-
+	//下面就是根据L4协议选择合适的端口
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
@@ -390,6 +390,10 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	/* Last change: get protocol to try to obtain unique tuple. */
 	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
 out:
+	//最终可能生成的tuple并不是唯一的，但是我们已经尽力了
+	//对不是唯一的tuple，最终会在ipv4_confirm中丢弃该数据包
+	//所以这是NAT的坏处，如果是IPV6，每台设备的IP地址都不一样
+	//就不会出现这个情况
 	rcu_read_unlock();
 }
 
