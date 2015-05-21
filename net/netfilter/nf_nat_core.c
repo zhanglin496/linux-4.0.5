@@ -445,6 +445,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 		srchash = hash_by_src(net, nf_ct_zone(ct),
 				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+		//因为nat扩展是内嵌于conntrack中的
+		//所以这里不需要增加引用计数
 		spin_lock_bh(&nf_nat_lock);
 		/* nf_conntrack_alter_reply might re-allocate extension aera */
 		nat = nfct_nat(ct);
