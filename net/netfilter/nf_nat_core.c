@@ -419,7 +419,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 	//不会再调用次函数，因为所需的NAT信息都已经建立完成
 	//这是内核NAT实现的规定
 	//不需要加锁，因为conntrack 还未加入hash表中，未被确认
-	//conntrack 处于unconfirm 中，是skb 独有的
+	//conntrack 处于unconfirm 链表中，是skb 独有的
+	//其他skb此刻不可能匹配到该conntrack
 		/* Alter conntrack table so will recognize replies. */
 		//reply：61.139.2.70:90---------->192.168.18.100:10088
 		nf_ct_invert_tuplepr(&reply, &new_tuple);
