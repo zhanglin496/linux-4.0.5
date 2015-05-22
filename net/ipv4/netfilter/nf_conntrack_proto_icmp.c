@@ -107,13 +107,23 @@ static int icmp_packet(struct nf_conn *ct,
 static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		     unsigned int dataoff, unsigned int *timeouts)
 {
+	//对新建连接只对这几个状态的icmp跟踪
+	//实际上只处理了查询报文
+	//而没有处理差错报文
+	//因为差错报文是由查询报文引起的
 	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
 		[ICMP_TIMESTAMP] = 1,
 		[ICMP_INFO_REQUEST] = 1,
 		[ICMP_ADDRESS] = 1
 	};
-
+	
+	//最大18
+	//只处理请求方向的ICMP跟踪
+	//就是说发送ICMP echo request 192.168.18.100---->61.139.2.69请求
+	//然后连接超时，这时ICMP echo reply 61.139.2.69---->192.168.18.100
+	//连接跟踪不会处理
+	//reply方向的不跟踪
 	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new) ||
 	    !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
