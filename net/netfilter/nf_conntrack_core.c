@@ -312,7 +312,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	 * too.
 	 */
 	nf_ct_remove_expectations(ct);
-
+	
 	nf_ct_del_from_dying_or_unconfirmed_list(ct);
 
 	NF_CT_STAT_INC(net, delete);
@@ -620,7 +620,8 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 	if (unlikely(nf_ct_is_dying(ct)))
 		goto out;
-
+	//这里可能会出现丢包问题，尤其是在NAT，IP地址和端口耗尽的情况下
+	//tuple会出现冲突问题
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
 	   not in the hash.  If there is, we lost race. */
@@ -931,7 +932,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		pr_debug("init conntrack: can't track with proto module\n");
 		return NULL;
 	}
-
+	//添加相关ct扩展，这里并不一定会重新分配空间
+	//若在此前注册的扩展，这里会一次性分配已经注册的扩展所需所有的空间
 	if (timeout_ext)
 		nf_ct_timeout_ext_add(ct, timeout_ext->timeout, GFP_ATOMIC);
 
@@ -952,7 +954,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 			pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
 				 ct, exp);
 			/* Welcome, Mr. Bond.  We've been expecting you... */
-			//�����ڴ����ӣ�֪ͨ����ǽ
+			//设置期待链接，通知防火墙
 			__set_bit(IPS_EXPECTED_BIT, &ct->status);
 			/* exp->master safe, refcnt bumped in nf_ct_find_expectation */
 			ct->master = exp->master;
@@ -985,8 +987,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	local_bh_enable();
 
 	if (exp) {
-		// nf_nat_follow_master,�ڴ����ӱ��������������ͬ��NATװ��
-		// �����޷�����ͨ��
+		// nf_nat_follow_master,期待链接必须和主链接做相同的NAT装换
+		// 否则无法正常通信
 		if (exp->expectfn)
 			exp->expectfn(ct, exp);
 		nf_ct_expect_put(exp);
@@ -1264,6 +1266,7 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 	}
 
 	if (del_timer(&ct->timeout)) {
+		//定时器删除成功，手动执行销毁函数
 		ct->timeout.function((unsigned long)ct);
 		return true;
 	}

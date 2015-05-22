@@ -159,10 +159,11 @@ static int in_range(const struct nf_nat_l3proto *l3proto,
 	/* If we are supposed to map IPs, then we must be in the
 	 * range specified, otherwise let this drag us onto a new src IP.
 	 */
+	//检查src IP地址是否在range范围内
 	if (range->flags & NF_NAT_RANGE_MAP_IPS &&
 	    !l3proto->in_range(tuple, range))
 		return 0;
-
+	//检查端口是否在range范围内
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
 	    l4proto->in_range(tuple, NF_NAT_MANIP_SRC,
 			      &range->min_proto, &range->max_proto))
@@ -200,8 +201,10 @@ find_appropriate_src(struct net *net, u16 zone,
 		ct = nat->ct;
 		if (same_src(ct, tuple) && nf_ct_zone(ct) == zone) {
 			/* Copy source part from reply tuple. */
+			//映射到相同的源地址
 			nf_ct_invert_tuplepr(result,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+			//保存实际的目的地址
 			result->dst = tuple->dst;
 
 			if (in_range(l3proto, l4proto, result, range))
@@ -239,6 +242,7 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 		var_ipp = &tuple->dst.u3;
 
 	/* Fast path: only one choice. */
+	//只有一地址可以选择的情况
 	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {
 		*var_ipp = range->min_addr;
 		return;
@@ -315,17 +319,46 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * So far, we don't do local source mappings, so multiple
 	 * manips not an issue.
 	 */
+	 //只能是源地址nat的情况下才能做相同的映射
+	 //目的地址NAT是不可能映射到相同的目的地址
+	 //否则，数据包会到达错误的目的地址
 	if (maniptype == NF_NAT_MANIP_SRC &&
 	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
+		//
+		//     orig_tuple为192.168.18.100:10088---------->61.139.2.69:80
+		//路由器的wan口ip地址为172.168.3.36
+		//假设对wan口是用了MASQUERADE模块
+		//range指定的ip地址为172.168.3.36
+		//这里先尝试使用原IP地址和端口是否可行
+		//这里192.168.18.100不在range指定的IP地址172.168.3.36范围内
 		if (in_range(l3proto, l4proto, orig_tuple, range)) {
+			//大多是情况下只有本机发出去数据包才会到达这里
+			//可行，检查该tuple是否冲突
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
+				//ok，tuple唯一
 				*tuple = *orig_tuple;
 				goto out;
 			}
+		//在ct.nat_bysource中选择是否可以映射到相同的源地址
+		//这样可以节约端口号
+		//就是说有相同的四层协议和源地址、源端口的映射表已经存在
+		//假设已经存在一个192.168.18.100：1008,TCP的映射
+		//其源地址映射到172.168.3.36:10088--->61.139.2.69:8080
+		//192.168.18.100:10088---------->61.139.2.69:80将会被映射到
+		//172.168.3.36:10088 ---------->61.139.2.69:80
+		//因为这里目的端口不一样
 		} else if (find_appropriate_src(net, zone, l3proto, l4proto,
 						orig_tuple, tuple, range)) {
 			pr_debug("get_unique_tuple: Found current src map\n");
+			//因为这里目的端口不同，tuple不会冲突，如果tuple冲突
+			//进入下面的流程
+			//tuple取反，看是否有冲突的tuple，
+			//61.139.2.69:80------->172.168.3.36:10088
+			//假设先前的链接192.168.18.110:10088---------->61.139.2.69:80
+			//被映射到了172.168.3.36:10088 ---------->61.139.2.69:80
+			//这个时候就会冲突了
+			//所以只有在目的地址或目的端口不同的情况下才可能做相同的映射
 			if (!nf_nat_used_tuple(tuple, ct))
 				goto out;
 		}
@@ -333,14 +366,18 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 	/* 2) Select the least-used IP/proto combination in the given range */
 	*tuple = *orig_tuple;
+	//选择一个合适的IP地址
 	find_best_ips_proto(zone, tuple, range, ct, maniptype);
 
 	/* 3) The per-protocol part of the manip is made to map into
 	 * the range to make a unique tuple.
 	 */
-
+	//下面就是根据L4协议选择合适的端口
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
+			//如果源端口恰好在指定范围内
+			//并且范围相等或者tuple不冲突
+			//NF_NAT_RANGE_PROTO_SPECIFIED 意思是需要检查端口是否在配置的范围内
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (l4proto->in_range(tuple, maniptype,
 					      &range->min_proto,
@@ -352,10 +389,15 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 			goto out;
 		}
 	}
-
+	//前面的尝试都失败，或者设置了NF_NAT_RANGE_PROTO_RANDOM_ALL标志
+	//则做随机化的端口选择
 	/* Last change: get protocol to try to obtain unique tuple. */
 	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
 out:
+	//最终可能生成的tuple并不是唯一的，但是我们已经尽力了
+	//对不是唯一的tuple，最终会在ipv4_confirm中丢弃该数据包
+	//所以这是NAT的坏处，如果是IPV6，每台设备的IP地址都不一样
+	//就不会出现这个情况
 	rcu_read_unlock();
 }
 
@@ -371,7 +413,10 @@ struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct)
 	return nat;
 }
 EXPORT_SYMBOL_GPL(nf_ct_nat_ext_add);
-
+//正常情况下，nf_nat_packet只会调用2次
+//nf_nat_setup_info最多也只调用2次
+//但是如果NAT模块返回了NF_REPEAT，则视情况
+//内核标准的NAT模块实现是不会这么做的
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
 		  const struct nf_nat_range *range,
@@ -395,18 +440,38 @@ nf_nat_setup_info(struct nf_conn *ct,
 	 * manipulations (future optimization: if num_manips == 0,
 	 * orig_tp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 	 */
+	 //转换的原则是始终都不更改ct IP_CT_DIR_ORIGINAL的值，只会更改IP_CT_DIR_REPLY的值
+	 //假设转换前ct中的tuple值为
+	//original:192.168.18.100:10088 ------->61.139.2.69:80
+	//replay:61.139.2.69:80---------->192.168.18.100:10088
+	//则curr_tuple：192.168.18.100:10088 ------->61.139.2.69:80
 	nf_ct_invert_tuplepr(&curr_tuple,
 			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-
+	//获取一个唯一的反向tuple，可能会出现tuple冲突
+	//在ipv4_confirm中会再次检查tuple的唯一性
+	//假设做了目的地址转换。则
+	//new_tuple:192.168.18.100:10088 ------->61.139.2.70:90
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {
 		struct nf_conntrack_tuple reply;
-
+	//正常情况下，NAT信息的设置都是在流首包完成的
+	//也就是说此刻conntrack未被加入到hash表中，是新建的conntrack
+	//该skb独占该conntrack，在conntrack被加入到全局hash表后
+	//不会再调用次函数，因为所需的NAT信息都已经建立完成
+	//这是内核NAT实现的规定
+	//不需要加锁，因为conntrack 还未加入hash表中，未被确认
+	//conntrack 处于unconfirm 链表中，是skb 独有的
+	//其他skb此刻不可能匹配到该conntrack
 		/* Alter conntrack table so will recognize replies. */
+		//reply：61.139.2.70:90---------->192.168.18.100:10088
 		nf_ct_invert_tuplepr(&reply, &new_tuple);
+		//ct->tuplehash[IP_CT_DIR_REPLY].tuple:61.139.2.70:90---------->192.168.18.100:10088
+		//以后reply的数据包在PREOUTING处不做转换，因为没设置IPS_SRC_NAT标志
+		//然后经过POSTROUTING时，设置了IPS_DST_NAT标志，要做SNAT转换
+		//返回数据包被修改为61.139.2.69:80---------->192.168.18.100:10088
 		nf_conntrack_alter_reply(ct, &reply);
-
+		//表示需要做NAT修改
 		/* Non-atomic: we own this at the moment. */
 		if (maniptype == NF_NAT_MANIP_SRC)
 			ct->status |= IPS_SRC_NAT;
@@ -422,6 +487,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 		srchash = hash_by_src(net, nf_ct_zone(ct),
 				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+		//因为nat扩展是内嵌于conntrack中的
+		//所以这里不需要增加引用计数
 		spin_lock_bh(&nf_nat_lock);
 		/* nf_conntrack_alter_reply might re-allocate extension aera */
 		nat = nfct_nat(ct);
@@ -430,7 +497,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 				   &net->ct.nat_bysource[srchash]);
 		spin_unlock_bh(&nf_nat_lock);
 	}
-
+	// 表示流头包已完成NAT 信息设置
+	// 后续跟该conntrack相关联的skb不再调用此函数
 	/* It's done. */
 	if (maniptype == NF_NAT_MANIP_DST)
 		ct->status |= IPS_DST_NAT_DONE;
@@ -459,7 +527,8 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 	};
 	return nf_nat_setup_info(ct, &range, manip);
 }
-
+//因为有的数据包做了NAT规则，有的没有
+//为了保证五元组的唯一性，要做空绑定
 unsigned int
 nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
@@ -467,6 +536,14 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
+//一个数据包要调用该函数2次
+//因为nat在四个规则点注册了NAT函数回调
+//假设是转发的数据包会先PREROUTING---------->FORWARDING----------->POSTROUTING
+//假设是到本机的包PREROUTING--------->LOCAL_IN
+//假设是本机发出的包LOCAL_OUT--------->POSTROUTING
+//因此始终会调用该函数2次
+//即使该数据包不需要做NAT转换
+//也必须经过该函数的检查
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
@@ -488,6 +565,7 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 	if (dir == IP_CT_DIR_REPLY)
 		statusbit ^= IPS_NAT_MASK;
 
+	//检查数据包是否需要做NAT转换
 	/* Non-atomic: these bits don't change. */
 	if (ct->status & statusbit) {
 		struct nf_conntrack_tuple target;

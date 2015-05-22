@@ -53,6 +53,10 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 	/* If no range specified... */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
 		/* If it's dst rewrite, can't change port */
+		//如果是目的端口选择
+		//这里是禁止的
+		//因为随机选择目的端口后
+		//对方可能根本就收不到数据包
 		if (maniptype == NF_NAT_MANIP_DST)
 			return;
 
@@ -69,6 +73,10 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 			min = 1024;
 			range_size = 65535 - 1024 + 1;
 		}
+	//但是这里可以随机选择目的端口
+	//这是因为这是用户自己选择的配置
+	//用户自己知道自己想干什么
+	//所以即便出错，也由用户自己负责
 	} else {
 		min = ntohs(range->min_proto.all);
 		range_size = ntohs(range->max_proto.all) - min + 1;
@@ -85,7 +93,10 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 	}
 
 	for (i = 0; ; ++off) {
+		//保证portptr在指定的范围内[min，min + range_size - 1]
 		*portptr = htons(min + off % range_size);
+		//尝试一定的次数，即便端口冲突了
+		//也只能尽力而为
 		if (++i != range_size && nf_nat_used_tuple(tuple, ct))
 			continue;
 		if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL))

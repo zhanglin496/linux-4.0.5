@@ -348,13 +348,14 @@ ipt_do_table(struct sk_buff *skb,
 		const struct xt_entry_match *ematch;
 
 		IP_NF_ASSERT(e);
+		//标准匹配
 		if (!ip_packet_match(ip, indev, outdev,
 		    &e->ip, acpar.fragoff)) {
  no_match:
 			e = ipt_next_entry(e);
 			continue;
 		}
-
+		//扩张匹配
 		xt_ematch_foreach(ematch, e) {
 			acpar.match     = ematch->u.kernel.match;
 			acpar.matchinfo = ematch->data;
@@ -374,6 +375,7 @@ ipt_do_table(struct sk_buff *skb,
 				     table->name, private, e);
 #endif
 		/* Standard target? */
+		//标准target，比如NF_ACCEPT, NF_DROP
 		if (!t->u.kernel.target->target) {
 			int v;
 
@@ -414,7 +416,7 @@ ipt_do_table(struct sk_buff *skb,
 
 		acpar.target   = t->u.kernel.target;
 		acpar.targinfo = t->data;
-
+		//自定义target
 		verdict = t->u.kernel.target->target(skb, &acpar);
 		/* Target might have changed stuff. */
 		ip = ip_hdr(skb);

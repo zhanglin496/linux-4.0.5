@@ -164,18 +164,29 @@ nf_ct_find_expectation(struct net *net, u16 zone,
 	 * know that the ct is being destroyed.  If it succeeds, we
 	 * can be sure the ct cannot disappear underneath.
 	 */
+	 //增加主链接引用计数、
+	 //因为持有锁nf_conntrack_expect_lock
+	 //即使ct超时，会调用nf_ct_remove_expectations，会阻塞
+	 //因此即使ct的引用计数为0，但是ct不会被释放
+	 //这里atomic_inc_not_zero检查到为0时，已经知道ct即将被释放
+	 //但是不能直接调用atomic_inc
+	 //因为ct可能已经在释放中
 	if (unlikely(nf_ct_is_dying(exp->master) ||
 		     !atomic_inc_not_zero(&exp->master->ct_general.use)))
 		return NULL;
 
 	if (exp->flags & NF_CT_EXPECT_PERMANENT) {
+		//不释放期待链接，递增引用计数
+		//此时为3
 		atomic_inc(&exp->use);
 		return exp;
 	} else if (del_timer(&exp->timeout)) {
+		//递减引用计数，此时为1
 		nf_ct_unlink_expect(exp);
 		return exp;
 	}
 	/* Undo exp->master refcnt increase, if del_timer() failed */
+	//期待链接已经超时
 	nf_ct_put(exp->master);
 
 	return NULL;
@@ -303,13 +314,13 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, unsigned int class,
 		exp->mask.src.u.all = 0;
 	}
 
-	memcpy(&exp->tuple.dst.u3, daddr, len); //����Ŀ�ĵ�ַ
+	memcpy(&exp->tuple.dst.u3, daddr, len); //复制目的地址
 	if (sizeof(exp->tuple.dst.u3) > len)
 		/* address needs to be cleared for nf_ct_tuple_equal */
 		memset((void *)&exp->tuple.dst.u3 + len, 0x00,
 		       sizeof(exp->tuple.dst.u3) - len);
 
-	exp->tuple.dst.u.all = *dst; //���ƶ˿ں�
+	exp->tuple.dst.u.all = *dst; //复制端口号
 
 #ifdef CONFIG_NF_NAT_NEEDED
 	memset(&exp->saved_addr, 0, sizeof(exp->saved_addr));
@@ -341,8 +352,11 @@ static int nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	unsigned int h = nf_ct_expect_dst_hash(&exp->tuple);
 
 	/* two references : one for hash insert, one for the timer */
+	//总的引用计数应该为3
 	atomic_add(2, &exp->use);
-
+	//加入主链接的链表中，
+	//主链接消失前，要释放和自己相关联的期待链接
+	//所以主链接必须记录哪些是与自己相关联的期待链接
 	hlist_add_head(&exp->lnode, &master_help->expectations);
 	master_help->expecting[exp->class]++;
 
