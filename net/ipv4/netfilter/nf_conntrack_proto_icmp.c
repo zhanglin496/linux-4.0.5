@@ -137,7 +137,8 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	u16 zone = tmpl ? nf_ct_zone(tmpl) : NF_CT_DEFAULT_ZONE;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
-
+	//ip 差错报文中包含了出错的IP首部以及L4的前8个字节
+	//所以这里能正确的匹配到原始的请求
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuplepr(skb,
 			       skb_network_offset(skb) + ip_hdrlen(skb)
