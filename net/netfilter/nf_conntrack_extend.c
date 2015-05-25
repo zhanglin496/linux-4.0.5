@@ -36,6 +36,12 @@ void __nf_ct_ext_destroy(struct nf_conn *ct)
 		 * I.e., it has responsible to cleanup private
 		 * area in all conntracks when it is unregisterd.
 		 */
+		 
+		//如果 ext 之前被注销，则由注销操作来释放所有
+		// conntrack跟扩展相关的资源，在大量conntrack的情况下
+		// 实际上最好不要动态注销，否则需要遍历所有的conntrack
+		//但是如果该扩展destroy函数和move函数为空的情况下
+		//动态注销没有问题
 		if (t && t->destroy)
 			t->destroy(ct);
 		rcu_read_unlock();
