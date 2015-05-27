@@ -122,6 +122,7 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 
 	new->offset[id] = newoff;
 	new->len = newlen;
+	//清零新分配的扩展区
 	memset((void *)new + newoff, 0, newlen - newoff);
 	return (void *)new + newoff;
 }
