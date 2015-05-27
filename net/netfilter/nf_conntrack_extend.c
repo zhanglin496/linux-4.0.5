@@ -134,6 +134,12 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 	enum nf_ct_ext_id min = 0, max = NF_CT_EXT_NUM - 1;
 
 	/* unnecessary to update all types */
+	//如果没指定NF_CT_EXT_F_PREALLOC
+	//则不需要更新所有已经注册type的alloc_size大小
+	//否则的话，会更新所有已注册type的alloc_size，在添加扩展的时候，
+	//就会一次性分配所有已经注册type所需总的扩展空间，
+	//这样添加扩展的时候就不需要在重新分配空间，因为空间已经提前分配好了
+	//好处是可以避免realloc，坏处是可能会浪费空间
 	if ((type->flags & NF_CT_EXT_F_PREALLOC) == 0) {
 		min = type->id;
 		max = type->id;
