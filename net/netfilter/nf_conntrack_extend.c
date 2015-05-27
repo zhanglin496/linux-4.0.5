@@ -150,6 +150,7 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 	for (i = min; i <= max; i++) {
 		t1 = rcu_dereference_protected(nf_ct_ext_types[i],
 				lockdep_is_held(&nf_ct_ext_type_mutex));
+		//可能扩展类型还没有注册
 		if (!t1)
 			continue;
 
@@ -158,6 +159,8 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 		for (j = 0; j < NF_CT_EXT_NUM; j++) {
 			t2 = rcu_dereference_protected(nf_ct_ext_types[j],
 				lockdep_is_held(&nf_ct_ext_type_mutex));
+			//t2没设置NF_CT_EXT_F_PREALLOC标志，也不会更新alloc_size
+			//目前只有nat_extend设置了该标志
 			if (t2 == NULL || t2 == t1 ||
 			    (t2->flags & NF_CT_EXT_F_PREALLOC) == 0)
 				continue;
