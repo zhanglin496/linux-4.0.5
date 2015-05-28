@@ -1577,17 +1577,22 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	 * plus 128 bytes for future expansions. If we have enough
 	 * room at tail, reallocate without expansion only if skb is cloned.
 	 */
+	 //计算要写的数据是否超出end了
 	int i, k, eat = (skb->tail + delta) - skb->end;
 
+	//如果已经超出，则必须重新分配线性数据区所需要的buffer
 	if (eat > 0 || skb_cloned(skb)) {
+		//如果skb是clone的
 		if (pskb_expand_head(skb, 0, eat > 0 ? eat + 128 : 0,
 				     GFP_ATOMIC))
 			return NULL;
 	}
-
+	//拷贝delta数据到tailroom中，保证要的写的数据都在
+	//线性数据区中
 	if (skb_copy_bits(skb, skb_headlen(skb), skb_tail_pointer(skb), delta))
 		BUG();
 
+	//后面要调整非线性数据区，因为从非线性数据区中拷贝了一部分数据到线性数据区
 	/* Optimization: no fragments, no reasons to preestimate
 	 * size of pulled pages. Superb.
 	 */
