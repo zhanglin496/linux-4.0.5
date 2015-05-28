@@ -202,7 +202,9 @@ next_hook:
 }
 EXPORT_SYMBOL(nf_hook_slow);
 
-
+//保证在skb data后面必定有writable_len可写字节，
+//writable_len在线性数据区中
+//调用该函数的默认前提是该skb不是共享的,也就是说skb->user的计数必须是1
 int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 {
 	if (writable_len > skb->len)
@@ -210,16 +212,20 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 
 	/* Not exclusive use of packet?  Must copy. */
 	if (!skb_cloned(skb)) {
+		//非clone的数据包，如果线性区的长度足够
+		//数据包可以直接修改
 		if (writable_len <= skb_headlen(skb))
 			return 1;
-	} else if (skb_clone_writable(skb, writable_len))
+	} else if (skb_clone_writable(skb, writable_len)) //这里没看懂
 		return 1;
 
+	//计算实际要在tail后面加多少空间
 	if (writable_len <= skb_headlen(skb))
 		writable_len = 0;
 	else
 		writable_len -= skb_headlen(skb);
-
+	//可能会更改skb中的指针，保证在线性数据区skb->tail后面有足够的空间可写，
+	//当然原始skb必须存在writable_len个字节可以拷贝
 	return !!__pskb_pull_tail(skb, writable_len);
 }
 EXPORT_SYMBOL(skb_make_writable);
