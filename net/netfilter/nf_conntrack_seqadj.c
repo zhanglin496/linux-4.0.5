@@ -47,8 +47,12 @@ int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 	this_way = &seqadj->seq[dir];
 	if (this_way->offset_before == this_way->offset_after ||
 	    before(this_way->correction_pos, ntohl(seq))) {
+	   	//如果before为真，表示序列号可能回绕了
+	    	//记录当前位置序列号
 		this_way->correction_pos = ntohl(seq);
+		//相对于correction_pos的before偏移
 		this_way->offset_before	 = this_way->offset_after;
+		//相对于correction_pos的after偏移
 		this_way->offset_after	+= off;
 	}
 	spin_unlock_bh(&ct->lock);
@@ -179,11 +183,13 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 
 	tcph = (void *)skb->data + protoff;
 	spin_lock_bh(&ct->lock);
+	//必须检查序列号是否需要调整，TCP包达到的次序是不可控的
+	//如果是后续的包先到达，可能需要更改序列号的值
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		seqoff = this_way->offset_after;
 	else
 		seqoff = this_way->offset_before;
-
+	//调整ack的值
 	if (after(ntohl(tcph->ack_seq) - other_way->offset_before,
 		  other_way->correction_pos))
 		ackoff = other_way->offset_after;
@@ -191,6 +197,8 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 		ackoff = other_way->offset_before;
 
 	newseq = htonl(ntohl(tcph->seq) + seqoff);
+	//这里是减去ackoff，对原client来说，
+	//如果增加了payload长度，对于响应包要减去相应的offset
 	newack = htonl(ntohl(tcph->ack_seq) - ackoff);
 
 	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, 0);
