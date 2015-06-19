@@ -920,7 +920,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		nfct_seqadj_ext_add(ct);
 		nfct_synproxy_ext_add(ct);
 	}
-
+	//模板是否设置了超时扩展
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
 	if (timeout_ext)
 		timeouts = NF_CT_TIMEOUT_EXT_DATA(timeout_ext);
@@ -964,7 +964,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 				if (help)
 					rcu_assign_pointer(help->helper, exp->helper);
 			}
-
+			//设置为和主连接同样的标记
 #ifdef CONFIG_NF_CONNTRACK_MARK
 			ct->mark = exp->master->mark;
 #endif
@@ -987,7 +987,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	local_bh_enable();
 
 	if (exp) {
-		// nf_nat_follow_master,期待链接必须和主链接做相同的NAT装换
+		// nf_nat_follow_master,期待链接必须和主链接做相同的NAT转换
 		// 否则无法正常通信
 		if (exp->expectfn)
 			exp->expectfn(ct, exp);
