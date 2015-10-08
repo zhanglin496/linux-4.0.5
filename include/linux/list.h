@@ -128,7 +128,11 @@ static inline void list_replace(struct list_head *old,
 	new->prev = old->prev;
 	new->prev->next = new;
 }
-
+//old:A<->B<->C
+//new1:D<->E<->F
+//连接后，注意E<->F会丢失
+//old:A
+//new1:D<->B<->C
 static inline void list_replace_init(struct list_head *old,
 					struct list_head *new)
 {
@@ -285,6 +289,11 @@ static inline void __list_splice(const struct list_head *list,
 	next->prev = last;
 }
 
+//list:A<->B<->C
+//head:D<->E<->F
+//连接后
+//list:A
+//head:D<->B<->C<->E<->F
 /**
  * list_splice - join two lists, this is designed for stacks
  * @list: the new list to add.
