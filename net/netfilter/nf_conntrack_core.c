@@ -1083,7 +1083,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		}
 		skb->nfct = NULL;
 	}
-
+	
 	/* rcu_read_lock()ed by nf_hook_slow */
 	l3proto = __nf_ct_l3proto_find(pf);
 	ret = l3proto->get_l4proto(skb, skb_network_offset(skb),
@@ -1097,7 +1097,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	}
 
 	l4proto = __nf_ct_l4proto_find(pf, protonum);
-
+	//udp_error 和 tcp_error函数
+	//tcp_error会对tcp标组合做合法性检查
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
@@ -1135,7 +1136,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 	/* Decide what timeout policy we want to apply to this flow. */
 	timeouts = nf_ct_timeout_lookup(net, ct, l4proto);
-
+	
+	//udp_packet 和  tcp_packet
+	//tcp_packet会做状态检查和序列号检查，重传检查等
 	ret = l4proto->packet(ct, skb, dataoff, ctinfo, pf, hooknum, timeouts);
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
