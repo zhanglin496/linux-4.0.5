@@ -592,6 +592,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		   || (state->state == TCP_CONNTRACK_SYN_RECV
 		     && dir == IP_CT_DIR_REPLY))
 		   && after(end, sender->td_end)) {
+		//对于重发的syn报文，如果end大于sender->td_end
+		//表示在重新建立连接
 		/*
 		 * RFC 793: "if a TCP is reinitialized ... then it need
 		 * not wait at all; it must only be sure to use sequence
@@ -635,7 +637,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 sender->td_scale,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		 receiver->td_scale);
-
+	
+	//下面确认seq和ack的合法性
 	/* Is the ending sequence in the receive window (if available)? */
 	in_recv_win = !receiver->td_maxwin ||
 		      after(end, sender->td_end - receiver->td_maxwin - 1);
@@ -646,9 +649,14 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 before(sack, receiver->td_end + 1),
 		 after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1));
 
-	if (before(seq, sender->td_maxend + 1) &&
+	if (
+	//序列号上限
+	before(seq, sender->td_maxend + 1) &&
 	    in_recv_win &&
+		// 发送方的确认序列号上限
+	    	//发送方的确认序列号不能超过接收发已发送的数据的结束序列号
 	    before(sack, receiver->td_end + 1) &&
+	    //发送方的确认序列号下限
 	    after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1)) {
 		/*
 		 * Take into account window scaling (RFC 1323).
@@ -680,10 +688,16 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		if (receiver->td_maxwin != 0 && after(end, sender->td_maxend))
 			receiver->td_maxwin += end - sender->td_maxend;
 		if (after(sack + win, receiver->td_maxend - 1)) {
+			//更新接收方的最大结束序列号
+			//接受方发送的数据起始序列号应在发送方
+			//[ACK, sack + win) 范围内，因为这是发送发的
+			//通告窗口决定的
 			receiver->td_maxend = sack + win;
 			if (win == 0)
 				receiver->td_maxend++;
 		}
+		//如果ack等于接收方的结束序列号，说明所有数据已确认收到
+		//去除数据未确认标记
 		if (ack == receiver->td_end)
 			receiver->flags &= ~IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED;
 
@@ -709,6 +723,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		res = true;
 	} else {
 		res = false;
+		//对非法包的缺省策略,默认为0
+		// /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_be_liberal
 		if (sender->flags & IP_CT_TCP_FLAG_BE_LIBERAL ||
 		    tn->tcp_be_liberal)
 			res = true;
