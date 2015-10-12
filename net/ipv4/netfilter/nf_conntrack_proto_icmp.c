@@ -168,11 +168,16 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
-
+	
+//icmp 错误消息应该是和一个已经建立的conntrack 相关联的
+//
 	*ctinfo = IP_CT_RELATED;
 
 	h = nf_conntrack_find_get(net, zone, &innertuple);
 	if (!h) {
+		//若果没找到，不为该数据包关联conntrack
+		//则该数据包将成为一个游离的数据包
+		//在NAT开启情况下是不会到达最终目的地
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}
