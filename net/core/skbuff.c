@@ -197,6 +197,7 @@ out:
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
+  //分配skb描述符对象以及size字节相关的数据区域
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 			    int flags, int node)
 {
@@ -980,7 +981,9 @@ EXPORT_SYMBOL_GPL(skb_copy_ubufs);
  *	If this function is called from an interrupt gfp_mask() must be
  *	%GFP_ATOMIC.
  */
-
+//克隆一个skb对象，但是数据区域是共享的
+//克隆后skb对象可以修改，但是共享的数据区域不能修改
+//因为有多个skb共享该数据区域
 struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	struct sk_buff_fclones *fclones = container_of(skb,
@@ -1058,10 +1061,12 @@ static inline int skb_alloc_rx_flag(const struct sk_buff *skb)
  *	function is not recommended for use in circumstances when only
  *	header is going to be modified. Use pskb_copy() instead.
  */
-
+//拷贝skb对象以及所有的数据区域
 struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 {
 	int headerlen = skb_headroom(skb);
+	//重新分配的大小为原有线性数据区域和非线性数据区域
+	//拷贝后新的skb 数据区域都是线性存储的
 	unsigned int size = skb_end_offset(skb) + skb->data_len;
 	struct sk_buff *n = __alloc_skb(size, gfp_mask,
 					skb_alloc_rx_flag(skb), NUMA_NO_NODE);
@@ -1073,7 +1078,8 @@ struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 	skb_reserve(n, headerlen);
 	/* Set the tail pointer and length */
 	skb_put(n, skb->len);
-
+	//这里要拷贝headroom，因为skb_copy_bits是从skb->data处开始拷贝，
+	//所以为-headerlen
 	if (skb_copy_bits(skb, -headerlen, n->head, headerlen + skb->len))
 		BUG();
 
@@ -1161,12 +1167,16 @@ EXPORT_SYMBOL(__pskb_copy_fclone);
  *	All the pointers pointing into skb header may change and must be
  *	reloaded after call to this function.
  */
-
+//skb的引用计数必须是1
+//原因是要修改skb对象
+//这里不会重新分配skb对象
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		     gfp_t gfp_mask)
 {
 	int i;
 	u8 *data;
+	//计数需要分配的大小
+	//分配大小为原有的线性数据区域加上headroon和tailroom
 	int size = nhead + skb_end_offset(skb) + ntail;
 	long off;
 
@@ -1179,6 +1189,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 	if (skb_pfmemalloc(skb))
 		gfp_mask |= __GFP_MEMALLOC;
+	//重新分配数据区域
 	data = kmalloc_reserve(size + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
 			       gfp_mask, NUMA_NO_NODE, NULL);
 	if (!data)
@@ -1208,12 +1219,14 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 		if (skb_has_frag_list(skb))
 			skb_clone_fraglist(skb);
-
+	//递减非线性数据区引用计数，同时释放skb->head原有的数据区域
+	//非线性数据区域不会释放，因为增加了引用计数
 		skb_release_data(skb);
 	} else {
 		skb_free_head(skb);
 	}
 	off = (data + nhead) - skb->head;
+	//重新设置skb对象的相关成员
 
 	skb->head     = data;
 	skb->head_frag = 0;
@@ -1278,6 +1291,7 @@ EXPORT_SYMBOL(skb_realloc_headroom);
  *	You must pass %GFP_ATOMIC as the allocation priority if this function
  *	is called from an interrupt.
  */
+  //类似于skb_copy, 但是可以增加headroom和tailroom
 struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				int newheadroom, int newtailroom,
 				gfp_t gfp_mask)
@@ -1397,6 +1411,7 @@ EXPORT_SYMBOL_GPL(pskb_put);
  *	exceed the total buffer size the kernel will panic. A pointer to the
  *	first byte of the extra data is returned.
  */
+  //在skb->tail出添加len字节
 unsigned char *skb_put(struct sk_buff *skb, unsigned int len)
 {
 	unsigned char *tmp = skb_tail_pointer(skb);
@@ -1418,6 +1433,7 @@ EXPORT_SYMBOL(skb_put);
  *	start. If this would exceed the total buffer headroom the kernel will
  *	panic. A pointer to the first byte of the extra data is returned.
  */
+  //在skb->data 前添加len字节
 unsigned char *skb_push(struct sk_buff *skb, unsigned int len)
 {
 	skb->data -= len;
@@ -1438,6 +1454,7 @@ EXPORT_SYMBOL(skb_push);
  *	is returned. Once the data has been pulled future pushes will overwrite
  *	the old data.
  */
+  //在在skb->data 后移除len字节
 unsigned char *skb_pull(struct sk_buff *skb, unsigned int len)
 {
 	return skb_pull_inline(skb, len);
@@ -1453,6 +1470,8 @@ EXPORT_SYMBOL(skb_pull);
  *	the buffer is already under the length specified it is not modified.
  *	The skb must be linear.
  */
+  //切断skb为len字节
+ //要求skb为线性skb
 void skb_trim(struct sk_buff *skb, unsigned int len)
 {
 	if (skb->len > len)
@@ -1462,7 +1481,9 @@ EXPORT_SYMBOL(skb_trim);
 
 /* Trims skb to length len. It can change skb pointers.
  */
-
+//切断skb为len字节
+//可以处理非线性skb
+//要求skb的引用计数为1
 int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 {
 	struct sk_buff **fragp;
@@ -1708,6 +1729,7 @@ EXPORT_SYMBOL(__pskb_pull_tail);
  *		check arch/{*}/net/{*}.S files,
  *		since it is called from BPF assembly code.
  */
+ //从skb中的数据区域拷贝len字节数据到to中
 int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 {
 	int start = skb_headlen(skb);
@@ -1718,6 +1740,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		goto fault;
 
 	/* Copy header. */
+	//从skb->data的offset处拷贝
 	if ((copy = start - offset) > 0) {
 		if (copy > len)
 			copy = len;
@@ -1727,7 +1750,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		offset += copy;
 		to     += copy;
 	}
-
+	//从非线性数据区域中拷贝
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
