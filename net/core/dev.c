@@ -3416,6 +3416,9 @@ EXPORT_SYMBOL(netif_rx_ni);
 static void net_tx_action(struct softirq_action *h)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
+//释放已经完成发送的skb
+//由dev_kfree_skb_irq将数据包加入到completion_queue队列
+//在中断中调用该接口释放skb时，可以降低中断延迟
 
 	if (sd->completion_queue) {
 		struct sk_buff *clist;
