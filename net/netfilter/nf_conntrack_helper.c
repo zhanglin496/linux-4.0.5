@@ -456,6 +456,9 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
 
+//struct hlist_head expectations 虽然在重新分配扩展区时，first变量的地址会发生变化
+//但是由于helper函数的执行在hook点(NF_IP_PRI_CONNTRACK_CONFIRM)靠后的位置，不会再出现重新分配的情况
+//因此这里不需要move函数
 static struct nf_ct_ext_type helper_extend __read_mostly = {
 	.len	= sizeof(struct nf_conn_help),
 	.align	= __alignof__(struct nf_conn_help),
