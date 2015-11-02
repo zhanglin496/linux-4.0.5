@@ -1062,6 +1062,7 @@ static inline int skb_alloc_rx_flag(const struct sk_buff *skb)
  *	header is going to be modified. Use pskb_copy() instead.
  */
 //拷贝skb对象以及所有的数据区域
+//拷贝后skb是线性的
 struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 {
 	int headerlen = skb_headroom(skb);
@@ -1602,6 +1603,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	int i, k, eat = (skb->tail + delta) - skb->end;
 
 	//如果已经超出，则必须重新分配线性数据区所需要的buffer
+	//或者skb是clone的，也必须重新分配
 	if (eat > 0 || skb_cloned(skb)) {
 		//如果skb是clone的
 		if (pskb_expand_head(skb, 0, eat > 0 ? eat + 128 : 0,
@@ -1735,7 +1737,8 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 	int start = skb_headlen(skb);
 	struct sk_buff *frag_iter;
 	int i, copy;
-
+	
+	//可以设置的偏移量最大值
 	if (offset > (int)skb->len - len)
 		goto fault;
 
@@ -2019,7 +2022,7 @@ done:
  *	destination skb.  This function handles all the messy bits of
  *	traversing fragment lists and such.
  */
-
+// 相对于skb->data的offset 处开始存储数据
 int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 {
 	int start = skb_headlen(skb);
