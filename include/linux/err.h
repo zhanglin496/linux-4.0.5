@@ -17,7 +17,9 @@
 #define MAX_ERRNO	4095
 
 #ifndef __ASSEMBLY__
-
+//-4095 == 0xFFFFF001
+//linux 保留4KB的空间未使用，因此成功分配的空间不会落入此范围
+//所以这里可以使用把负数编码为对应的指针
 #define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)
 
 static inline void * __must_check ERR_PTR(long error)
