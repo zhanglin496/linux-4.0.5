@@ -205,6 +205,10 @@ EXPORT_SYMBOL(nf_hook_slow);
 //保证在skb data后面必定有writable_len可写字节，
 //writable_len在线性数据区中
 //调用该函数的默认前提是该skb不是共享的,也就是说skb->user的计数必须是1
+//这里可写的意思是
+// 1、保证writable_len字节在线性区域中
+// 2、skb线性数据区不是共享的，可以修改
+// 3、传入的skb->users 引用计数必须是1
 int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 {
 	if (writable_len > skb->len)
