@@ -1788,7 +1788,9 @@ local_input:
 	//这意味着如果do_cache为true，则不会释放rth，
 	//1、后续的数据包如果一直命中该缓存，则除非刷新缓存表，否则缓存不会失效
 	//2、路由表刷新，引起缓存失效，在下一个数据包到来时，会释放旧的缓存
-	//
+	//skb_dst_drop会检查skb->_skb_refdst是否设置了SKB_DST_NOREF
+	//如果设置了，表示当前数据包没有对dst递增引用计数，因此不会调用dst_release
+	//否则会调用dst_release来释放
 	rth = rt_dst_alloc(net->loopback_dev,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, do_cache);
 	if (!rth)
