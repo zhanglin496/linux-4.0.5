@@ -1314,8 +1314,14 @@ static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 		p = (struct rtable **)raw_cpu_ptr(nh->nh_pcpu_rth_output);
 	}
 	orig = *p;
+	//cmpxchg(void *ptr, unsigned long old, unsigned long new);
+	//函数完成的功能是：将old和ptr指向的内容比较，如果相等，
+	//则将new写入到ptr中，返回old，如果不相等，则返回ptr指向的内容。
+	//如果同时有人改动*p，会缓存失败
+	//这是个原子操作
 
 	prev = cmpxchg(p, orig, rt);
+	//缓存成功
 	if (prev == orig) {
 		if (orig)
 			rt_free(orig);
