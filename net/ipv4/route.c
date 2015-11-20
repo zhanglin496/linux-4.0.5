@@ -1676,7 +1676,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	bool do_cache;
 
 	/* IP on this device is disabled. */
-
+	//没有配置IP地址时，丢弃数据包
 	if (!in_dev)
 		goto out;
 
@@ -1750,6 +1750,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 out:	return err;
 
 brd_input:
+	//目的地址是广播地址时，不需要路由查找，res.fi=NULL
+	//不缓存rth
 	if (skb->protocol != htons(ETH_P_IP))
 		goto e_inval;
 
@@ -1768,11 +1770,16 @@ local_input:
 	if (res.fi) {
 		if (!itag) {
 			rth = rcu_dereference(FIB_RES_NH(res).nh_rth_input);
+			//fb_nh中是否有上次缓存的结果
+			//如果有的话，看是否可以使用
 			if (rt_cache_valid(rth)) {
+				//不增加rth的引用计数
+				//只是指针赋值，并打上标记SKB_DST_NOREF
 				skb_dst_set_noref(skb, &rth->dst);
 				err = 0;
 				goto out;
 			}
+			//缓存失效
 			do_cache = true;
 		}
 	}
@@ -1787,6 +1794,8 @@ local_input:
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
+	//当rt_genid_ipv4的值不等于记录的rt_genid时，表示路由有变化，
+	//此时缓存失效，rt_genid可以理解为当前的路由结果id号
 
 	rth->rt_genid = rt_genid_ipv4(net);
 	rth->rt_flags 	= flags|RTCF_LOCAL;
@@ -1804,11 +1813,14 @@ local_input:
 		rth->rt_flags 	&= ~RTCF_LOCAL;
 	}
 	if (do_cache) {
+		//记录缓存rth到fib_nh结构中
+		//下一次路由查找如果命中，可以直接使用fib_nn中记录的rth
 		if (unlikely(!rt_cache_route(&FIB_RES_NH(res), rth))) {
 			rth->dst.flags |= DST_NOCACHE;
 			rt_add_uncached_list(rth);
 		}
 	}
+	//rth的引用计数为1
 	skb_dst_set(skb, &rth->dst);
 	err = 0;
 	goto out;
