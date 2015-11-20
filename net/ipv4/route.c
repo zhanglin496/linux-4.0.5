@@ -1779,11 +1779,16 @@ local_input:
 				err = 0;
 				goto out;
 			}
-			//缓存失效
+			//缓存失效,旧的缓存在rt_cache_route中释放
 			do_cache = true;
 		}
 	}
-
+	//do_cache为true时，不会设置dst->flags标志DST_NOCACHE，在dst_release中不会释放rth，而是在rt_cache_route中释放旧的rth
+	//do_cache为false时，会设置dst->flags标志DST_NOCACHE，在dst_release中释放rth
+	//这意味着如果do_cache为true，则不会释放rth，
+	//1、后续的数据包如果一直命中该缓存，则除非刷新缓存表，否则缓存不会失效
+	//2、路由表刷新，引起缓存失效，在下一个数据包到来时，会释放旧的缓存
+	//
 	rth = rt_dst_alloc(net->loopback_dev,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, do_cache);
 	if (!rth)
