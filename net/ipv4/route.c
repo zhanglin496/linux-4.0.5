@@ -1678,6 +1678,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	/* IP on this device is disabled. */
 	//没有配置in_device，丢弃数据包
 	//如果是需要转发的数据包，可以不用配置IP地址，也就是说in_dev->ifa_list可以等于NULL
+	//in_device 结构在inetdev_init中分配
 	if (!in_dev)
 		goto out;
 
@@ -1774,6 +1775,9 @@ local_input:
 			rth = rcu_dereference(FIB_RES_NH(res).nh_rth_input);
 			//fb_nh中是否有上次缓存的结果
 			//如果有的话，看是否可以使用
+			//对于一条持续长时间的数据流
+			//可以避免频繁的分配rth结构来记录查找结果
+
 			if (rt_cache_valid(rth)) {
 				//不增加rth的引用计数
 				//只是指针赋值，并打上标记SKB_DST_NOREF
@@ -1785,6 +1789,7 @@ local_input:
 			do_cache = true;
 		}
 	}
+	//分配rth结构记录路由查找结果
 	//do_cache为true时，不会设置dst->flags标志DST_NOCACHE，在dst_release中不会释放rth，而是在rt_cache_route中释放旧的rth
 	//do_cache为false时，会设置dst->flags标志DST_NOCACHE，在dst_release中释放rth
 	//这意味着如果do_cache为true，则不会释放rth，
