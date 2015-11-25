@@ -247,7 +247,9 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	struct flowi4 fl4;
 	struct net *net;
 	bool dev_match;
-
+	//交换源目的地址
+	//能否找到从dst到src的路由
+	//即反向路由是否存在
 	fl4.flowi4_oif = 0;
 	fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
@@ -272,6 +274,8 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	dev_match = false;
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
+	//若果存在多路径路由，遍历下一跳
+	//看是否有相同的dev
 	for (ret = 0; ret < res.fi->fib_nhs; ret++) {
 		struct fib_nh *nh = &res.fi->fib_nh[ret];
 
@@ -281,6 +285,8 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		}
 	}
 #else
+	//入口设备和出口设备是否相同
+	//即来回路径是否一致
 	if (FIB_RES_DEV(res) == dev)
 		dev_match = true;
 #endif
@@ -288,8 +294,12 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
 		return ret;
 	}
+	//没有配置IP地址
 	if (no_addr)
 		goto last_resort;
+		
+	///proc/sys/net/ipv4/conf/all/rp_filter
+        //表示对于路径来回不一致的数据包是否要丢弃
 	if (rpf == 1)
 		goto e_rpf;
 	fl4.flowi4_oif = dev->ifindex;
