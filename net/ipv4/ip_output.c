@@ -264,7 +264,11 @@ static int ip_finish_output(struct sk_buff *skb)
 #endif
 	if (skb_is_gso(skb))
 		return ip_finish_output_gso(skb);
-
+		
+	//这里skb的长度不包括L2的长度
+	//假设mtu为1500,则整个IP包的长度为1500
+	//负载长度为1500 - 20(IP首部) - 20(TCP首部) =1460
+	//mtu这里指的是ip总长度
 	if (skb->len > ip_skb_dst_mtu(skb))
 		return ip_fragment(skb, ip_finish_output2);
 
