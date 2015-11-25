@@ -1727,7 +1727,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			err = -EHOSTUNREACH;
 		goto no_route;
 	}
-
+	//路由查找成功，res.fi不为NULL
 	if (res.type == RTN_BROADCAST)
 		goto brd_input;
 
@@ -1768,6 +1768,7 @@ brd_input:
 local_input:
 	do_cache = false;
 	if (res.fi) {
+		//itag为0，看能否是用缓存的rth
 		if (!itag) {
 			rth = rcu_dereference(FIB_RES_NH(res).nh_rth_input);
 			//fb_nh中是否有上次缓存的结果
