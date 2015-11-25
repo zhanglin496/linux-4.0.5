@@ -1828,6 +1828,10 @@ local_input:
 		}
 	}
 	//rth的引用计数为1
+	//第一次创建rth，未设置SKB_DST_NOREF，
+	//skb释放时会调用skb_dst_drop递减引用计数，
+	//但是不会释放rth，因为未设置DST_NOCACHE
+	//此时该rth的释放工作由rt_cache_route来完成
 	skb_dst_set(skb, &rth->dst);
 	err = 0;
 	goto out;
