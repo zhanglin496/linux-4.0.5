@@ -1572,6 +1572,10 @@ static int __mkroute_input(struct sk_buff *skb,
 	}
 
 	do_cache = res->fi && !itag;
+	//如果入口和出口设备相同
+	//表示发送方和接收方是可以直接到达的
+	//不需要路由器参与转发，同时设置重定向标志
+	//在ip_forward中发送ICMP重定向报文
 	if (out_dev == in_dev && err && IN_DEV_TX_REDIRECTS(out_dev) &&
 	    skb->protocol == htons(ETH_P_IP) &&
 	    (IN_DEV_SHARED_MEDIA(out_dev) ||
@@ -1592,7 +1596,7 @@ static int __mkroute_input(struct sk_buff *skb,
 			goto cleanup;
 		}
 	}
-
+	//先匹配下一跳异常表
 	fnhe = find_exception(&FIB_RES_NH(*res), daddr);
 	if (do_cache) {
 		if (fnhe != NULL)
@@ -1605,7 +1609,9 @@ static int __mkroute_input(struct sk_buff *skb,
 			goto out;
 		}
 	}
-
+	
+	//下面分配rtable记录路由结果
+	//out_dev->dev 是根据路由结果获取的出口网络设备
 	rth = rt_dst_alloc(out_dev->dev,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
 			   IN_DEV_CONF_GET(out_dev, NOXFRM), do_cache);
@@ -1629,6 +1635,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.output = ip_output;
 
 	rt_set_nexthop(rth, daddr, res, fnhe, res->fi, res->type, itag);
+	//将路由结果记录到skb上
 	skb_dst_set(skb, &rth->dst);
 out:
 	err = 0;
