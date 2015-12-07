@@ -94,10 +94,23 @@ typedef unsigned int t_key;
 #define get_index(_key, _kv) (((_key) ^ (_kv)->key) >> (_kv)->pos)
 
 struct tnode {
+	//存储的是IP地址前缀
+	//ip地址和掩码的与,ie.
+	//172.168.3.36 & 255.255.255.0 = 172.168.3.0
 	t_key key;
+	//pos指示从最低有效位哪一位开始检测
+	//pos=8表示最低8位相同，从第9位开始检测
+	//pos表示从最低有效位开始相同的位数长度
+	//bits指示了孩子结点数组
+	//这个字段指出表示这个节点的孩子节点的位数
+	//表示孩子的个数2^bits
+	//bits=0表示为叶子节点
+
 	unsigned char bits;		/* 2log(KEYLENGTH) bits needed */
 	unsigned char pos;		/* 2log(KEYLENGTH) bits needed */
+	//list 列表中后缀长度的最大值
 	unsigned char slen;
+	//指向父节点
 	struct tnode __rcu *parent;
 	struct rcu_head rcu;
 	union {
@@ -112,10 +125,15 @@ struct tnode {
 	};
 };
 
+//叶子节点
 struct leaf_info {
+	//链接到tnode的list 表中
 	struct hlist_node hlist;
+	//掩码长度
 	int plen;
+	//掩码值，根据plen计算得到
 	u32 mask_plen; /* ntohl(inet_make_mask(plen)) */
+	//链接匹配的struct fib_alias 
 	struct list_head falh;
 	struct rcu_head rcu;
 };
@@ -1312,7 +1330,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 	struct tnode *n, *pn;
 	struct leaf_info *li;
 	t_key cindex;
-
+	 //从根节点开始
 	n = rcu_dereference(t->trie);
 	if (!n)
 		return -EAGAIN;
@@ -1348,11 +1366,12 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		/* only record pn and cindex if we are going to be chopping
 		 * bits later.  Otherwise we are just wasting cycles.
 		 */
+		  //后缀长度大于相同的bit位
 		if (n->slen > n->pos) {
 			pn = n;
 			cindex = index;
 		}
-
+		//如果孩子节点为空，表明需要回溯
 		n = tnode_get_child_rcu(n, index);
 		if (unlikely(!n))
 			goto backtrace;
@@ -1402,7 +1421,7 @@ backtrace:
 				/* Get Child's index */
 				cindex = get_index(pkey, pn);
 			}
-
+			//消除cindex最低有效位为1的bit
 			/* strip the least significant bit from the cindex */
 			cindex &= cindex - 1;
 
@@ -1415,6 +1434,8 @@ found:
 	/* Step 3: Process the leaf, if that fails fall back to backtracing */
 	hlist_for_each_entry_rcu(li, &n->list, hlist) {
 		struct fib_alias *fa;
+		//比较prefix 的key是否相等
+		//默认路由的掩码长度为0，掩码值也为0 
 
 		if ((key ^ n->key) & li->mask_plen)
 			continue;
@@ -1427,6 +1448,10 @@ found:
 				continue;
 			if (fi->fib_dead)
 				continue;
+			//大于等于指定的范围，表示更接近目的地
+			//if(fa->fa_info->fib_scope >= flp->flowi4_scope)
+			// 	go on;
+
 			if (fa->fa_info->fib_scope < flp->flowi4_scope)
 				continue;
 			fib_alias_accessed(fa);
@@ -1437,8 +1462,11 @@ found:
 #endif
 				return err;
 			}
+			//路由已经失效
 			if (fi->fib_flags & RTNH_F_DEAD)
 				continue;
+				
+			//在多个下一跳中选择一个
 			for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
 				const struct fib_nh *nh = &fi->fib_nh[nhsel];
 
