@@ -249,11 +249,15 @@ int __fib_lookup(struct net *net, struct flowi4 *flp, struct fib_result *res);
 static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res)
 {
+	//检查是否改变了系统初始的三张路由表
+	//也就是检查是否有自定义规则
 	if (!net->ipv4.fib_has_custom_rules) {
 		int err = -ENETUNREACH;
 
 		rcu_read_lock();
-
+		
+		//通过以目的地址和tos为key来查找路由
+		//和策略路由本质不同的地方就是使用的关键字不一样
 		res->tclassid = 0;
 		if ((net->ipv4.fib_local &&
 		     !fib_table_lookup(net->ipv4.fib_local, flp, res,
@@ -270,6 +274,8 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 
 		return err;
 	}
+	//策略路由查找，实际上是使用多个关键字来匹配路由
+	//比如源地址、目的地址、mark等
 	return __fib_lookup(net, flp, res);
 }
 
