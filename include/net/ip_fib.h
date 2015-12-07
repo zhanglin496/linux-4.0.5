@@ -157,6 +157,7 @@ struct fib_result_nl {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 #define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
 #else /* CONFIG_IP_ROUTE_MULTIPATH */
+//如果没有配置多路径路由，则只有一个下一跳
 #define FIB_RES_NH(res)		((res).fi->fib_nh[0])
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
