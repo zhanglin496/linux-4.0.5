@@ -1085,6 +1085,12 @@ static inline struct sk_buff *skb_get(struct sk_buff *skb)
  *	one of multiple shared copies of the buffer. Cloned buffers are
  *	shared data so must not be written to under normal circumstances.
  */
+  //之所以要同时判断引用计数，
+ //原因是因为skb_copy拷贝一个clone的skb后，原始的skb cloned仍等于1
+ //所以仅仅判断cloned标志，可能误判
+ //因为clone时会递增缓冲区的引用计数
+ //所以如果引用计数等于1，则表示只有一个skb在引用缓冲区
+ //所以此时任然为非clone
 static inline int skb_cloned(const struct sk_buff *skb)
 {
 	return skb->cloned &&
