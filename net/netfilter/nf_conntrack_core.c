@@ -1023,6 +1023,61 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	}
 
 	/* look for tuple match */
+	
+	/*
+         * Based on NAT treatments of UDP in RFC3489:
+         *  //任意外部主机都可以发送报文给
+         * //内部主机，不需要内部主机提前发送报文
+         * 1)Full Cone: A full cone NAT is one where all requests from the
+         * same internal IP address and port are mapped to the same external
+         * IP address and port.  Furthermore, any external host can send a
+         * packet to the internal host, by sending a packet to the mapped
+         * external address.
+         *
+         * //内部主机要先发报文到外部主机指定的IP
+         * //这样外部主机才能发送报文到内部主机
+         * 2)Restricted Cone: A restricted cone NAT is one where all requests
+         * from the same internal IP address and port are mapped to the same
+         * external IP address and port.  Unlike a full cone NAT, an external
+         * host (with IP address X) can send a packet to the internal host
+         * only if the internal host had previously sent a packet to IP
+         * address X.
+         *
+         * //内部主机要先发报文到外部主机指定的IP和端口
+         * 3)Port Restricted Cone: A port restricted cone NAT is like a
+         * restricted cone NAT, but the restriction includes port numbers.
+         * Specifically, an external host can send a packet, with source IP
+         * address X and source port P, to the internal host only if the
+         * internal host had previously sent a packet to IP address X and
+         * port P.
+         * //如果目的地址或端口不一样，则相同的IP源地址和端口不一定映射到相同的外部地址和端口
+         * //和cone nat 不一样
+         * 4)Symmetric: A symmetric NAT is one where all requests from the
+         * same internal IP address and port, to a specific destination IP
+         * address and port, are mapped to the same external IP address and
+         * port.  If the same host sends a packet with the same source
+         * address and port, but to a different destination, a different
+         * mapping is used.  Furthermore, only the external host that
+         * receives a packet can send a UDP packet back to the internal host.
+         *
+         *
+         *
+         *
+         * Original Linux NAT type is hybrid 'port restricted cone' and
+         * 'symmetric'. XBOX certificate recommands NAT type is 'fully cone'
+         * or 'restricted cone', so i patch the linux kernel to support
+         * this feature
+         * Tradition scenario from LAN->WAN:
+         *
+         *        (LAN)     (WAN)
+         * Client------>AP---------> Server
+         * -------------> (I)
+         *              -------------->(II)
+         *              <--------------(III)
+         * <------------- (IV)
+         *
+         */
+	/* CASE III */
 	hash = hash_conntrack_raw(&tuple, zone);
 	h = __nf_conntrack_find_get(net, zone, &tuple, hash);
 	if (!h) {
