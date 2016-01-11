@@ -624,10 +624,12 @@ static void skb_release_data(struct sk_buff *skb)
 	int i;
 
 	if (skb->cloned &&
+	//nohdr为1时情况下要加1，是因为clone时增加了低16位的引用计数
+	//这里要一并减掉
 	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
 			      &shinfo->dataref))
 		return;
-
+	//释放非线性部分
 	for (i = 0; i < shinfo->nr_frags; i++)
 		__skb_frag_unref(&shinfo->frags[i]);
 
@@ -645,7 +647,8 @@ static void skb_release_data(struct sk_buff *skb)
 
 	if (shinfo->frag_list)
 		kfree_skb_list(shinfo->frag_list);
-
+		
+	//释放线性header部分
 	skb_free_head(skb);
 }
 
