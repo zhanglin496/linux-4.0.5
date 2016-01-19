@@ -915,7 +915,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 				  hash);
 	if (IS_ERR(ct))
 		return (struct nf_conntrack_tuple_hash *)ct;
-
+	//为synproxy功能提供支持，详见ipt_SYNPROXY.c
 	if (tmpl && nfct_synproxy(tmpl)) {
 		nfct_seqadj_ext_add(ct);
 		nfct_synproxy_ext_add(ct);
