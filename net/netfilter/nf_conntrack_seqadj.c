@@ -12,7 +12,8 @@ int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct nf_conn_seqadj *seqadj;
 	struct nf_ct_seqadj *this_way;
-
+	//差值为0，实际上表示数据包长度未变化，
+	//也就说明不需要做序列号调整
 	if (off == 0)
 		return 0;
 
