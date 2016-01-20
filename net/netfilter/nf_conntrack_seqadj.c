@@ -185,11 +185,20 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 	spin_lock_bh(&ct->lock);
 	//必须检查序列号是否需要调整，TCP包达到的次序是不可控的
 	//如果是后续的包先到达，可能需要更改序列号的值
+	//调整seq 要取本方向的差值，因为本方向记录了修改后的差值
+	//之所以不去反方向的差值，是因为修改本反向的数据包长度，只会影响本方向seq的计算和反方向ack的计算
+	//同时修改时的差值是记录在当前方向的扩展中，而反方向可能不会修改数据包，从而记录的差值为0
+	//假设只对本方向的数据包长度增加了一次，反方向数据包未做过长度修改，
+	//这样每次本方向数据包seq都需要增加，
+	//但是本方向ack的值却不会改变，因为反方向记录的seq差值是0 
+	//同理反方向的seq不会改变，但是ack却会改变，因为对向的seq有变更，会导致本方向的ack需要变更
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		seqoff = this_way->offset_after;
 	else
 		seqoff = this_way->offset_before;
 	//调整ack的值
+	//调整ack 要取反方向的差值，因为ack的值是通过反方向的seq加上负载长度计算得到的，
+	//所以要通过反方向记录的seq的差值来补偿
 	if (after(ntohl(tcph->ack_seq) - other_way->offset_before,
 		  other_way->correction_pos))
 		ackoff = other_way->offset_after;
