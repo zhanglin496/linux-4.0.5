@@ -1596,6 +1596,7 @@ EXPORT_SYMBOL(___pskb_trim);
  *
  * It is pretty complicated. Luckily, it is called only in exceptional cases.
  */
+//增加数据到skb的尾部，注意delta不能为负值
 unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 {
 	/* If skb has not enough free space at tail, get new one
@@ -1608,7 +1609,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	//如果已经超出，则必须重新分配线性数据区所需要的buffer
 	//或者skb是clone的，也必须重新分配
 	if (eat > 0 || skb_cloned(skb)) {
-		//如果skb是clone的
+		//如果skb是clone的，增加tailroom
 		if (pskb_expand_head(skb, 0, eat > 0 ? eat + 128 : 0,
 				     GFP_ATOMIC))
 			return NULL;
