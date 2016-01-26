@@ -1725,13 +1725,21 @@ static inline unsigned char *pskb_pull(struct sk_buff *skb, unsigned int len)
 {
 	return unlikely(len > skb->len) ? NULL : __pskb_pull(skb, len);
 }
-
+//保证skb线性区中有len字节的有效数据
+//可能会更改skb中的指针，所以要reload相关指针
+//这里只保证len字节的数据可读，不保证一定可写
 static inline int pskb_may_pull(struct sk_buff *skb, unsigned int len)
 {
+	//这里和skb_make_writable有差别
+	//假设头部长度足够，但是skb 是clone的，
+	//因此共享的数据缓冲区是不能修改
+	//所以不保证一定可写,因为没有判断skb是否clone
+
 	if (likely(len <= skb_headlen(skb)))
 		return 1;
 	if (unlikely(len > skb->len))
 		return 0;
+	//如果到达这里，返回的skb一定是可写的
 	return __pskb_pull_tail(skb, len - skb_headlen(skb)) != NULL;
 }
 
