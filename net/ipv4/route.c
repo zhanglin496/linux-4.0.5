@@ -1307,10 +1307,11 @@ static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 {
 	struct rtable *orig, *prev, **p;
 	bool ret = true;
-
+	//对于需要转发的数据包，缓存到input中
 	if (rt_is_input_route(rt)) {
 		p = (struct rtable **)&nh->nh_rth_input;
 	} else {
+	//对于本机发出的数据包，缓存到output中
 		p = (struct rtable **)raw_cpu_ptr(nh->nh_pcpu_rth_output);
 	}
 	orig = *p;
