@@ -200,6 +200,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	if (test_bit(IPS_HELPER_BIT, &ct->status))
 		return 0;
 
+	//是否通过模板指定了帮助函数
 	if (tmpl != NULL) {
 		help = nfct_help(tmpl);
 		if (help != NULL) {
@@ -209,6 +210,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	}
 
 	help = nfct_help(ct);
+	//查询帮助函数
 	if (net->ct.sysctl_auto_assign_helper && helper == NULL) {
 		helper = __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 		if (unlikely(!net->ct.auto_assign_helper_warned && helper)) {
@@ -219,13 +221,15 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			net->ct.auto_assign_helper_warned = true;
 		}
 	}
-
+	//若帮助函数为空，说明连接不需要特殊处理
 	if (helper == NULL) {
 		if (help)
 			RCU_INIT_POINTER(help->helper, NULL);
 		goto out;
 	}
-
+	
+	//若help扩展为空，则需要添加help扩展区
+	//同时指派帮助函数
 	if (help == NULL) {
 		help = nf_ct_helper_ext_add(ct, helper, flags);
 		if (help == NULL) {
@@ -237,7 +241,8 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 		 * we cannot reallocate the helper extension area.
 		 */
 		struct nf_conntrack_helper *tmp = rcu_dereference(help->helper);
-
+		//若模板中的帮助函数和ct中原有的帮助函数不同
+		//说明有问题
 		if (tmp && tmp->help != helper->help) {
 			RCU_INIT_POINTER(help->helper, NULL);
 			goto out;
