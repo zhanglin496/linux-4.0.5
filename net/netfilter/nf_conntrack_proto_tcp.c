@@ -1103,7 +1103,8 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 	/* Don't need lock here: this conntrack not in circulation yet */
 	new_state = tcp_conntracks[0][get_conntrack_index(th)][TCP_CONNTRACK_NONE];
-
+	
+	//无效的状态，比如对于带fin标志的tcp报文，不会创建conntrack
 	/* Invalid: delete conntrack */
 	if (new_state >= TCP_CONNTRACK_MAX) {
 		pr_debug("nf_ct_tcp: invalid new deleting.\n");
