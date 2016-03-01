@@ -542,11 +542,14 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 sender->td_scale,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		 receiver->td_scale);
-
+	//对于syn的被动发起方而言，sender->td_maxwin 一定等于0
 	if (sender->td_maxwin == 0) {
 		/*
 		 * Initialize sender data.
 		 */
+		 //初始化发送方的数据，也就是reply方向的数据
+		 //若没有设置syn标志，表明某些数据包没有经过
+		 //路由器
 		if (tcph->syn) {
 			/*
 			 * SYN-ACK in reply to a SYN
@@ -562,10 +565,19 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			 * Both sides must send the Window Scale option
 			 * to enable window scaling in either direction.
 			 */
+			  //窗口放大选项
 			if (!(sender->flags & IP_CT_TCP_FLAG_WINDOW_SCALE
 			      && receiver->flags & IP_CT_TCP_FLAG_WINDOW_SCALE))
 				sender->td_scale =
 				receiver->td_scale = 0;
+			//同时打开，这里为什么可以判断是同时打开
+			//原因是若是syn的第一个报文，则sender->td_maxwin一定
+			//不等于0，会在tcp_new中赋值
+			//假设
+			//A--->B 发送syn，这里sender等于A ,td_maxwin会在tcp_new中赋值不为0
+			//B--->A 发送syn，这里sender等于B ,td_maxwin会在tcp_new中赋值为0
+			//因此若B--->A为设置ACK，则表示是同时打开
+
 			if (!tcph->ack)
 				/* Simultaneous open */
 				return true;
@@ -650,7 +662,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1));
 
 	if (
-	//序列号上限
+	//发送方的序列号上限
 	before(seq, sender->td_maxend + 1) &&
 	    in_recv_win &&
 		// 发送方的确认序列号上限
