@@ -136,10 +136,11 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 
 	/* unnecessary to update all types */
 	//如果没指定NF_CT_EXT_F_PREALLOC
-	//则不需要更新所有已经注册type的alloc_size大小
-	//否则的话，会更新所有已注册type的alloc_size，在添加扩展的时候，
-	//就会一次性分配所有已经注册type所需总的扩展空间，
-	//这样添加扩展的时候就不需要在重新分配空间，因为空间已经提前分配好了
+	//则不需要更新所有已经注册type的alloc_size大小，但是可能会更新自身的alloc_size，
+	//因为之前注册的type可能设置了标志NF_CT_EXT_F_PREALLOC，所以需要重新计算大小
+	//如果指定了标志NF_CT_EXT_F_PREALLOC，则会更新所有已注册type的alloc_size，在添加扩展的时候，
+	//就会一次性分配包含NF_CT_EXT_F_PREALLOC标志type所需总的扩展空间，
+	//这样添加扩展的时候就不需要再重新分配空间，因为空间已经提前分配好了，
 	//好处是可以避免realloc，坏处是可能会浪费空间
 	if ((type->flags & NF_CT_EXT_F_PREALLOC) == 0) {
 		min = type->id;
