@@ -37,10 +37,10 @@ void __nf_ct_ext_destroy(struct nf_conn *ct)
 		 * area in all conntracks when it is unregisterd.
 		 */
 		 
-		//如果 ext 之前被注销，则由注销操作来释放所有
-		// conntrack跟扩展相关的资源，在大量conntrack的情况下
-		// 实际上最好不要动态注销，否则需要遍历所有的conntrack
-		//但是如果该扩展destroy函数和move函数为空的情况下
+		//如果ext在调用__nf_ct_ext_destroy之前被注销，则由注销操作来释放所有
+		//conntrack跟扩展相关的资源，在大量conntrack的情况下
+		//实际上最好不要动态注销，否则需要遍历所有的conntrack
+		//但是如果该扩展的destroy函数和move函数为空的情况下
 		//动态注销没有问题
 		if (t && t->destroy)
 			t->destroy(ct);
@@ -157,15 +157,27 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 
 		t1->alloc_size = ALIGN(sizeof(struct nf_ct_ext), t1->align) +
 				 t1->len;
+				 
+		//遍历所用已注册的扩展
 		for (j = 0; j < NF_CT_EXT_NUM; j++) {
 			t2 = rcu_dereference_protected(nf_ct_ext_types[j],
 				lockdep_is_held(&nf_ct_ext_type_mutex));
-			//t2没设置NF_CT_EXT_F_PREALLOC标志，也不会更新alloc_size
+			//t2没设置NF_CT_EXT_F_PREALLOC标志，就不会更新alloc_size
 			//目前只有nat_extend设置了该标志
+			//注意t2==t1的情况下是不能更新alloc_size
+			//NF_CT_EXT_F_PREALLOC的目的是在分配其他类型的扩展时，把当前注册的空间包含进去
+			//假设有t1、t2、t3三个类型，只有t3设置了NF_CT_EXT_F_PREALLOC，
+			//那么分配t1或t2时会吧t3的空间包含进去，但是分配t3时只包含t3自身的大小
+			//但是如果t1、t2也设置了NF_CT_EXT_F_PREALLOC，
+			//则三个类型的alloc_size大小都为（t1+t2+t3）
+			//如果t1、t2设置而t3没设置NF_CT_EXT_F_PREALLOC
+			//那么t1=(t1+t2),t2=(t2+t1),t3=(t3+t1+t2)
+			//也就是说扩展的alloc_size为自身加上其他设置了NF_CT_EXT_F_PREALLOC的扩展大小
 			if (t2 == NULL || t2 == t1 ||
 			    (t2->flags & NF_CT_EXT_F_PREALLOC) == 0)
 				continue;
-
+			//如果t2设置了NF_CT_EXT_F_PREALLOC标志，则需要更新t1的alloc_size
+			//累计需要分配的总大小到t1中
 			t1->alloc_size = ALIGN(t1->alloc_size, t2->align)
 					 + t2->len;
 		}
