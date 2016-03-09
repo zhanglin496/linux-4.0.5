@@ -123,7 +123,7 @@ struct nf_ct_ext_type {
 	//type->alloc_size = ALIGN(sizeof(struct nf_ct_ext), type->align)
 	// + type->len;
 	//该变量只会在第一次通过nf_ct_ext_create分配扩展区的时候才会用到，
-	//后面再分配新的扩展区时，是通过realloc来完成
+	//后面再分配新的扩展区时，是通过realloc来完成，详见__nf_ct_ext_add_length
 	u8 alloc_size;
 };
 
