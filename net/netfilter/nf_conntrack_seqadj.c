@@ -46,14 +46,22 @@ int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 
 	spin_lock_bh(&ct->lock);
 	this_way = &seqadj->seq[dir];
+	/* SYN adjust. If it's uninitialized, or this is after last
+	 * correction, record it: we don't handle more than one
+	 * adjustment in the window, but do deal with common case of a
+	 * retransmit */
+	 /*
+	  * 如果this_way->offset_before == this_way->offset_after，表明还未初始化
+	  * 如果seq小于等于correction_pos，表示可能是重传的数据包
+	 */
 	if (this_way->offset_before == this_way->offset_after ||
 	    before(this_way->correction_pos, ntohl(seq))) {
-	   	//如果before为真，表示序列号可能回绕了
 	    	//记录当前位置序列号
 		this_way->correction_pos = ntohl(seq);
 		//相对于correction_pos的before偏移
 		this_way->offset_before	 = this_way->offset_after;
-		//相对于correction_pos的after偏移
+		//累计相对于correction_pos的after偏移
+		//因为可能会修改连接的多个数据包
 		this_way->offset_after	+= off;
 	}
 	spin_unlock_bh(&ct->lock);
