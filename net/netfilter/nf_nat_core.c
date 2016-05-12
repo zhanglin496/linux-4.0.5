@@ -529,6 +529,16 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 }
 //因为有的数据包做了NAT规则，有的没有
 //为了保证五元组的唯一性，要做空绑定
+//Linux的NAT实现是基于ip_conntrack的，这句话已经不知道说了多少遍。一切均实现在Netflter的HOOK函数里面，
+//其逻辑一点也不复杂，然而有意个小小的要点，那就是：即使没有匹配到任何的NAT规则的和NAT无关的数据流，
+//也要针对其执行一个null_binding，所谓的null_binding就是用其原有的源IP地址和目标IP地址构造一个range，
+//然后基于这个range做转换，这看似是一个无用的东西，其实还真的有用。
+//用处在哪里呢？注意null_binding只是不改变IP地址，其端口可能要发生改变。
+//为何要改变和NAT无关的数据流的端口呢？因为和NAT有关的数据流可能为了
+//五元组的唯一性已经将和NAT无关的数据流的某个端口给占用了，这就影响了和NAT无关的数据流五元组的唯一性。
+//由于ip_conntrack是不区分是否和NAT有关的，而NAT操作要改变五元组，为了整个conntrack的五元组都是唯一的，
+//哪怕只有一个数据流执行了NAT，也可能占用了某个其它数据流的五元组要素，进而引发连锁反应，
+//所以全部要执行唯一性检测和更新，alloc_null_binding就是为了做这个操作。
 unsigned int
 nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
