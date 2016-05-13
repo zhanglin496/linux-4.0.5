@@ -349,7 +349,7 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
 			goto oif_changed;
 	}
-	//根据conntrack中保存的信息对数据包做NAT转换
+	//做实际的数据包修改工作，根据conntrack中保存的信息对数据包做NAT转换
 	return nf_nat_packet(ct, ctinfo, ops->hooknum, skb);
 
 oif_changed:
