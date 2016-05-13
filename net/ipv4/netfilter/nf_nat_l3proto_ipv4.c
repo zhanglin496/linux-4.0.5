@@ -254,6 +254,9 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(nf_nat_icmp_reply_translation);
 
+//只要内核配置了支持NAT，即使用户没有添加nat规则，
+//每个conntrack 都需要额外做一次NAT空绑定，所谓空绑定，就是不会改变IP地址
+//但是有可能会改变端口，空绑定的目的是为了保证conntrack表中五元组的唯一性
 unsigned int
 nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	       const struct net_device *in, const struct net_device *out,
@@ -309,14 +312,16 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		 */
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
-
+			//遍历用户配置的NAT规则，最终都会调用nf_nat_setup_info函数包NAT信息保存到conntrak中
+			//注意内核实现只会将NAT后的地址保存到reply tuple中，而不会去更改original tuple
+			//因此用户原始的连接信息都可以通过original tuple来获取
 			ret = do_chain(ops, skb, in, out, ct);
 			if (ret != NF_ACCEPT)
 				return ret;
 
 			if (nf_nat_initialized(ct, HOOK2MANIP(ops->hooknum)))
 				break;
-
+			//空绑定
 			ret = nf_nat_alloc_null_binding(ct, ops->hooknum);
 			if (ret != NF_ACCEPT)
 				return ret;
@@ -344,7 +349,7 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
 			goto oif_changed;
 	}
-
+	//根据conntrack中保存的信息对数据包做NAT转换
 	return nf_nat_packet(ct, ctinfo, ops->hooknum, skb);
 
 oif_changed:
@@ -440,7 +445,7 @@ nf_nat_ipv4_local_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-
+		//如果改变了目的IP地址，需要重新路由
 		if (ct->tuplehash[dir].tuple.dst.u3.ip !=
 		    ct->tuplehash[!dir].tuple.src.u3.ip) {
 			err = ip_route_me_harder(skb, RTN_UNSPEC);
