@@ -98,6 +98,7 @@ synproxy_send_client_synack(const struct sk_buff *skb, const struct tcphdr *th,
 	if (opts->options & XT_SYNPROXY_OPT_ECN)
 		tcp_flag_word(nth) |= TCP_FLAG_ECE;
 	nth->doff	= tcp_hdr_size / 4;
+	//向client发送一个0窗口的报文，暂停client发送数据
 	nth->window	= 0;
 	nth->check	= 0;
 	nth->urg_ptr	= 0;
