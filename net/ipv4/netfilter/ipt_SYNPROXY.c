@@ -133,10 +133,12 @@ synproxy_send_server_syn(const struct synproxy_net *snet,
 	nth = (struct tcphdr *)skb_put(nskb, tcp_hdr_size);
 	nth->source	= th->source;
 	nth->dest	= th->dest;
+	//使用和client 相同的isn序列号
 	nth->seq	= htonl(recv_seq - 1);
 	/* ack_seq is used to relay our ISN to the synproxy hook to initialize
 	 * sequence number translation once a connection tracking entry exists.
 	 */
+	//记录客户端期望的server的isn序列号,并中继给syn hook函数
 	nth->ack_seq	= htonl(ntohl(th->ack_seq) - 1);
 	tcp_flag_word(nth) = TCP_FLAG_SYN;
 	if (opts->options & XT_SYNPROXY_OPT_ECN)
@@ -147,7 +149,11 @@ synproxy_send_server_syn(const struct synproxy_net *snet,
 	nth->urg_ptr	= 0;
 
 	synproxy_build_options(nth, opts);
-
+	//snet->tmpl为syn proxy 初始化时设置的nf_conn模板
+	//synproxy_send_tcp调用ip_local_out ,再调用NF_INET_LOCAL_OUT钩子点
+	//在ipv4_conntrack_local中根据模板的配置再新建一个conntrack
+	//同时添加synproxy扩展，这样使后续的数据包
+	//进入ipv4_synproxy_hook函数中处理
 	synproxy_send_tcp(skb, nskb, &snet->tmpl->ct_general, IP_CT_NEW,
 			  niph, nth, tcp_hdr_size);
 }
@@ -316,7 +322,9 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct == NULL)
 		return NF_ACCEPT;
-
+		
+	//synproxy扩展在nf_conntrack_in中根据synproxy_tg4 调用赋值的模板添加
+	//在没有添加该扩展时，跳过后续的处理流程
 	synproxy = nfct_synproxy(ct);
 	if (synproxy == NULL)
 		return NF_ACCEPT;
@@ -354,7 +362,9 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 	case TCP_CONNTRACK_SYN_SENT:
 		if (!synproxy_parse_options(skb, thoff, th, &opts))
 			return NF_DROP;
-
+			
+		//来自客户端的ack，可能server没能及时回复syn/ack
+		//所以proxy 需要再次向server发送syn/ack
 		if (!th->syn && th->ack &&
 		    CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
 			/* Keep-Alives are sent with SEG.SEQ = SND.NXT-1,
@@ -367,12 +377,13 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 
 			return NF_DROP;
 		}
-
+		//记录原始的isn序列号
 		synproxy->isn = ntohl(th->ack_seq);
 		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP)
 			synproxy->its = opts.tsecr;
 		break;
 	case TCP_CONNTRACK_SYN_RECV:
+		//期望接收到server的syn ack
 		if (!th->syn || !th->ack)
 			break;
 
@@ -388,15 +399,19 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 
 		swap(opts.tsval, opts.tsecr);
 		synproxy_send_server_ack(snet, state, skb, th, &opts);
-
+		//计算server端序列号差值
+		//client期望的isn(也就是proxy代理三次握手时产生的isn)
+		//减去真实server端重新产生的isn
 		nf_ct_seqadj_init(ct, ctinfo, synproxy->isn - ntohl(th->seq));
 
 		swap(opts.tsval, opts.tsecr);
+		//send a window update to client
 		synproxy_send_client_ack(snet, skb, th, &opts);
 
 		consume_skb(skb);
 		return NF_STOLEN;
 	default:
+	//对于其它后续的数据包，只需要做序列号调整即可
 		break;
 	}
 
