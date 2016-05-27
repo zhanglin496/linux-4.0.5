@@ -951,6 +951,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		spin_lock(&nf_conntrack_expect_lock);
 		exp = nf_ct_find_expectation(net, zone, tuple);
 		if (exp) {
+			//expect_hash表中命中，表明这是一个期待连接
 			pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
 				 ct, exp);
 			/* Welcome, Mr. Bond.  We've been expecting you... */
@@ -976,6 +977,10 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		spin_unlock(&nf_conntrack_expect_lock);
 	}
 	if (!exp) {
+		//不是期待连接,  查找该连接是否有匹配的helper函数
+		//指派helper函数，并在ipv4_help 调用helper函数创建期待连接
+		//也就是构建struct nf_conntrack_expect 结构，并加入到expect_hash表中，
+		//若没有helper函数，则不会分配help扩展区
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 		NF_CT_STAT_INC(net, new);
 	}
@@ -985,10 +990,13 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	nf_ct_add_to_unconfirmed_list(ct);
 
 	local_bh_enable();
-
+	
+	//调用expectfn函数，一般当主链接做了NAT转换
+	//才需要额外指定expectfn函数，
 	if (exp) {
 		// nf_nat_follow_master,期待链接必须和主链接做相同的NAT转换
 		// 否则无法正常通信
+		//保证子连接和主链接做相同的NAT转换
 		if (exp->expectfn)
 			exp->expectfn(ct, exp);
 		nf_ct_expect_put(exp);
