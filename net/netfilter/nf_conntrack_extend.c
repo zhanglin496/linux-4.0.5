@@ -81,10 +81,14 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 	struct nf_ct_ext *old, *new;
 	int i, newlen, newoff;
 	struct nf_ct_ext_type *t;
-
+	
+	//未确认状态时
+	//只可能有一个skb引用者，不会出现竞争
 	/* Conntrack must not be confirmed to avoid races on reallocation. */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
-
+	
+	//var_alloc_len指定在静态注册时的固定长度的基础上
+	//需要分配的额外长度，比如nf_ct_helper_ext_add用到了这个功能
 	old = ct->ext;
 	if (!old)
 		return nf_ct_ext_create(&ct->ext, id, var_alloc_len, gfp);
