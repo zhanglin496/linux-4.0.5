@@ -258,7 +258,8 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 	kmemcheck_annotate_variable(shinfo->destructor_arg);
-
+	//当调用者知道需要两个skb时，如后面的操作很可能使用skb_clone时，那么从
+	//skbuff_fclone_cache上分配skb会更高效一些。
 	if (flags & SKB_ALLOC_FCLONE) {
 		struct sk_buff_fclones *fclones;
 
