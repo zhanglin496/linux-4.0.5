@@ -625,7 +625,7 @@ static void skb_release_data(struct sk_buff *skb)
 	int i;
 
 	if (skb->cloned &&
-	//nohdr为1时情况下要加1，是因为clone时增加了低16位的引用计数
+	//nohdr为1时情况下要对高16位的应用计数减1，是因为调用skb_header_release时对高16位的引用计数加1，
 	//这里要一并减掉
 	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
 			      &shinfo->dataref))
