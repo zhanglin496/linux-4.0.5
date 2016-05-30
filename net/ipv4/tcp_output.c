@@ -3182,6 +3182,13 @@ int tcp_connect(struct sock *sk)
 
 	tcp_init_nondata_skb(buff, tp->write_seq++, TCPHDR_SYN);
 	tp->retrans_stamp = tcp_time_stamp;
+	//clone后skb的低16位dataref 为2
+	//这里必须调用skb_header_release增加高16位的引用计数
+	//同时设置skb->nohdr标志，后面在调用skb_clone时，
+	//会设置clone的skb->hdr_len= skb_headroom(skb)
+	//否侧skb_clone_writable将返回假，
+	//将导致后面clone的skb 在做NAT修改调用skb_make_writable时需要重新分配数据区
+	//降低了效率
 	tcp_connect_queue_skb(sk, buff);
 	tcp_ecn_send_syn(sk, buff);
 
