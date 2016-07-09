@@ -247,7 +247,10 @@ int ip_local_deliver(struct sk_buff *skb)
 	/*
 	 *	Reassemble IP fragments.
 	 */
-
+	//ip重组完成之前，tcp层感应不到分片的数据
+	//因此不会发送ack来确认数据
+	//如果有数据丢失，发送方需要重传整个数据报
+	//所以要尽量避免IP分片
 	if (ip_is_fragment(ip_hdr(skb))) {
 		if (ip_defrag(skb, IP_DEFRAG_LOCAL_DELIVER))
 			return 0;
