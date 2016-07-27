@@ -177,8 +177,12 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 		unicast = false;
 		br->dev->stats.multicast++;
+	//通过目的mac地址获取本地转发表
+	//本地通过brctl addif 添加的接口fdb都是local类型
 	} else if ((dst = __br_fdb_get(br, dest, vid)) &&
 			dst->is_local) {
+		//如果是到本地的
+		//则不需要转发
 		skb2 = skb;
 		/* Do not forward the packet since it's local. */
 		skb = NULL;
@@ -191,7 +195,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		} else
 			br_flood_forward(br, skb, skb2, unicast);
 	}
-
+	//向上投递到本地桥接口，比如br0
+	//再次调用netif_receive_skb
 	if (skb2)
 		return br_pass_frame_up(skb2);
 
