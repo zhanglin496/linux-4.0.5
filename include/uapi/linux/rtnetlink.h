@@ -192,15 +192,22 @@ struct rtmsg {
 };
 
 /* rtm_type */
-
+//inet_addr_type函数返回的地址类型
 enum {
 	RTN_UNSPEC,
+	//非本机配置的单播IP地址
 	RTN_UNICAST,		/* Gateway or direct route	*/
+	//如果IP 地址是本机配置的IP地址，则都是local类型的
 	RTN_LOCAL,		/* Accept locally		*/
+//如果IP 地址是广播地址或者本机配置的IP地址子网广播地址或者
+//0网段地址，比如0.139.2.69
+// 255.255.255.255，假设本机配置有IP地址192.168.1.1，则 192.168.1.255
+//是RTN_BROADCAST，但是61.139.2.255则是RTN_UNICAST
 	RTN_BROADCAST,		/* Accept locally as broadcast,
 				   send as broadcast */
 	RTN_ANYCAST,		/* Accept locally as broadcast,
 				   but send as unicast */
+//如果IP地址是多播地址，也就是D类地址，都为RTN_MULTICAST
 	RTN_MULTICAST,		/* Multicast route		*/
 	RTN_BLACKHOLE,		/* Drop				*/
 	RTN_UNREACHABLE,	/* Destination is unreachable   */
