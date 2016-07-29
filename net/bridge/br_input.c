@@ -133,6 +133,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
+	//以源mac地址建立查找表
 	if (p->flags & BR_LEARNING)
 		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
 
