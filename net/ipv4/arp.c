@@ -383,7 +383,7 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 {
 	struct net *net = dev_net(in_dev->dev);
 	int scope;
-
+	//验证收到的arp报文和接口是否满足给定条件
 	switch (IN_DEV_ARP_IGNORE(in_dev)) {
 	case 0:	/* Reply, the tip is already validated */
 		return 0;
@@ -421,10 +421,16 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	int flag = 0;
 	/*unsigned long now; */
 	struct net *net = dev_net(dev);
-
+	//arp_filter 只对arp系统起作用
+	//rp_filter 对整个路由系统起作用
+	//主要功能是验证反向路由是否存在
+	//以及入口和出口是否一致
+	//反向路由查找
 	rt = ip_route_output(net, sip, tip, 0, 0);
 	if (IS_ERR(rt))
 		return 1;
+	//确定出口入口是否一致
+	//入口设备不等于出口设备
 	if (rt->dst.dev != dev) {
 		NET_INC_STATS_BH(net, LINUX_MIB_ARPFILTER);
 		flag = 1;
@@ -891,14 +897,15 @@ static int arp_process(struct sk_buff *skb)
 	}
 
 	/* Update our ARP tables */
-
+	//以源IP地址和接口为关键字
 	n = __neigh_lookup(&arp_tbl, &sip, dev, 0);
-
+	//是否接受免费arp
 	if (IN_DEV_ARP_ACCEPT(in_dev)) {
 		/* Unsolicited ARP is not accepted by default.
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)
 		 */
+		 //免费arp
 		is_garp = arp->ar_op == htons(ARPOP_REQUEST) && tip == sip &&
 			  inet_addr_type(net, sip) == RTN_UNICAST;
 
