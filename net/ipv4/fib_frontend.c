@@ -247,6 +247,9 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	struct flowi4 fl4;
 	struct net *net;
 	bool dev_match;
+	//将目的地址和源地址反转，验证如此的路由出口是否和正方向的入口一致。
+	//比如如果一个包的源地址是s1，目的地址是d1，从e1进入，那么在开启源验证的情况下，
+	//源为d1，目的为s1的路由出口必须是e1，正所谓从哪里进入，从哪里出去
 	//交换源目的地址
 	//能否找到从dst到src的路由
 	//即反向路由是否存在
