@@ -3293,6 +3293,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	/* Now we've got everything in the final locations, we can
 	 * find optional sections. */
+	//在模块中查找特定的section，
+	//比如模块参数区__param section，
+	//所有的模块参数都是放在__param section中的
+	//详细参见实现params.c 和moduleparam.h
+
 	err = find_module_sections(mod, info);
 	if (err)
 		goto free_unload;
@@ -3335,7 +3340,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = complete_formation(mod, info);
 	if (err)
 		goto ddebug_cleanup;
-
+	//解析模块传入的参数值，调用对应的struct kernel_param_ops ops函数
 	/* Module is ready to execute: parsing args may do that. */
 	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
 				  -32768, 32767, unknown_module_param_cb);
@@ -3346,7 +3351,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		pr_warn("%s: parameters '%s' after `--' ignored\n",
 		       mod->name, after_dashes);
 	}
-
+	//和sys文件关联，在sys文件中创建相关表项,比如 parameters区
 	/* Link in to syfs. */
 	err = mod_sysfs_setup(mod, info, mod->kp, mod->num_kp);
 	if (err < 0)
