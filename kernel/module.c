@@ -2655,12 +2655,14 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 			break;
 		}
 	}
-
+	//查找THIS_MODULE(&this_module)
+	//由gcc在编译模块时自动生成，模块不需要关心
 	info->index.mod = find_sec(info, ".gnu.linkonce.this_module");
 	if (!info->index.mod) {
 		pr_warn("No module found in object\n");
 		return ERR_PTR(-ENOEXEC);
 	}
+	//获取地址,稍后需要调用其init函数
 	/* This is temporary: point mod into copy of data. */
 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
 
