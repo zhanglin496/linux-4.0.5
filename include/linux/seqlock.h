@@ -106,7 +106,8 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
 static inline unsigned __read_seqcount_begin(const seqcount_t *s)
 {
 	unsigned ret;
-
+	//如果值为奇数，表明正在写
+	//需要循环等待写锁释放
 repeat:
 	ret = ACCESS_ONCE(s->sequence);
 	if (unlikely(ret & 1)) {
