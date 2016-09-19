@@ -431,6 +431,20 @@ begin:
 	 * not the expected one, we must restart lookup.
 	 * We probably met an item that was moved to another chain.
 	 */
+	 //A->B->C
+	//假设要找C，而C移动了到新的hash 表
+	//变成A->B
+	//这里并不能保证一定能找到C
+	//如果发现B移动了，那么有可能C也移动了
+	//所以要重新找
+	//如果没有发现B移动，那么查找失败
+	
+	//但是这里实现有bug，第一因为没有重新计算hash值，
+	//所以即使发现B移动到了新的hash表中，
+	//也可能找不到C
+	//第二net->ct.hash可能读到新的hash指针，但是使用了旧
+	//的hash值，可能会崩溃
+	//比如hash桶是128，旧的hash值是256
 	if (get_nulls_value(n) != bucket) {
 		NF_CT_STAT_INC(net, search_restart);
 		goto begin;
@@ -589,7 +603,9 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 	zone = nf_ct_zone(ct);
 	local_bh_disable();
-
+	//这里要保证读取的hash指针和hash表大小是一致的
+	//因为可能调用nf_conntrack_set_hashsize来更改hash表大小
+	//所以使用了顺序锁
 	do {
 		sequence = read_seqcount_begin(&net->ct.generation);
 		/* reuse the hash saved before */
