@@ -3647,7 +3647,9 @@ another_round:
 	skb->skb_iif = skb->dev->ifindex;
 
 	__this_cpu_inc(softnet_data.processed);
-
+//处理vlan数据包,去掉tag
+//相对旧版内核的处理方式，不需要再一次调用netif_receive_skb
+//
 	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
 	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
 		skb = skb_vlan_untag(skb);
@@ -3687,7 +3689,9 @@ ncls:
 
 	if (pfmemalloc && !skb_pfmemalloc_protocol(skb))
 		goto drop;
-
+		
+//如果是vlan数据包，根据vlan id找到对应的虚拟dev
+//并绑定到skb中
 	if (skb_vlan_tag_present(skb)) {
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
@@ -3698,7 +3702,10 @@ ncls:
 		else if (unlikely(!skb))
 			goto unlock;
 	}
-
+	
+//调用注册的rx_handler
+//通过netdev_rx_handler_register注册。macvlan，ipvlan，bridge，bond等虚拟
+//设备都是通过此方式来实现的
 	rx_handler = rcu_dereference(skb->dev->rx_handler);
 	if (rx_handler) {
 		if (pt_prev) {
