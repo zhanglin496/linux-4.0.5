@@ -438,6 +438,19 @@ begin:
 	//如果发现B移动了，那么有可能C也移动了
 	//所以要重新找
 	//如果没有发现B移动，那么查找失败
+	//nulls lookup algo must check the null value at the end of lookup and
+	//should restart if the null value is not the expected one.
+	///cf Documentation/RCU/rculist_nulls.txt for details
+	//还有一种情况
+	//比如 1：A->B->C->D和2：E->F->G->H两个链表
+	//假设我们需要查找1中的C，因为rcu查找没有加锁，
+	//所以到1中的B时，可能B移动到2中了，变成：2：E->F->B->G->H
+	//此时读取B的后继指针要么是C，要么就是G，不可能是其他值，因为rcu保证指针的读取和赋值是原子的
+	//如果此时我们读取的后继指针是G,那么到链表末端读取的nulls值和1中开始的hash nulls值不同，
+	//此时必须重新找，因为C实际是在1中的，只不过发生了链表移动导致在1中的遍历过程被错误的停止
+	//如果读取的是C，那么不需要重新查找
+	//如果B没有移动，只是删除并调用rcu等待释放，那么不需要重新查找，
+	//因为hlist_del_rcu不会修改next指针，所以B仍然指向C
 	
 	//但是这里实现有bug，第一因为没有重新计算hash值，
 	//所以即使发现B移动到了新的hash表中，
