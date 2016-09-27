@@ -369,6 +369,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	//选择一个合适的IP地址
 	find_best_ips_proto(zone, tuple, range, ct, maniptype);
 
+	//下面代码都是做端口选择，IP地址映射在上面代码中已经完成
 	/* 3) The per-protocol part of the manip is made to map into
 	 * the range to make a unique tuple.
 	 */
