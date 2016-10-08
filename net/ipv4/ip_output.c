@@ -340,7 +340,7 @@ int ip_output(struct sock *sk, struct sk_buff *skb)
 	struct net_device *dev = skb_dst(skb)->dev;
 
 	IP_UPD_PO_STATS(dev_net(dev), IPSTATS_MIB_OUT, skb->len);
-//skb当前属于路由结果的dev
+	//更新skb dev 指针指向路由结果dst的dev
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_IP);
 
