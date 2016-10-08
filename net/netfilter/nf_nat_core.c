@@ -547,6 +547,9 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 	 * per-proto parts (hence not IP_NAT_RANGE_PROTO_SPECIFIED).
 	 * Use reply in case it's already been mangled (eg local packet).
 	 */
+	 //使用reply tuple，因为有可能IP地址在mangle表中已经被修改过了
+	 //目前只有ip6t_NPT.c(IPv6-to-IPv6 Network Prefix Translation (RFC 6296))
+	 //中ip6t_DNPT和ip6t_SNPT在mangle表中修改了IP地址
 	union nf_inet_addr ip =
 		(manip == NF_NAT_MANIP_SRC ?
 		ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3 :
