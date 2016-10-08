@@ -176,12 +176,15 @@ static inline int compute_score(struct sock *sk, struct net *net,
 	if (net_eq(sock_net(sk), net) && inet->inet_num == hnum &&
 			!ipv6_only_sock(sk)) {
 		__be32 rcv_saddr = inet->inet_rcv_saddr;
+		//初始话score
 		score = sk->sk_family == PF_INET ? 2 : 1;
+		//比较目的地址，若目的地址相等，增加记分牌
 		if (rcv_saddr) {
 			if (rcv_saddr != daddr)
 				return -1;
 			score += 4;
 		}
+		//比较接口，若接口相等，增加记分牌
 		if (sk->sk_bound_dev_if) {
 			if (sk->sk_bound_dev_if != dif)
 				return -1;
@@ -207,6 +210,7 @@ struct sock *__inet_lookup_listener(struct net *net,
 {
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
+	//以目的端口号做为hash key
 	unsigned int hash = inet_lhashfn(net, hnum);
 	struct inet_listen_hashbucket *ilb = &hashinfo->listening_hash[hash];
 	int score, hiscore, matches = 0, reuseport = 0;
@@ -216,9 +220,17 @@ struct sock *__inet_lookup_listener(struct net *net,
 begin:
 	result = NULL;
 	hiscore = 0;
+	//选择一个得分最高的sk
+	//也就是最匹配的sk
+	//假设有两个sk1:192.168.0.1:80, sk2:0.0.0.0:80
+	//假设有数据包的目的地址是192.168.0.1:80
+	//sk2得分是2，sk1得分是6
+	//那么最匹配的应该是sk1:192.168.0.1:80
 	sk_nulls_for_each_rcu(sk, node, &ilb->head) {
+		//计算分值
 		score = compute_score(sk, net, hnum, daddr, dif);
 		if (score > hiscore) {
+			//记录当前匹配的sk和score
 			result = sk;
 			hiscore = score;
 			reuseport = sk->sk_reuseport;

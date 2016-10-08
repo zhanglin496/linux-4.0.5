@@ -2382,7 +2382,7 @@ void tcp4_proc_exit(void)
 	unregister_pernet_subsys(&tcp4_net_ops);
 }
 #endif /* CONFIG_PROC_FS */
-
+//ÏÎ½Ó´«Êä²ãµ½ÍøÂç²ã
 struct proto tcp_prot = {
 	.name			= "TCP",
 	.owner			= THIS_MODULE,

@@ -727,7 +727,7 @@ int inet_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (!inet_sk(sk)->inet_num && !sk->sk_prot->no_autobind &&
 	    inet_autobind(sk))
 		return -EAGAIN;
-
+//调用传输层的api
 	return sk->sk_prot->sendmsg(iocb, sk, msg, size);
 }
 EXPORT_SYMBOL(inet_sendmsg);
@@ -891,7 +891,7 @@ static int inet_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned lon
 	return err;
 }
 #endif
-
+//衔接套接字层到传输层
 const struct proto_ops inet_stream_ops = {
 	.family		   = PF_INET,
 	.owner		   = THIS_MODULE,

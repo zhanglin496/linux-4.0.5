@@ -317,7 +317,8 @@ destroy_conntrack(struct nf_conntrack *nfct)
 
 	NF_CT_STAT_INC(net, delete);
 	local_bh_enable();
-
+//如果master不为空，表明这是一个子连接
+//需要递减原来在期待连接中增加的引用计数
 	if (ct->master)
 		nf_ct_put(ct->master);
 
@@ -981,12 +982,15 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		exp = nf_ct_find_expectation(net, zone, tuple);
 		if (exp) {
 			//expect_hash表中命中，表明这是一个期待连接
+			//期待连接是由模块注册的helper函数根据数据包动态创建的
 			pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
 				 ct, exp);
 			/* Welcome, Mr. Bond.  We've been expecting you... */
 			//设置期待链接，通知防火墙
 			__set_bit(IPS_EXPECTED_BIT, &ct->status);
 			/* exp->master safe, refcnt bumped in nf_ct_find_expectation */
+			//这里子连接增加了主连接的引用计数
+			//意味着子连接未释放前主连接是不会释放的
 			ct->master = exp->master;
 			if (exp->helper) {
 				help = nf_ct_helper_ext_add(ct, exp->helper,
@@ -1028,6 +1032,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		//保证子连接和主链接做相同的NAT转换
 		if (exp->expectfn)
 			exp->expectfn(ct, exp);
+		//引用计数应该为1，释放期待连接
 		nf_ct_expect_put(exp);
 	}
 
@@ -1244,7 +1249,11 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		ret = -ret;
 		goto out;
 	}
-
+	//这里为什么没有先test_bit再set_bit
+	//是因为要保证是一个原子操作
+	//否则会出现调用nf_conntrack_event_cache两次的情况
+	//比如两个reply包同时到达这里
+	//只有一个包会触发nf_conntrack_event_cache
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
 out:

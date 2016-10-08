@@ -1631,7 +1631,9 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->rt_uses_gateway = 0;
 	INIT_LIST_HEAD(&rth->rt_uncached);
 	RT_CACHE_STAT_INC(in_slow_tot);
-
+//对于转发的数据包
+//需要一个有效的output接口
+//因为数据包还未到达目的地
 	rth->dst.input = ip_forward;
 	rth->dst.output = ip_output;
 
@@ -1810,7 +1812,8 @@ local_input:
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, do_cache);
 	if (!rth)
 		goto e_nobufs;
-
+//对于本地接收的数据包
+//不需要output接口，因为数据包已经到目的地
 	rth->dst.input= ip_local_deliver;
 	rth->dst.output= ip_rt_bug;
 #ifdef CONFIG_IP_ROUTE_CLASSID

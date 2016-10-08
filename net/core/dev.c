@@ -3412,7 +3412,9 @@ int netif_rx_ni(struct sk_buff *skb)
 	return err;
 }
 EXPORT_SYMBOL(netif_rx_ni);
-
+//所有的软中断都是在do_softirq  中回调的
+//所谓的触发软中断只不过是设置相关标记位，
+//然后由do_softirq检查并回调注册好的函数
 static void net_tx_action(struct softirq_action *h)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);

@@ -1200,7 +1200,10 @@ static inline void __run_timers(struct tvec_base *base)
 			irqsafe = tbase_get_irqsafe(timer->base);
 
 			timer_stats_account_timer(timer);
-
+			//当前正在运行的timer
+			//del_timer_sync可以检查该值来确认timer已经被删除
+			//即使在timer 函数中重新激活自己
+			//也可以保证timer被正确删除
 			base->running_timer = timer;
 			detach_expired_timer(timer, base);
 

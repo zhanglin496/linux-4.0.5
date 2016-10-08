@@ -52,7 +52,7 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 		struct in_ifaddr *ifa;
 
 		newdst = 0;
-
+//重定向到dev的主地址
 		rcu_read_lock();
 		indev = __in_dev_get_rcu(skb->dev);
 		if (indev != NULL) {

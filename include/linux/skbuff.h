@@ -524,7 +524,11 @@ struct sk_buff {
 		};
 		struct rb_node	rbnode; /* used in netem & tcp stack */
 	};
+	//该skb当前属于哪个本地socket
+	//对于转发的流量为NULL
 	struct sock		*sk;
+	//该skb当前属于哪个接口
+	//其值可能会改变
 	struct net_device	*dev;
 
 	/*
@@ -583,6 +587,12 @@ struct sk_buff {
 	__u8			__pkt_type_offset[0];
 	__u8			pkt_type:3;
 	__u8			pfmemalloc:1;
+	// ignore df bit if it is set
+	//如果为1，表示忽略分片
+	//如果iph->frag_off设置了DF标志位，
+	//ignore_df为1的情况下，将忽略该DF位
+	//否则如果数据包超过mtu，iph->frag_off设置了DF并且ignore_df为0
+	//数据包将被丢弃
 	__u8			ignore_df:1;
 	__u8			nfctinfo:3;
 

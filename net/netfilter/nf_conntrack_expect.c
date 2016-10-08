@@ -164,7 +164,7 @@ nf_ct_find_expectation(struct net *net, u16 zone,
 	 * know that the ct is being destroyed.  If it succeeds, we
 	 * can be sure the ct cannot disappear underneath.
 	 */
-	 //增加主链接引用计数、
+	 //增加主链接引用计数，因为子连接需要引用主连接
 	 //因为持有锁nf_conntrack_expect_lock
 	 //即使ct超时，会调用nf_ct_remove_expectations，会阻塞
 	 //因此即使ct的引用计数为0，但是ct不会被释放
@@ -187,6 +187,7 @@ nf_ct_find_expectation(struct net *net, u16 zone,
 	}
 	/* Undo exp->master refcnt increase, if del_timer() failed */
 	//期待链接已经超时
+	//递减主连接增加的引用计数
 	nf_ct_put(exp->master);
 
 	return NULL;
@@ -622,6 +623,8 @@ static void exp_proc_remove(struct net *net)
 
 module_param_named(expect_hashsize, nf_ct_expect_hsize, uint, 0400);
 
+//期待连接都是由模块注册的helper函数
+//检查数据包的内容来创建的
 int nf_conntrack_expect_pernet_init(struct net *net)
 {
 	int err = -ENOMEM;
