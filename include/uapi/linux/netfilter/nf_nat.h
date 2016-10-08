@@ -1,4 +1,4 @@
-﻿#ifndef _NETFILTER_NF_NAT_H
+#ifndef _NETFILTER_NF_NAT_H
 #define _NETFILTER_NF_NAT_H
 
 #include <linux/netfilter.h>
