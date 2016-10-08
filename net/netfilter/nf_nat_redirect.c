@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  * (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * Copyright (c) 2011 Patrick McHardy <kaber@trash.net>
@@ -52,7 +52,7 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 		struct in_ifaddr *ifa;
 
 		newdst = 0;
-//ÖØ¶¨Ïòµ½devµÄÖ÷µØÖ·
+	//ÖØ¶¨Ïòµ½skbËùÊôdevµÄÖ÷µØÖ·
 		rcu_read_lock();
 		indev = __in_dev_get_rcu(skb->dev);
 		if (indev != NULL) {
@@ -75,6 +75,9 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 	newrange.max_proto   = mr->range[0].max;
 
 	/* Hand modified range to generic setup. */
+	//×öÄ¿µÄNAT×ª»¯£¬ĞŞ¸Äconntrack reply tuple£¬
+	//ÉèÖÃÄ¿µÄNAT×ª»»ËùĞèĞÅÏ¢£¬×¢ÒâÕâÀï²»»áĞŞ¸ÄÊı¾İ°üµÄ
+	//IPµØÖ·£¬Êı¾İ°üµÄIPµØÖ·ÔÚnf_nat_packetÖĞ¸ù¾İconntrackÀ´ĞŞ¸Ä
 	return nf_nat_setup_info(ct, &newrange, NF_NAT_MANIP_DST);
 }
 EXPORT_SYMBOL_GPL(nf_nat_redirect_ipv4);
