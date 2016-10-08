@@ -243,15 +243,16 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 
 	/* Fast path: only one choice. */
 	//Âè™Êúâ‰∏ÄÂú∞ÂùÄÂèØ‰ª•ÈÄâÊã©ÁöÑÊÉÖÂÜµ
-	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {
+	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {°¢
+		//∂‘”⁄µ•wan¬∑”…∆˜¿¥Àµ£¨÷ª”–“ª∏ˆIPµÿ÷∑ø…“‘—°‘Ò
 		*var_ipp = range->min_addr;
 		return;
 	}
-
+	//º∆À„IPµÿ÷∑◊Ó¥ÛµƒÀ˜“˝÷µ
 	if (nf_ct_l3num(ct) == NFPROTO_IPV4)
-		max = sizeof(var_ipp->ip) / sizeof(u32) - 1;
+		max = sizeof(var_ipp->ip) / sizeof(u32) - 1; //max = 0
 	else
-		max = sizeof(var_ipp->ip6) / sizeof(u32) - 1;
+		max = sizeof(var_ipp->ip6) / sizeof(u32) - 1;//max=3
 
 	/* Hashing source and destination IPs gives a fairly even
 	 * spread in practice (if there are a small number of IPs
@@ -260,29 +261,58 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 	 * client coming from the same IP (some Internet Banking sites
 	 * like this), even across reboots.
 	 */
+	 //NF_NAT_RANGE_PERSISTENTµƒ“‚Àº «±£÷§‘⁄“ª∏ˆ∏¯∂®µƒµÿ÷∑∑∂Œßƒ⁄
+	 //«∞∫Û∂º”≥…‰µΩœ‡Õ¨µƒIPµÿ÷∑
+	 //±»»ÁAø™ º ±”≥…‰µΩB,‘⁄conntrack≥¨ ±∫Û£¨Aªπ «”≥…‰µΩB
+	 //∑Ò‘ÚA”–ø…ƒ‹”≥…‰µΩC
+	 //ºŸ…Ë’‚¿Ôµƒjµƒ÷µ «3
 	j = jhash2((u32 *)&tuple->src.u3, sizeof(tuple->src.u3) / sizeof(u32),
 		   range->flags & NF_NAT_RANGE_PERSISTENT ?
 			0 : (__force u32)tuple->dst.u3.all[max] ^ zone);
 
 	full_range = false;
+	//∂‘”⁄IPV4¿¥Àµ£¨÷ªª·—°‘Ò“ª¥Œ
 	for (i = 0; i <= max; i++) {
 		/* If first bytes of the address are at the maximum, use the
 		 * distance. Otherwise use the full range.
 		 */
 		if (!full_range) {
+			// 2
 			minip = ntohl((__force __be32)range->min_addr.all[i]);
+			// 6
 			maxip = ntohl((__force __be32)range->max_addr.all[i]);
+			//minipµΩmaxip µƒµÿ÷∑ø’º‰ «¡¨–¯µƒ£¨≤ª÷ß≥÷≥ˆœ÷ø’∂¥µƒ«Èøˆ
+			//º∆À„IPµÿ÷∑º‰µƒæ‡¿Î
+			// 6 - 2 + 1 = 5
 			dist  = maxip - minip + 1;
 		} else {
+			//ipv6÷–”––ß
+			//’‚¿Ôminip…Ë÷√Œ™0£¨IPµÿ÷∑—°‘ÒÕÍ»´”…reciprocal_scale
+			//¿¥≤˙…˙£¨∑∂ŒßŒ™[0, 0xFFFFFFFF)£¨’‚æÕ «full_rangeµƒ“‚Àº
 			minip = 0;
 			dist  = ~0;
 		}
-
+		// 2.6.5.4.3
+		// 6.7.3.3.2
+		//ÀÊª˙…˙≥…“ª∏ˆipµÿ÷∑
+		//reciprocal_scale∫Ø ˝≤˙…˙µƒΩ·π˚ «‘⁄[0, dist) ÷Æº‰
+		//’‚—˘±£÷§≤˙…˙µƒIPµÿ÷∑‘⁄[minip, maxip]∑∂Œßƒ⁄
 		var_ipp->all[i] = (__force __u32)
 			htonl(minip + reciprocal_scale(j, dist));
+		//full_range ÷ª‘⁄ipv6÷–”––ß
+		//‘⁄IPV6÷–£¨÷ª–Ë“™±£÷§◊Ó∏ﬂ”––ßŒªµƒ4∏ˆ◊÷Ω⁄
+		//–°”⁄maxip£¨‘Ú’˚∏ˆµÿ÷∑øœ∂® «–°”⁄maxipµƒ£¨
+		// £œ¬µƒ3∏ˆ◊÷Ω⁄ø…“‘ÕÍ»´‘⁄[0, 0xFFFFFFFF) 4◊÷Ω⁄µƒµÿ÷∑ø’º‰ƒ⁄ÀÊª˙—°‘Ò
+		//æÕƒ‹±£÷§ipµÿ÷∑‘⁄[minip, maxip]∑∂Œßƒ⁄
+		//»Áπ˚µ»”⁄max_addr.all[i]£¨‘Ú≤ªƒ‹…Ë÷√full_range
+		//∑Ò‘Úª·≥ˆœ÷≥¨π˝maxipµƒ«Èøˆ
+		//ºŸ…ËIPµÿ÷∑∑∂ŒßŒ™[112, 988]£¨µÿ÷∑ø’º‰Œ™[0~10)
+		//µ⁄“ª¥Œ—°‘Ò9£¨»Áπ˚…Ë÷√full_range£¨ µ⁄∂˛¥Œø…ƒ‹—°‘ÒµΩ9
+		//æÕ≥¨π˝988¡À
 		if (var_ipp->all[i] != range->max_addr.all[i])
 			full_range = true;
-
+		//»Áπ˚…Ë÷√¡ÀNF_NAT_RANGE_PERSISTENT£¨≤ª∏¸∏ƒjµƒ÷µ
+		//’‚—˘reciprocal_scale  ª·≤˙…˙œ‡Õ¨µƒ÷µ
 		if (!(range->flags & NF_NAT_RANGE_PERSISTENT))
 			j ^= (__force u32)tuple->dst.u3.all[i];
 	}

@@ -9,6 +9,7 @@
 //设置了需要做IP地址映射，把IP地址映射到指定的范围内
 //需要检查IP地址是否在配置的范围内
 //如果没有设置该标志，nat模块将不会修改数据包的IP地址
+//同时也不会修改conntrack reply tuple 中的IP 地址
 #define NF_NAT_RANGE_MAP_IPS			(1 << 0)
 //用户是否通过iptables 配置时指定了端口范围
 //比如MASQURADE 模块的--to-ports选项
@@ -16,7 +17,7 @@
 #define NF_NAT_RANGE_PROTO_SPECIFIED		(1 << 1)
 //随机生成端口偏移值，影响端口选择
 #define NF_NAT_RANGE_PROTO_RANDOM		(1 << 2)
-//主要影响find_best_ips_proto IP地址选择时的算法，影响端口选择
+//主要影响find_best_ips_proto IP地址选择时的算法
 //具体现在还没弄清楚
 #define NF_NAT_RANGE_PERSISTENT			(1 << 3)
 //调用prandom_u32函数随机一个off值，影响端口选择
