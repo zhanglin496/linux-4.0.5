@@ -390,7 +390,7 @@ extern bool force_irqthreads;
    tasklets are more than enough. F.e. all serial device BHs et
    al. should be converted to tasklets, not to softirqs.
  */
-
+//软中断类型，值越小优先级越高
 enum
 {
 	HI_SOFTIRQ=0,
