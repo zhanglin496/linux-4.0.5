@@ -243,7 +243,7 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 
 	/* Fast path: only one choice. */
 	//åªæœ‰ä¸€åœ°å€å¯ä»¥é€‰æ‹©çš„æƒ…å†µ
-	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {¡¢
+	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {
 		//¶ÔÓÚµ¥wanÂ·ÓÉÆ÷À´Ëµ£¬Ö»ÓĞÒ»¸öIPµØÖ·¿ÉÒÔÑ¡Ôñ
 		*var_ipp = range->min_addr;
 		return;

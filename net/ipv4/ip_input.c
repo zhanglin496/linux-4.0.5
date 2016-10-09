@@ -316,7 +316,11 @@ static int ip_rcv_finish(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
-
+//sysctl_ip_early_demux
+//解复用，提前查找skb 是否可以关联到本地socket
+//并缓存该结果
+//socket 同时可以缓存dst，因此可以跳过后面路由查找
+//对于纯转发设备不要打开该选项，会降低性能
 	if (sysctl_ip_early_demux && !skb_dst(skb) && skb->sk == NULL) {
 		const struct net_protocol *ipprot;
 		int protocol = iph->protocol;
