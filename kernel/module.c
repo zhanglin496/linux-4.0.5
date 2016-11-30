@@ -171,6 +171,7 @@ EXPORT_SYMBOL(unregister_module_notifier);
 
 struct load_info {
 	Elf_Ehdr *hdr;
+	//模块的总大小
 	unsigned long len;
 	Elf_Shdr *sechdrs;
 	char *secstrings, *strtab;
@@ -317,10 +318,10 @@ bool each_symbol_section(bool (*fn)(const struct symsearch *arr,
 		  GPL_ONLY, true },
 #endif
 	};
-
+	//先在内核中查找符号
 	if (each_symbol_in_section(arr, ARRAY_SIZE(arr), NULL, fn, data))
 		return true;
-
+	//然后在内核已经加载的模块中查找符号
 	list_for_each_entry_rcu(mod, &modules, list) {
 		struct symsearch arr[] = {
 			{ mod->syms, mod->syms + mod->num_syms, mod->crcs,
@@ -1179,6 +1180,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 			     NULL);
 }
 
+//如果支持符号crc校验
+//则忽略内核版本号
 /* First part is kernel version, which we ignore if module has crcs. */
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
@@ -2514,7 +2517,7 @@ static int copy_module_from_user(const void __user *umod, unsigned long len,
 	info->hdr = vmalloc(info->len);
 	if (!info->hdr)
 		return -ENOMEM;
-
+//拷贝模块到内核空间
 	if (copy_chunked_from_user(info->hdr, umod, info->len) != 0) {
 		vfree(info->hdr);
 		return -EFAULT;
@@ -2644,7 +2647,7 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 	err = rewrite_section_headers(info, flags);
 	if (err)
 		return ERR_PTR(err);
-
+	//查找符号表
 	/* Find internal symbols and strings. */
 	for (i = 1; i < info->hdr->e_shnum; i++) {
 		if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
@@ -2665,7 +2668,7 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 	//鑾峰彇鍦板潃,绋嶅悗闇�瑕佽皟鐢ㄥ叾init鍑芥暟
 	/* This is temporary: point mod into copy of data. */
 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
-
+	//符号表必须存在，否则无法解析模块需要的符号
 	if (info->index.sym == 0) {
 		pr_warn("%s: module has no symbols (stripped?)\n", mod->name);
 		return ERR_PTR(-ENOEXEC);
@@ -2687,9 +2690,11 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 
 	if (flags & MODULE_INIT_IGNORE_VERMAGIC)
 		modmagic = NULL;
-
+	//解析VERMAGIC_STRING
+	//如果不存在
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
+		//是否允许强行加载
 		err = try_to_force_load(mod, "bad vermagic");
 		if (err)
 			return err;
@@ -3171,6 +3176,7 @@ static int add_unformed_module(struct module *mod)
 
 again:
 	mutex_lock(&module_mutex);
+	//查看内核是否已经存在同名的模块
 	old = find_module_all(mod->name, strlen(mod->name), true);
 	if (old != NULL) {
 		if (old->state == MODULE_STATE_COMING

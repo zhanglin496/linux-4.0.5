@@ -215,7 +215,10 @@ struct module {
 
 	/* Member of list of modules */
 	struct list_head list;
-
+//内核通过模块名称来保证模块的唯一性
+//如果有同名的模块时不能重复加载的
+//编译模块时通过编译器自动生成__this_module 结构
+//来保证的
 	/* Unique handle for this module */
 	char name[MODULE_NAME_LEN];
 
