@@ -3258,7 +3258,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	struct module *mod;
 	long err;
 	char *after_dashes;
-
+	
+//内核模块签名验证
 	err = module_sig_check(info);
 	if (err)
 		goto free_copy;

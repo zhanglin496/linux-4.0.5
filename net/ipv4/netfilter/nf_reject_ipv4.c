@@ -19,6 +19,12 @@ const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 					     struct tcphdr *_oth, int hook)
 {
 	const struct tcphdr *oth;
+	
+	//这里检查是否是非第一个分片报文
+	//因为除了第一个分片报文包含有tcp首部外
+	//其余的分片报文不包含tcp首部
+	//而后面reset 需要用到tcp的首部信息
+	//这里可以变通使用conntrack的tuple信息来构造报文
 
 	/* IP header checks: fragment. */
 	if (ip_hdr(oldskb)->frag_off & htons(IP_OFFSET))
