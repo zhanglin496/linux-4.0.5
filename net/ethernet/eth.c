@@ -89,6 +89,11 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 *      Set the source hardware address.
 	 */
+	//如果没有指定源MAC
+	//就使用出口设备的MAC 地址
+	//目前linux内核默认都使用出口设备的MAC 地址作为源MAC
+	//地址
+	//详见arp_generic_ops arp.c文件
 
 	if (!saddr)
 		saddr = dev->dev_addr;
