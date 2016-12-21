@@ -194,6 +194,9 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
+	
+	//skb->data 此刻指向L3 头部
+	//必须正确设置skb->data指针,以保证上层可以正确解析数据
 	skb_pull_inline(skb, ETH_HLEN);
 	eth = eth_hdr(skb);
 
