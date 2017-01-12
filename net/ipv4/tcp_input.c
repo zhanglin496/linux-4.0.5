@@ -3294,13 +3294,16 @@ static int tcp_ack_update_window(struct sock *sk, const struct sk_buff *skb, u32
 	int flag = 0;
 	u32 nwin = ntohs(tcp_hdr(skb)->window);
 
+	//乘以窗口扩展因子
 	if (likely(!tcp_hdr(skb)->syn))
 		nwin <<= tp->rx_opt.snd_wscale;
 
+	//判断是否可以更新发送窗口
 	if (tcp_may_update_window(tp, ack, ack_seq, nwin)) {
-		flag |= FLAG_WIN_UPDATE;
+		flag |= FLAG_WIN_UPDATE; //数据包引起了窗口更新
+		//记录引起窗口更新的序列号
 		tcp_update_wl(tp, ack_seq);
-
+		//更新发送窗口
 		if (tp->snd_wnd != nwin) {
 			tp->snd_wnd = nwin;
 
@@ -3309,7 +3312,7 @@ static int tcp_ack_update_window(struct sock *sk, const struct sk_buff *skb, u32
 			 */
 			tp->pred_flags = 0;
 			tcp_fast_path_check(sk);
-
+			//更新连接上出现过的最大窗口值
 			if (nwin > tp->max_window) {
 				tp->max_window = nwin;
 				tcp_sync_mss(sk, inet_csk(sk)->icsk_pmtu_cookie);
@@ -3479,7 +3482,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		u32 ack_ev_flags = CA_ACK_SLOWPATH;
 
 		if (ack_seq != TCP_SKB_CB(skb)->end_seq)
-			flag |= FLAG_DATA;
+			flag |= FLAG_DATA; //tcp 包含数据
 		else
 			NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPPUREACKS);
 
@@ -4423,7 +4426,9 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	if (TCP_SKB_CB(skb)->seq == tp->rcv_nxt) {
 		if (tcp_receive_window(tp) == 0)
 			goto out_of_window;
-
+		//因为tcp_v4_do_rcv可能会被用户进程在
+		//release_sock时调用，所以下面的情况是可能
+		//发生的
 		/* Ok. In sequence. In window. */
 		if (tp->ucopy.task == current &&
 		    tp->copied_seq == tp->rcv_nxt && tp->ucopy.len &&

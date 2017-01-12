@@ -1556,10 +1556,16 @@ bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 	if (likely(sk->sk_rx_dst))
 		skb_dst_drop(skb);
 	else
+		//ip_rcv中查找的路由是noref的，由rcu来保护
+		//这里skb入队之后，即将离开rcu临界区
+		//所以要强制dst的引用计数
 		skb_dst_force(skb);
-
+	
+	//sk_backlog_rcv 也指向tcp_v4_do_rcv
 	__skb_queue_tail(&tp->ucopy.prequeue, skb);
 	tp->ucopy.memory += skb->truesize;
+	//内存超限，直接调用sk_backlog_rcv
+	//清空prqueue队列
 	if (tp->ucopy.memory > sk->sk_rcvbuf) {
 		struct sk_buff *skb1;
 
@@ -1572,9 +1578,13 @@ bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 		}
 
 		tp->ucopy.memory = 0;
+		//skb_queue_len == 1，说明是本次__skb_queue_tail
+		//中加入的，需要wait_up 进程
+		//否侧表示进程已被唤醒，无需再次唤醒
 	} else if (skb_queue_len(&tp->ucopy.prequeue) == 1) {
 		wake_up_interruptible_sync_poll(sk_sleep(sk),
 					   POLLIN | POLLRDNORM | POLLRDBAND);
+		//
 		if (!inet_csk_ack_scheduled(sk))
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
 						  (3 * tcp_rto_min(sk)) / 4,
@@ -1664,7 +1674,7 @@ process:
 	if (tcp_v4_inbound_md5_hash(sk, skb))
 		goto discard_and_relse;
 #endif
-
+	//释放跟conntrack相关的引用
 	nf_reset(skb);
 
 	if (sk_filter(sk, skb))

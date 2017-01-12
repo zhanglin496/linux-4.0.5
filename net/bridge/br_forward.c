@@ -105,6 +105,7 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 /* called with rcu_read_lock */
 void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
+	//发送数据包到指定的to端口
 	if (to && should_deliver(to, skb)) {
 		__br_deliver(to, skb);
 		return;

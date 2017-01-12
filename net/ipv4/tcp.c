@@ -1561,6 +1561,11 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	    (sk->sk_state == TCP_ESTABLISHED))
 		sk_busy_loop(sk, nonblock);
 
+	//功能：“锁住sk”，并非真正的加锁，\
+	//而是执行sk->sk_lock.owned = 1	
+	//目的：这样软中断上下文能够通过owned ，
+	//判断该sk是否处于进程上下文。  
+	//提供一种同步机制
 	lock_sock(sk);
 
 	err = -ENOTCONN;
@@ -1610,7 +1615,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		}
 
 		/* Next get a buffer. */
-
+		//必须先循环处理完receive_queue
 		skb_queue_walk(&sk->sk_receive_queue, skb) {
 			/* Now that we have two receive queues this
 			 * shouldn't happen.
@@ -1620,7 +1625,14 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				 *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt,
 				 flags))
 				break;
-
+			//如果用户的缓冲区(即用户malloc的buf)长度够大，offset一般是0。	
+			//即 “下次准备拷贝数据的序列号”==此时获取报文的起始序列号  
+			//什么情况下offset >0呢？很简答，如果用户缓冲区12字节，而这个skb有120字节  
+			//那么一次recv系统调用，只能获取skb中的前12个字节，下一次执行recv系统调用  
+			//offset就是12了，表示从第12个字节开始读取数据，前12个字节已经读取了
+			//那这个"已经读取12字节"这个消息，存在哪呢？  
+			//在*seq = &tp->copied_seq;中  
+			
 			offset = *seq - TCP_SKB_CB(skb)->seq;
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
 				offset--;
@@ -1731,6 +1743,9 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			release_sock(sk);
 			lock_sock(sk);
 		} else
+		//这里会调用release_sock
+		//设置sk->sk_lock.owned = 0;
+		//数据包有机会进入prequeue
 			sk_wait_data(sk, &timeo);
 
 		if (user_recv) {

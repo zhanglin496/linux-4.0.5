@@ -160,6 +160,23 @@ struct tcp_sock {
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 	unsigned long	tsq_flags;
 
+	
+	//ucopy is part of the TCP options structure, 
+	//discussed in Chapter 8, Section 8.7.2. Once
+	//segments are put on the prequeue, they are processed in the application
+	//task’s context rather than
+	//in the kernel context. This improves the efficiency of TCP 
+	//by minimizing context switches
+	//between kernel and user. If tcp_prequeue returns zero,
+	//it means that there was no current user
+	//task associated with the socket, so tcp_v4_do_rcv is called to continue with normal "slow path"
+	//receive processing. Tcp_prequeue is covered in more detail later in this chapter.
+	//The field, prequeue, contains the list of socket buffers waiting for processing. 
+	//Task isthe user-level task to receive the data. 
+	//The msg field points to the user’s receive data array, and
+	//memory contains the sum of the actual data lengths of all of the socket buffers on the prequeue.
+	//len 为本次调用进程希望读取的数据大小
+	
 	/* Data for direct copy to user */
 	struct {
 		struct sk_buff_head	prequeue;
@@ -168,7 +185,10 @@ struct tcp_sock {
 		int			memory;
 		int			len;
 	} ucopy;
-
+	
+	/* snd_wl1 记录发送窗口更新时，造成窗口更新的那个数据报的第一个序号。 
+	 * 它主要用于在下一次判断是否需要更新发送窗口。 
+	 */  
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	snd_wnd;	/* The window we expect to receive	*/
 	u32	max_window;	/* Maximal window ever seen from peer	*/
@@ -198,7 +218,7 @@ struct tcp_sock {
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
 	u32	rttvar_us;	/* smoothed mdev_max			*/
 	u32	rtt_seq;	/* sequence number to update rttvar	*/
-
+	// 数据包为单位
 	u32	packets_out;	/* Packets which are "in flight"	*/
 	u32	retrans_out;	/* Retransmitted packets out		*/
 	u32	max_packets_out;  /* max packets_out in last window */
@@ -218,7 +238,9 @@ struct tcp_sock {
 /*
  *	Slow start and congestion control (see also Nagle, and Karn & Partridge)
  */
+ 	//慢启动阀值，数据包为单位
  	u32	snd_ssthresh;	/* Slow start size threshold		*/
+	//发送拥塞窗口，数据包为单位
  	u32	snd_cwnd;	/* Sending congestion window		*/
 	u32	snd_cwnd_cnt;	/* Linear increase counter		*/
 	u32	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
