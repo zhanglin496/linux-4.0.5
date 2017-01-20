@@ -486,15 +486,16 @@ EXPORT_SYMBOL(tcp_initialize_rcv_mss);
  * though this reference is out of date.  A new paper
  * is pending.
  */
+ /* win_dep表示是否对RTT采样进行微调，1为不进行微调，0为进行微调。*/
 static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 {
 	u32 new_sample = tp->rcv_rtt_est.rtt;
 	long m = sample;
 
 	if (m == 0)
-		m = 1;
+		m = 1; /* 时延最小为1ms*/  
 
-	if (new_sample != 0) {
+	if (new_sample != 0) { /* 不是第一次获得样本*/  
 		/* If we sample in larger samples in the non-timestamp
 		 * case, we could grossly overestimate the RTT especially
 		 * with chatty applications or bulk transfer apps which
@@ -505,17 +506,19 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 		 * else with timestamps disabled convergence takes too
 		 * long.
 		 */
+		 /* 对RTT采样进行微调，新的RTT样本只占最终RTT的1/8 */  
 		if (!win_dep) {
 			m -= (new_sample >> 3);
 			new_sample += m;
 		} else {
+		 /* 不对RTT采样进行微调，直接取最小值，原因可见上面那段注释*/  
 			m <<= 3;
 			if (m < new_sample)
 				new_sample = m;
 		}
 	} else {
 		/* No previous measure. */
-		new_sample = m << 3;
+		new_sample = m << 3; // 第一次获得样本
 	}
 
 	if (tp->rcv_rtt_est.rtt != new_sample)
@@ -524,14 +527,20 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 
 static inline void tcp_rcv_rtt_measure(struct tcp_sock *tp)
 {
+	/* 第一次接收到数据时，需要对相关变量初始化*/  
 	if (tp->rcv_rtt_est.time == 0)
 		goto new_measure;
+	
+    /* 收到指定的序列号后，才能获取一个RTT测量样本*/  
 	if (before(tp->rcv_nxt, tp->rcv_rtt_est.seq))
 		return;
 	tcp_rcv_rtt_update(tp, tcp_time_stamp - tp->rcv_rtt_est.time, 1);
 
+//接受一整窗的数据时，才更新rtt
 new_measure:
+	/* 收到此序列号的ack时，一个RTT样本的计时结束*/  
 	tp->rcv_rtt_est.seq = tp->rcv_nxt + tp->rcv_wnd;
+	/* 一个RTT样本开始计时*/  
 	tp->rcv_rtt_est.time = tcp_time_stamp;
 }
 
@@ -539,9 +548,13 @@ static inline void tcp_rcv_rtt_measure_ts(struct sock *sk,
 					  const struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	 /* 启用了Timestamps选项，并且流量稳定
+	 * 即数据长度大于mss
+	 */  
 	if (tp->rx_opt.rcv_tsecr &&
 	    (TCP_SKB_CB(skb)->end_seq -
 	     TCP_SKB_CB(skb)->seq >= inet_csk(sk)->icsk_ack.rcv_mss))
+	       /* RTT = 当前时间 - 回显时间*/  
 		tcp_rcv_rtt_update(tp, tcp_time_stamp - tp->rx_opt.rcv_tsecr, 0);
 }
 
@@ -5467,7 +5480,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		} else {
 			tp->tcp_header_len = sizeof(struct tcphdr);
 		}
-
+		//fack 依赖sack
 		if (tcp_is_sack(tp) && sysctl_tcp_fack)
 			tcp_enable_fack(tp);
 

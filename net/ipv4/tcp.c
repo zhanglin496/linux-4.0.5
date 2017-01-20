@@ -1640,16 +1640,22 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				goto found_ok_skb;
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 				goto found_fin_ok;
+			//如果到达这一步,说明代码有BUG
 			WARN(!(flags & MSG_PEEK),
 			     "recvmsg bug 2: copied %X seq %X rcvnxt %X fl %X\n",
 			     *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt, flags);
 		}
 
 		/* Well, if we have backlog, try to process it now yet. */
-
 		if (copied >= target && !sk->sk_backlog.tail)
 			break;
-
+		
+		//到达这里，要么
+		//	1. receive_queue一开始就是空
+		//	2. 使用了MSG_WAITALL，希望读取的字节数大于队列中的数据
+		//	否侧，应该至少会读取到一个字节
+		//  3. sk_backlog非空
+		
 		if (copied) {
 			if (sk->sk_err ||
 			    sk->sk_state == TCP_CLOSE ||
@@ -1732,6 +1738,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			 * is not empty. It is more elegant, but eats cycles,
 			 * unfortunately.
 			 */
+			 //处理prequeue
 			if (!skb_queue_empty(&tp->ucopy.prequeue))
 				goto do_prequeue;
 
@@ -1740,9 +1747,11 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 		if (copied >= target) {
 			/* Do not sleep, just process backlog. */
+			//处理sk_backlog
 			release_sock(sk);
 			lock_sock(sk);
 		} else
+		//一个字节都未读取到或者使用了MSG_WAITALL
 		//这里会调用release_sock
 		//设置sk->sk_lock.owned = 0;
 		//数据包有机会进入prequeue

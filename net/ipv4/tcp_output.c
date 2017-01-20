@@ -903,6 +903,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	struct tcphdr *th;
 	int err;
 
+	//tcp_skb_pcount一定非0
 	BUG_ON(!skb || !tcp_skb_pcount(skb));
 
 	if (clone_it) {
@@ -927,7 +928,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 		tcp_options_size = tcp_established_options(sk, skb, &opts,
 							   &md5);
 	tcp_header_size = tcp_options_size + sizeof(struct tcphdr);
-
+	//所有发送的数据都被确认
 	if (tcp_packets_in_flight(tp) == 0)
 		tcp_ca_event(sk, CA_EVENT_TX_START);
 
@@ -1518,6 +1519,8 @@ static void tcp_minshall_update(struct tcp_sock *tp, unsigned int mss_now,
 static bool tcp_nagle_check(bool partial, const struct tcp_sock *tp,
 			    int nonagle)
 {
+	// 1. 如果是一个全尺寸段(>= mss), 可以立即发送
+	// 
 	return partial &&
 		((nonagle & TCP_NAGLE_CORK) ||
 		 (!nonagle && tp->packets_out && tcp_minshall_check(tp)));
@@ -1588,6 +1591,8 @@ static inline unsigned int tcp_cwnd_test(const struct tcp_sock *tp,
 	    tcp_skb_pcount(skb) == 1)
 		return 1;
 
+	//如果飞行的数据段数量大于当前拥塞窗口
+	//不允许发送数据
 	in_flight = tcp_packets_in_flight(tp);
 	cwnd = tp->snd_cwnd;
 	if (in_flight >= cwnd)
@@ -1651,7 +1656,7 @@ static bool tcp_snd_wnd_test(const struct tcp_sock *tp,
 
 	if (skb->len > cur_mss)
 		end_seq = TCP_SKB_CB(skb)->seq + cur_mss;
-
+	//数据是否在允许的窗口外
 	return !after(end_seq, tcp_wnd_end(tp));
 }
 
@@ -1994,8 +1999,9 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 	max_segs = tcp_tso_autosize(sk, mss_now);
 	while ((skb = tcp_send_head(sk))) {
 		unsigned int limit;
-
+		
 		tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
+		//tcp_skb_pcount至少为1
 		BUG_ON(!tso_segs);
 
 		if (unlikely(tp->repair) && tp->repair_queue == TCP_SEND_QUEUE) {
