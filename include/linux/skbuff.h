@@ -36,7 +36,9 @@
 #include <linux/sched.h>
 #include <net/flow_keys.h>
 
-/* A. Checksumming of received packets by device.
+
+/* A. Checksumming of received packets by device. 
+ * //接受路径和输出路径的定义不一样
  *
  * CHECKSUM_NONE:
  *
@@ -95,11 +97,13 @@
  *
  * B. Checksumming on output.
  *
+ //校验和已经由协议栈计算完成，硬件无须再次计算
  * CHECKSUM_NONE:
  *
  *   The skb was already checksummed by the protocol, or a checksum is not
  *   required.
  *
+ //要求硬件计算指定数据的校验和
  * CHECKSUM_PARTIAL:
  *
  *   The device is required to checksum the packet as seen by hard_start_xmit()
@@ -116,6 +120,7 @@
  *	NETIF_F_IPV6_CSUM - About as dumb as the last one but does IPv6 instead.
  *	NETIF_F_...     - Well, you get the picture.
  *
+ //通知硬件不要计算校验和
  * CHECKSUM_UNNECESSARY:
  *
  *   Normally, the device will do per protocol specific checksumming. Protocol

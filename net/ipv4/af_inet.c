@@ -233,6 +233,8 @@ int inet_listen(struct socket *sock, int backlog)
 		if (err)
 			goto out;
 	}
+	//如果用户重复调用了listen
+	//只允许修改backlog的值
 	sk->sk_max_ack_backlog = backlog;
 	err = 0;
 

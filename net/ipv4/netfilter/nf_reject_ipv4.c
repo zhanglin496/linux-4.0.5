@@ -97,8 +97,11 @@ void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
 	tcph->rst	= 1;
 	tcph->check = ~tcp_v4_check(sizeof(struct tcphdr), niph->saddr,
 				    niph->daddr, 0);
+	//要求硬件计算部分校验和
 	nskb->ip_summed = CHECKSUM_PARTIAL;
+	//指定计算校验和的开始位置偏移
 	nskb->csum_start = (unsigned char *)tcph - nskb->head;
+	//指定存储校验和的位置偏移
 	nskb->csum_offset = offsetof(struct tcphdr, check);
 }
 EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_put);
