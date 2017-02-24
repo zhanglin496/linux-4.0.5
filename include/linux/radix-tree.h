@@ -99,6 +99,7 @@ struct radix_tree_node {
 	};
 	/* For tree user */
 	struct list_head private_list;
+	// 2^4=16 Лђеп2^6 =64
 	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
 	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
 };
