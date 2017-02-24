@@ -65,8 +65,8 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 
 #define VLAN_PRIO_MASK		0xe000 /* Priority Code Point */
 #define VLAN_PRIO_SHIFT		13
-//h_vlan_TCI æ ¼å¼,3bitä¼˜å…ˆçº§+ 1bit Canonical Format Indicator + 12bit vlan id number
-//TCI ä¸º tag control informationçš„ç¼©å†™
+//h_vlan_TCI ¸ñÊ½,3bitÓÅÏÈ¼¶+ 1bit Canonical Format Indicator + 12bit vlan id number
+//TCI Îª tag control informationµÄËõĞ´
 #define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator */
 #define VLAN_TAG_PRESENT	VLAN_CFI_MASK
 #define VLAN_VID_MASK		0x0fff /* VLAN Identifier */
