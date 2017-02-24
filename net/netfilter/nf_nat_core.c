@@ -555,6 +555,7 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 		ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3);
 	struct nf_nat_range range = {
 		.flags		= NF_NAT_RANGE_MAP_IPS,
+			//min_addr == max_addr，所以只能使用指定的IP地址
 		.min_addr	= ip,
 		.max_addr	= ip,
 	};

@@ -259,6 +259,13 @@ EXPORT_SYMBOL_GPL(nf_nat_icmp_reply_translation);
 //只要内核配置了支持NAT，即使用户没有添加nat规则，
 //每个conntrack 都需要额外做一次NAT空绑定，所谓空绑定，就是不会改变IP地址
 //但是有可能会改变端口，空绑定的目的是为了保证conntrack表中五元组的唯一性
+//比如本地发出的数据包到目的地C:80端口，标为连接A
+//然后存在转发的数据包也是到目的地C:80端口,标为连接B
+//假设都经过了C 经过了NAT转换，变为D:8080
+//然后删除NAT规则
+//由于连接A不知道8080端口被占用了，并且A要使用D这个地址，如果A使用D:8080端口
+//就会冲突，所以这种情况下A必须执行一次空绑定，选择一个
+//另外的源端口号
 unsigned int
 nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	       const struct net_device *in, const struct net_device *out,
