@@ -150,6 +150,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	//ip 差错报文中包含了出错的IP首部以及L4的前8个字节
 	//所以这里能正确的匹配到原始的请求
 	/* Are they talking about one of our connections? */
+	//跳过sizeof(struct icmphdr)，始终为8个字节
 	if (!nf_ct_get_tuplepr(skb,
 			       skb_network_offset(skb) + ip_hdrlen(skb)
 						       + sizeof(struct icmphdr),
@@ -232,6 +233,8 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	}
 
 	/* Need to track icmp error message? */
+	//非差错报文，不需要关联到存在IP报文的conntrack上
+	//比如ICMP_ECHO类型的报文是有请求才会有响应
 	if (icmph->type != ICMP_DEST_UNREACH &&
 	    icmph->type != ICMP_SOURCE_QUENCH &&
 	    icmph->type != ICMP_TIME_EXCEEDED &&

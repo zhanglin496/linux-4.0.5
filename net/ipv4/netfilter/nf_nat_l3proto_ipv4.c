@@ -226,10 +226,12 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 	/* Invert if this is reply direction */
 	if (dir == IP_CT_DIR_REPLY)
 		statusbit ^= IPS_NAT_MASK;
-
+	
+	//是否需要NAT转换
 	if (!(ct->status & statusbit))
 		return 1;
 
+	//转换内嵌IP数据头的IP地址
 	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV4, inside->ip.protocol);
 	if (!nf_nat_ipv4_manip_pkt(skb, hdrlen + sizeof(inside->icmp),
 				   l4proto, &ct->tuplehash[!dir].tuple, !manip))
@@ -243,7 +245,7 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 			csum_fold(skb_checksum(skb, hdrlen,
 					       skb->len - hdrlen, 0));
 	}
-
+	//转换实际外部IP头的IP地址
 	/* Change outer to look like the reply to an incoming packet */
 	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
 	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV4, 0);

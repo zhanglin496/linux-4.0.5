@@ -1207,6 +1207,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			ret = -ret;
 			goto out;
 		}
+		//对于ICMP协议
+		//ICMP差错报文应该和一个已经存在的
+		//conntrack关联，详见icmp_error
 		/* ICMP[v6] protocol trackers may assign one conntrack. */
 		if (skb->nfct)
 			goto out;
