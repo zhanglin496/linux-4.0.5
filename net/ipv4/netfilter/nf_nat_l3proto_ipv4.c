@@ -465,7 +465,7 @@ nf_nat_ipv4_local_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-		//å¦‚æžœæ”¹å˜äº†ç›®çš„IPåœ°å€ï¼Œéœ€è¦é‡æ–°è·¯ç”±
+		//ÔÚLOCAL_OUTµãµ÷ÓÃ,Èç¹û¸Ä±äÁËÄ¿µÄIPµØÖ·£¬ÐèÒªÖØÐÂÂ·ÓÉ
 		if (ct->tuplehash[dir].tuple.dst.u3.ip !=
 		    ct->tuplehash[!dir].tuple.src.u3.ip) {
 			err = ip_route_me_harder(skb, RTN_UNSPEC);
