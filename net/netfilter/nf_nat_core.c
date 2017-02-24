@@ -403,7 +403,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	/* 3) The per-protocol part of the manip is made to map into
 	 * the range to make a unique tuple.
 	 */
-	//涓嬮潰灏辨槸鏍规嵁L4鍗忚閫夋嫨鍚堥�傜殑绔彛
+	//下面就是根据L4协议选择合适的端口
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		//如果源端口恰好在指定范围内
