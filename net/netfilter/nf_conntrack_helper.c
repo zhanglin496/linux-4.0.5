@@ -200,7 +200,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	if (test_bit(IPS_HELPER_BIT, &ct->status))
 		return 0;
 
-	//æ˜¯å¦é€šè¿‡æ¨¡æ¿æŒ‡å®šäº†å¸®åŠ©å‡½æ•°
+	//ÊÇ·ñÍ¨¹ıÄ£°åÖ¸¶¨ÁË°ïÖúº¯Êı
 	if (tmpl != NULL) {
 		help = nfct_help(tmpl);
 		if (help != NULL) {
@@ -210,7 +210,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	}
 
 	help = nfct_help(ct);
-	//æŸ¥è¯¢å¸®åŠ©å‡½æ•°
+	//²éÑ¯°ïÖúº¯Êı
 	if (net->ct.sysctl_auto_assign_helper && helper == NULL) {
 		helper = __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 		if (unlikely(!net->ct.auto_assign_helper_warned && helper)) {
@@ -221,15 +221,15 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			net->ct.auto_assign_helper_warned = true;
 		}
 	}
-	//è‹¥å¸®åŠ©å‡½æ•°ä¸ºç©ºï¼Œè¯´æ˜è¿æ¥ä¸éœ€è¦ç‰¹æ®Šå¤„ç†
+	//Èô°ïÖúº¯ÊıÎª¿Õ£¬ËµÃ÷Á¬½Ó²»ĞèÒªÌØÊâ´¦Àí
 	if (helper == NULL) {
 		if (help)
 			RCU_INIT_POINTER(help->helper, NULL);
 		goto out;
 	}
 	
-	//è‹¥helpæ‰©å±•ä¸ºç©ºï¼Œåˆ™éœ€è¦æ·»åŠ helpæ‰©å±•åŒº
-	//åŒæ—¶æŒ‡æ´¾å¸®åŠ©å‡½æ•°
+	//ÈôhelpÀ©Õ¹Îª¿Õ£¬ÔòĞèÒªÌí¼ÓhelpÀ©Õ¹Çø
+	//Í¬Ê±Ö¸ÅÉ°ïÖúº¯Êı
 	if (help == NULL) {
 		help = nf_ct_helper_ext_add(ct, helper, flags);
 		if (help == NULL) {
@@ -241,9 +241,10 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 		 * we cannot reallocate the helper extension area.
 		 */
 		struct nf_conntrack_helper *tmp = rcu_dereference(help->helper);
-		//è‹¥æ¨¡æ¿ä¸­çš„å¸®åŠ©å‡½æ•°å’Œctä¸­åŸæœ‰çš„å¸®åŠ©å‡½æ•°ä¸åŒ
-		//è¯´æ˜æœ‰é—®é¢˜
+		//ÈôÄ£°åÖĞµÄ°ïÖúº¯ÊıºÍctÖĞÔ­ÓĞµÄ°ïÖúº¯Êı²»Í¬
+		//ËµÃ÷ÓĞÎÊÌâ
 		if (tmp && tmp->help != helper->help) {
+			//ÉèÖÃ°ïÖúº¯ÊıÎªNULL
 			RCU_INIT_POINTER(help->helper, NULL);
 			goto out;
 		}
@@ -461,9 +462,9 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
 
-//struct hlist_head expectations è™½ç„¶åœ¨é‡æ–°åˆ†é…æ‰©å±•åŒºæ—¶ï¼Œfirstå˜é‡çš„åœ°å€ä¼šå‘ç”Ÿå˜åŒ–
-//ä½†æ˜¯ç”±äºhelperå‡½æ•°çš„æ‰§è¡Œåœ¨hookç‚¹(NF_IP_PRI_CONNTRACK_CONFIRM)é åçš„ä½ç½®ï¼Œä¸ä¼šå†å‡ºç°é‡æ–°åˆ†é…çš„æƒ…å†µ
-//å› æ­¤è¿™é‡Œä¸éœ€è¦moveå‡½æ•°
+//struct hlist_head expectations ËäÈ»ÔÚÖØĞÂ·ÖÅäÀ©Õ¹ÇøÊ±£¬first±äÁ¿µÄµØÖ·»á·¢Éú±ä»¯
+//µ«ÊÇÓÉÓÚhelperº¯ÊıµÄÖ´ĞĞÔÚhookµã(NF_IP_PRI_CONNTRACK_CONFIRM)¿¿ºóµÄÎ»ÖÃ£¬²»»áÔÙ³öÏÖÖØĞÂ·ÖÅäµÄÇé¿ö
+//Òò´ËÕâÀï²»ĞèÒªmoveº¯Êı
 static struct nf_ct_ext_type helper_extend __read_mostly = {
 	.len	= sizeof(struct nf_conn_help),
 	.align	= __alignof__(struct nf_conn_help),

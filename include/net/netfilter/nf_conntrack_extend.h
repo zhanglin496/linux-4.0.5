@@ -47,9 +47,9 @@ enum nf_ct_ext_id {
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
 	struct rcu_head rcu;
-	//扩展偏移，从struct nf_ct_ext开始计算，根据ID号来识别
+	//��չƫ�ƣ���struct nf_ct_ext��ʼ���㣬����ID����ʶ��
 	u16 offset[NF_CT_EXT_NUM];
-	//整个扩展的大小，包括struct nf_ct_ext
+	//������չ�Ĵ�С������struct nf_ct_ext
 	u16 len;
 	char data[0];
 };
@@ -114,16 +114,16 @@ struct nf_ct_ext_type {
 	unsigned int flags;
 
 	/* Length and min alignment. */
-	//每个扩展实际需要分配的空间大小，
+	//ÿ����չʵ����Ҫ����Ŀռ��С��
 	u8 len;
-	//起始地址对齐大小，一般通过__alignof__求得
+	//��ʼ��ַ�����С��һ��ͨ��__alignof__���
 	u8 align;
 	/* initial size of nf_ct_ext. */
-	//每个类型所需的扩展的总大小，包括nf_ct_ext和对齐填充
+	//ÿ�������������չ���ܴ�С������nf_ct_ext�Ͷ������
 	//type->alloc_size = ALIGN(sizeof(struct nf_ct_ext), type->align)
 	// + type->len;
-	//该变量只会在第一次通过nf_ct_ext_create分配扩展区的时候才会用到，
-	//后面再分配新的扩展区时，是通过__krealloc来完成，详见__nf_ct_ext_add_length
+	//�ñ���ֻ���ڵ�һ��ͨ��nf_ct_ext_create������չ����ʱ��Ż��õ���
+	//�����ٷ����µ���չ��ʱ����ͨ��__krealloc����ɣ����__nf_ct_ext_add_length
 	u8 alloc_size;
 };
 

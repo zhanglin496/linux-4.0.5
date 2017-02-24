@@ -159,11 +159,11 @@ static int in_range(const struct nf_nat_l3proto *l3proto,
 	/* If we are supposed to map IPs, then we must be in the
 	 * range specified, otherwise let this drag us onto a new src IP.
 	 */
-	//æ£€æŸ¥src IPåœ°å€æ˜¯å¦åœ¨rangeèŒƒå›´å†…
+	//¼ì²ésrc IPµØÖ·ÊÇ·ñÔÚrange·¶Î§ÄÚ
 	if (range->flags & NF_NAT_RANGE_MAP_IPS &&
 	    !l3proto->in_range(tuple, range))
 		return 0;
-	//æ£€æŸ¥ç«¯å£æ˜¯å¦åœ¨rangeèŒƒå›´å†…
+	//¼ì²é¶Ë¿ÚÊÇ·ñÔÚrange·¶Î§ÄÚ
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
 	    l4proto->in_range(tuple, NF_NAT_MANIP_SRC,
 			      &range->min_proto, &range->max_proto))
@@ -201,10 +201,10 @@ find_appropriate_src(struct net *net, u16 zone,
 		ct = nat->ct;
 		if (same_src(ct, tuple) && nf_ct_zone(ct) == zone) {
 			/* Copy source part from reply tuple. */
-			//æ˜ å°„åˆ°ç›¸åŒçš„æºåœ°å€
+			//Ó³Éäµ½ÏàÍ¬µÄÔ´µØÖ·
 			nf_ct_invert_tuplepr(result,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-			//ä¿å­˜å®é™…çš„ç›®çš„åœ°å€
+			//±£´æÊµ¼ÊµÄÄ¿µÄµØÖ·
 			result->dst = tuple->dst;
 
 			if (in_range(l3proto, l4proto, result, range))
@@ -242,7 +242,7 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 		var_ipp = &tuple->dst.u3;
 
 	/* Fast path: only one choice. */
-	//åªæœ‰ä¸€åœ°å€å¯ä»¥é€‰æ‹©çš„æƒ…å†µ
+	//Ö»ÓĞÒ»µØÖ·¿ÉÒÔÑ¡ÔñµÄÇé¿ö
 	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {
 		//¶ÔÓÚµ¥wanÂ·ÓÉÆ÷À´Ëµ£¬Ö»ÓĞÒ»¸öIPµØÖ·¿ÉÒÔÑ¡Ôñ
 		*var_ipp = range->min_addr;
@@ -349,46 +349,46 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * So far, we don't do local source mappings, so multiple
 	 * manips not an issue.
 	 */
-	 //åªèƒ½æ˜¯æºåœ°å€natçš„æƒ…å†µä¸‹æ‰èƒ½åšç›¸åŒçš„æ˜ å°„
-	 //ç›®çš„åœ°å€NATæ˜¯ä¸å¯èƒ½æ˜ å°„åˆ°ç›¸åŒçš„ç›®çš„åœ°å€
-	 //å¦åˆ™ï¼Œæ•°æ®åŒ…ä¼šåˆ°è¾¾é”™è¯¯çš„ç›®çš„åœ°å€
+	//Ö»ÄÜÊÇÔ´µØÖ·natµÄÇé¿öÏÂ²ÅÄÜ×öÏàÍ¬µÄÓ³Éä
+	//Ä¿µÄµØÖ·NATÊÇ²»¿ÉÄÜÓ³Éäµ½ÏàÍ¬µÄÄ¿µÄµØÖ·
+	//·ñÔò£¬Êı¾İ°ü»áµ½´ï´íÎóµÄÄ¿µÄµØÖ·
 	if (maniptype == NF_NAT_MANIP_SRC &&
 	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
 		//
-		//     orig_tupleä¸º192.168.18.100:10088---------->61.139.2.69:80
-		//è·¯ç”±å™¨çš„wanå£ipåœ°å€ä¸º172.168.3.36
-		//å‡è®¾å¯¹wanå£æ˜¯ç”¨äº†MASQUERADEæ¨¡å—
-		//rangeæŒ‡å®šçš„ipåœ°å€ä¸º172.168.3.36
-		//è¿™é‡Œå…ˆå°è¯•ä½¿ç”¨åŸIPåœ°å€å’Œç«¯å£æ˜¯å¦å¯è¡Œ
-		//è¿™é‡Œ192.168.18.100ä¸åœ¨rangeæŒ‡å®šçš„IPåœ°å€172.168.3.36èŒƒå›´å†…
+		//     orig_tupleÎª192.168.18.100:10088---------->61.139.2.69:80
+		//Â·ÓÉÆ÷µÄwan¿ÚipµØÖ·Îª172.168.3.36
+		//¼ÙÉè¶Ôwan¿ÚÊÇÓÃÁËMASQUERADEÄ£¿é
+		//rangeÖ¸¶¨µÄipµØÖ·Îª172.168.3.36
+		//ÕâÀïÏÈ³¢ÊÔÊ¹ÓÃÔ­IPµØÖ·ºÍ¶Ë¿ÚÊÇ·ñ¿ÉĞĞ
+		//ÕâÀï192.168.18.100²»ÔÚrangeÖ¸¶¨µÄIPµØÖ·172.168.3.36·¶Î§ÄÚ
 		if (in_range(l3proto, l4proto, orig_tuple, range)) {
-			//å¤§å¤šæ˜¯æƒ…å†µä¸‹åªæœ‰æœ¬æœºå‘å‡ºå»æ•°æ®åŒ…æ‰ä¼šåˆ°è¾¾è¿™é‡Œ
-			//å¯è¡Œï¼Œæ£€æŸ¥è¯¥tupleæ˜¯å¦å†²çª
+			//´ó¶àÊÇÇé¿öÏÂÖ»ÓĞ±¾»ú·¢³öÈ¥Êı¾İ°ü²Å»áµ½´ïÕâÀï
+			//¿ÉĞĞ£¬¼ì²é¸ÃtupleÊÇ·ñ³åÍ»
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
-				//okï¼Œtupleå”¯ä¸€
+				//ok£¬tupleÎ¨Ò»
 				*tuple = *orig_tuple;
 				goto out;
 			}
-		//åœ¨ct.nat_bysourceä¸­é€‰æ‹©æ˜¯å¦å¯ä»¥æ˜ å°„åˆ°ç›¸åŒçš„æºåœ°å€
-		//è¿™æ ·å¯ä»¥èŠ‚çº¦ç«¯å£å·
-		//å°±æ˜¯è¯´æœ‰ç›¸åŒçš„å››å±‚åè®®å’Œæºåœ°å€ã€æºç«¯å£çš„æ˜ å°„è¡¨å·²ç»å­˜åœ¨
-		//å‡è®¾å·²ç»å­˜åœ¨ä¸€ä¸ª192.168.18.100ï¼š1008,TCPçš„æ˜ å°„
-		//å…¶æºåœ°å€æ˜ å°„åˆ°172.168.3.36:10088--->61.139.2.69:8080
-		//192.168.18.100:10088---------->61.139.2.69:80å°†ä¼šè¢«æ˜ å°„åˆ°
-		//172.168.3.36:10088 ---------->61.139.2.69:80
-		//å› ä¸ºè¿™é‡Œç›®çš„ç«¯å£ä¸ä¸€æ ·
+			//ÔÚct.nat_bysourceÖĞÑ¡ÔñÊÇ·ñ¿ÉÒÔÓ³Éäµ½ÏàÍ¬µÄÔ´µØÖ·
+			//ÕâÑù¿ÉÒÔ½ÚÔ¼¶Ë¿ÚºÅ
+			//¾ÍÊÇËµÓĞÏàÍ¬µÄËÄ²ãĞ­ÒéºÍÔ´µØÖ·¡¢Ô´¶Ë¿ÚµÄÓ³Éä±íÒÑ¾­´æÔÚ
+			//¼ÙÉèÒÑ¾­´æÔÚÒ»¸ö192.168.18.100£º1008,TCPµÄÓ³Éä
+			//ÆäÔ´µØÖ·Ó³Éäµ½172.168.3.36:10088--->61.139.2.69:8080
+			//192.168.18.100:10088---------->61.139.2.69:80½«»á±»Ó³Éäµ½
+			//172.168.3.36:10088 ---------->61.139.2.69:80
+			//ÒòÎªÕâÀïÄ¿µÄ¶Ë¿Ú²»Ò»Ñù
 		} else if (find_appropriate_src(net, zone, l3proto, l4proto,
 						orig_tuple, tuple, range)) {
 			pr_debug("get_unique_tuple: Found current src map\n");
-			//å› ä¸ºè¿™é‡Œç›®çš„ç«¯å£ä¸åŒï¼Œtupleä¸ä¼šå†²çªï¼Œå¦‚æœtupleå†²çª
-			//è¿›å…¥ä¸‹é¢çš„æµç¨‹
-			//tupleå–åï¼Œçœ‹æ˜¯å¦æœ‰å†²çªçš„tupleï¼Œ
+			//ÒòÎªÕâÀïÄ¿µÄ¶Ë¿Ú²»Í¬£¬tuple²»»á³åÍ»£¬Èç¹ûtuple³åÍ»
+			//½øÈëÏÂÃæµÄÁ÷³Ì
+			//tupleÈ¡·´£¬¿´ÊÇ·ñÓĞ³åÍ»µÄtuple£¬
 			//61.139.2.69:80------->172.168.3.36:10088
-			//å‡è®¾å…ˆå‰çš„é“¾æ¥192.168.18.110:10088---------->61.139.2.69:80
-			//è¢«æ˜ å°„åˆ°äº†172.168.3.36:10088 ---------->61.139.2.69:80
-			//è¿™ä¸ªæ—¶å€™å°±ä¼šå†²çªäº†
-			//æ‰€ä»¥åªæœ‰åœ¨ç›®çš„åœ°å€æˆ–ç›®çš„ç«¯å£ä¸åŒçš„æƒ…å†µä¸‹æ‰å¯èƒ½åšç›¸åŒçš„æ˜ å°„
+			//¼ÙÉèÏÈÇ°µÄÁ´½Ó192.168.18.110:10088---------->61.139.2.69:80
+			//±»Ó³Éäµ½ÁË172.168.3.36:10088 ---------->61.139.2.69:80
+			//Õâ¸öÊ±ºò¾Í»á³åÍ»ÁË
+			//ËùÒÔÖ»ÓĞÔÚÄ¿µÄµØÖ·»òÄ¿µÄ¶Ë¿Ú²»Í¬µÄÇé¿öÏÂ²Å¿ÉÄÜ×öÏàÍ¬µÄÓ³Éä
 			if (!nf_nat_used_tuple(tuple, ct))
 				goto out;
 		}
@@ -396,19 +396,19 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 	/* 2) Select the least-used IP/proto combination in the given range */
 	*tuple = *orig_tuple;
-	//é€‰æ‹©ä¸€ä¸ªåˆé€‚çš„IPåœ°å€
+	//Ñ¡ÔñÒ»¸öºÏÊÊµÄIPµØÖ·
 	find_best_ips_proto(zone, tuple, range, ct, maniptype);
 
-	//ä¸‹é¢ä»£ç éƒ½æ˜¯åšç«¯å£é€‰æ‹©ï¼ŒIPåœ°å€æ˜ å°„åœ¨ä¸Šé¢ä»£ç ä¸­å·²ç»å®Œæˆ
+	//ÏÂÃæ¾ÍÊÇ¸ù¾İL4Ğ­ÒéÑ¡ÔñºÏÊÊµÄ¶Ë¿Ú
 	/* 3) The per-protocol part of the manip is made to map into
 	 * the range to make a unique tuple.
 	 */
 	//ä¸‹é¢å°±æ˜¯æ ¹æ®L4åè®®é€‰æ‹©åˆé€‚çš„ç«¯å£
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
-			//å¦‚æœæºç«¯å£æ°å¥½åœ¨æŒ‡å®šèŒƒå›´å†…
-			//å¹¶ä¸”èŒƒå›´ç›¸ç­‰æˆ–è€…tupleä¸å†²çª
-			//NF_NAT_RANGE_PROTO_SPECIFIED æ„æ€æ˜¯éœ€è¦æ£€æŸ¥ç«¯å£æ˜¯å¦åœ¨é…ç½®çš„èŒƒå›´å†…
+		//Èç¹ûÔ´¶Ë¿ÚÇ¡ºÃÔÚÖ¸¶¨·¶Î§ÄÚ
+		//²¢ÇÒ·¶Î§ÏàµÈ»òÕßtuple²»³åÍ»
+		//NF_NAT_RANGE_PROTO_SPECIFIED ÒâË¼ÊÇĞèÒª¼ì²é¶Ë¿ÚÊÇ·ñÔÚÅäÖÃµÄ·¶Î§ÄÚ
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (l4proto->in_range(tuple, maniptype,
 					      &range->min_proto,
@@ -420,15 +420,15 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 			goto out;
 		}
 	}
-	//å‰é¢çš„å°è¯•éƒ½å¤±è´¥ï¼Œæˆ–è€…è®¾ç½®äº†NF_NAT_RANGE_PROTO_RANDOM_ALLæ ‡å¿—
-	//åˆ™åšéšæœºåŒ–çš„ç«¯å£é€‰æ‹©
+	//Ç°ÃæµÄ³¢ÊÔ¶¼Ê§°Ü£¬»òÕßÉèÖÃÁËNF_NAT_RANGE_PROTO_RANDOM_ALL±êÖ¾
+	//Ôò×öËæ»ú»¯µÄ¶Ë¿ÚÑ¡Ôñ
 	/* Last change: get protocol to try to obtain unique tuple. */
 	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
 out:
-	//æœ€ç»ˆå¯èƒ½ç”Ÿæˆçš„tupleå¹¶ä¸æ˜¯å”¯ä¸€çš„ï¼Œä½†æ˜¯æˆ‘ä»¬å·²ç»å°½åŠ›äº†
-	//å¯¹ä¸æ˜¯å”¯ä¸€çš„tupleï¼Œæœ€ç»ˆä¼šåœ¨ipv4_confirmä¸­ä¸¢å¼ƒè¯¥æ•°æ®åŒ…
-	//æ‰€ä»¥è¿™æ˜¯NATçš„åå¤„ï¼Œå¦‚æœæ˜¯IPV6ï¼Œæ¯å°è®¾å¤‡çš„IPåœ°å€éƒ½ä¸ä¸€æ ·
-	//å°±ä¸ä¼šå‡ºç°è¿™ä¸ªæƒ…å†µ
+	//×îÖÕ¿ÉÄÜÉú³ÉµÄtuple²¢²»ÊÇÎ¨Ò»µÄ£¬µ«ÊÇÎÒÃÇÒÑ¾­¾¡Á¦ÁË
+	//¶Ô²»ÊÇÎ¨Ò»µÄtuple£¬×îÖÕ»áÔÚipv4_confirmÖĞ¶ªÆú¸ÃÊı¾İ°ü
+	//ËùÒÔÕâÊÇNATµÄ»µ´¦£¬Èç¹ûÊÇIPV6£¬Ã¿Ì¨Éè±¸µÄIPµØÖ·¶¼²»Ò»Ñù
+	//¾Í²»»á³öÏÖÕâ¸öÇé¿ö
 	rcu_read_unlock();
 }
 
@@ -444,10 +444,10 @@ struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct)
 	return nat;
 }
 EXPORT_SYMBOL_GPL(nf_ct_nat_ext_add);
-//æ­£å¸¸æƒ…å†µä¸‹ï¼Œnf_nat_packetåªä¼šè°ƒç”¨2æ¬¡
-//nf_nat_setup_infoæœ€å¤šä¹Ÿåªè°ƒç”¨2æ¬¡
-//ä½†æ˜¯å¦‚æœNATæ¨¡å—è¿”å›äº†NF_REPEATï¼Œåˆ™è§†æƒ…å†µ
-//å†…æ ¸æ ‡å‡†çš„NATæ¨¡å—å®ç°æ˜¯ä¸ä¼šè¿™ä¹ˆåšçš„
+//Õı³£Çé¿öÏÂ£¬nf_nat_packetÖ»»áµ÷ÓÃ2´Î
+//nf_nat_setup_info×î¶àÒ²Ö»µ÷ÓÃ2´Î
+//µ«ÊÇÈç¹ûNATÄ£¿é·µ»ØÁËNF_REPEAT£¬ÔòÊÓÇé¿ö
+//ÄÚºË±ê×¼µÄNATÄ£¿éÊµÏÖÊÇ²»»áÕâÃ´×öµÄ
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
 		  const struct nf_nat_range *range,
@@ -471,38 +471,37 @@ nf_nat_setup_info(struct nf_conn *ct,
 	 * manipulations (future optimization: if num_manips == 0,
 	 * orig_tp = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 	 */
-	 //è½¬æ¢çš„åŸåˆ™æ˜¯å§‹ç»ˆéƒ½ä¸æ›´æ”¹ct IP_CT_DIR_ORIGINALçš„å€¼ï¼Œåªä¼šæ›´æ”¹IP_CT_DIR_REPLYçš„å€¼
-	 //å‡è®¾è½¬æ¢å‰ctä¸­çš„tupleå€¼ä¸º
+	//×ª»»µÄÔ­ÔòÊÇÊ¼ÖÕ¶¼²»¸ü¸Äct IP_CT_DIR_ORIGINALµÄÖµ£¬Ö»»á¸ü¸ÄIP_CT_DIR_REPLYµÄÖµ
+	//¼ÙÉè×ª»»Ç°ctÖĞµÄtupleÖµÎª
 	//original:192.168.18.100:10088 ------->61.139.2.69:80
 	//replay:61.139.2.69:80---------->192.168.18.100:10088
-	//åˆ™curr_tupleï¼š192.168.18.100:10088 ------->61.139.2.69:80
 	nf_ct_invert_tuplepr(&curr_tuple,
 			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-	//è·å–ä¸€ä¸ªå”¯ä¸€çš„åå‘tupleï¼Œå¯èƒ½ä¼šå‡ºç°tupleå†²çª
-	//åœ¨ipv4_confirmä¸­ä¼šå†æ¬¡æ£€æŸ¥tupleçš„å”¯ä¸€æ€§
-	//å‡è®¾åšäº†ç›®çš„åœ°å€è½¬æ¢ã€‚åˆ™
+	//»ñÈ¡Ò»¸öÎ¨Ò»µÄ·´Ïòtuple£¬¿ÉÄÜ»á³öÏÖtuple³åÍ»
+	//ÔÚipv4_confirmÖĞ»áÔÙ´Î¼ì²étupleµÄÎ¨Ò»ĞÔ
+	//¼ÙÉè×öÁËÄ¿µÄµØÖ·×ª»»¡£Ôò
 	//new_tuple:192.168.18.100:10088 ------->61.139.2.70:90
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {
 		struct nf_conntrack_tuple reply;
-	//æ­£å¸¸æƒ…å†µä¸‹ï¼ŒNATä¿¡æ¯çš„è®¾ç½®éƒ½æ˜¯åœ¨æµé¦–åŒ…å®Œæˆçš„
-	//ä¹Ÿå°±æ˜¯è¯´æ­¤åˆ»conntrackæœªè¢«åŠ å…¥åˆ°hashè¡¨ä¸­ï¼Œæ˜¯æ–°å»ºçš„conntrack
-	//è¯¥skbç‹¬å è¯¥conntrackï¼Œåœ¨conntrackè¢«åŠ å…¥åˆ°å…¨å±€hashè¡¨å
-	//ä¸ä¼šå†è°ƒç”¨æ¬¡å‡½æ•°ï¼Œå› ä¸ºæ‰€éœ€çš„NATä¿¡æ¯éƒ½å·²ç»å»ºç«‹å®Œæˆ
-	//è¿™æ˜¯å†…æ ¸NATå®ç°çš„è§„å®š
-	//ä¸éœ€è¦åŠ é”ï¼Œå› ä¸ºconntrack è¿˜æœªåŠ å…¥hashè¡¨ä¸­ï¼Œæœªè¢«ç¡®è®¤
-	//conntrack å¤„äºunconfirm é“¾è¡¨ä¸­ï¼Œæ˜¯skb ç‹¬æœ‰çš„
-	//å…¶ä»–skbæ­¤åˆ»ä¸å¯èƒ½åŒ¹é…åˆ°è¯¥conntrack
+		//Õı³£Çé¿öÏÂ£¬NATĞÅÏ¢µÄÉèÖÃ¶¼ÊÇÔÚÁ÷Ê×°üÍê³ÉµÄ
+		//Ò²¾ÍÊÇËµ´Ë¿ÌconntrackÎ´±»¼ÓÈëµ½hash±íÖĞ£¬ÊÇĞÂ½¨µÄconntrack
+		//¸Ãskb¶ÀÕ¼¸Ãconntrack£¬ÔÚconntrack±»¼ÓÈëµ½È«¾Öhash±íºó
+		//²»»áÔÙµ÷ÓÃ´Îº¯Êı£¬ÒòÎªËùĞèµÄNATĞÅÏ¢¶¼ÒÑ¾­½¨Á¢Íê³É
+		//ÕâÊÇÄÚºËNATÊµÏÖµÄ¹æ¶¨
+		//²»ĞèÒª¼ÓËø£¬ÒòÎªconntrack »¹Î´¼ÓÈëhash±íÖĞ£¬Î´±»È·ÈÏ
+		//conntrack ´¦ÓÚunconfirm Á´±íÖĞ£¬ÊÇskb ¶ÀÓĞµÄ
+		//ÆäËûskb´Ë¿Ì²»¿ÉÄÜÆ¥Åäµ½¸Ãconntrack
 		/* Alter conntrack table so will recognize replies. */
-		//replyï¼š61.139.2.70:90---------->192.168.18.100:10088
+		//reply£º61.139.2.70:90---------->192.168.18.100:10088
 		nf_ct_invert_tuplepr(&reply, &new_tuple);
 		//ct->tuplehash[IP_CT_DIR_REPLY].tuple:61.139.2.70:90---------->192.168.18.100:10088
-		//ä»¥åreplyçš„æ•°æ®åŒ…åœ¨PREOUTINGå¤„ä¸åšè½¬æ¢ï¼Œå› ä¸ºæ²¡è®¾ç½®IPS_SRC_NATæ ‡å¿—
-		//ç„¶åç»è¿‡POSTROUTINGæ—¶ï¼Œè®¾ç½®äº†IPS_DST_NATæ ‡å¿—ï¼Œè¦åšSNATè½¬æ¢
-		//è¿”å›æ•°æ®åŒ…è¢«ä¿®æ”¹ä¸º61.139.2.69:80---------->192.168.18.100:10088
+		//ÒÔºóreplyµÄÊı¾İ°üÔÚPREOUTING´¦²»×ö×ª»»£¬ÒòÎªÃ»ÉèÖÃIPS_SRC_NAT±êÖ¾
+		//È»ºó¾­¹ıPOSTROUTINGÊ±£¬ÉèÖÃÁËIPS_DST_NAT±êÖ¾£¬Òª×öSNAT×ª»»
+		//·µ»ØÊı¾İ°ü±»ĞŞ¸ÄÎª61.139.2.69:80---------->192.168.18.100:10088
 		nf_conntrack_alter_reply(ct, &reply);
-		//è¡¨ç¤ºéœ€è¦åšNATä¿®æ”¹
+		//±íÊ¾ĞèÒª×öNATĞŞ¸Ä
 		/* Non-atomic: we own this at the moment. */
 		if (maniptype == NF_NAT_MANIP_SRC)
 			ct->status |= IPS_SRC_NAT;
@@ -518,8 +517,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 		srchash = hash_by_src(net, nf_ct_zone(ct),
 				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-		//å› ä¸ºnatæ‰©å±•æ˜¯å†…åµŒäºconntrackä¸­çš„
-		//æ‰€ä»¥è¿™é‡Œä¸éœ€è¦å¢åŠ å¼•ç”¨è®¡æ•°
+		//ÒòÎªnatÀ©Õ¹ÊÇÄÚÇ¶ÓÚconntrackÖĞµÄ
+		//ËùÒÔÕâÀï²»ĞèÒªÔö¼ÓÒıÓÃ¼ÆÊı
 		spin_lock_bh(&nf_nat_lock);
 		/* nf_conntrack_alter_reply might re-allocate extension aera */
 		nat = nfct_nat(ct);
@@ -528,8 +527,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 				   &net->ct.nat_bysource[srchash]);
 		spin_unlock_bh(&nf_nat_lock);
 	}
-	// è¡¨ç¤ºæµå¤´åŒ…å·²å®ŒæˆNAT ä¿¡æ¯è®¾ç½®
-	// åç»­è·Ÿè¯¥conntrackç›¸å…³è”çš„skbä¸å†è°ƒç”¨æ­¤å‡½æ•°
+	// ±íÊ¾Á÷Í·°üÒÑÍê³ÉNAT ĞÅÏ¢ÉèÖÃ
+	// ºóĞø¸ú¸ÃconntrackÏà¹ØÁªµÄskb²»ÔÙĞèÒªµ÷ÓÃ´Ëº¯Êı
 	/* It's done. */
 	if (maniptype == NF_NAT_MANIP_DST)
 		ct->status |= IPS_DST_NAT_DONE;
@@ -561,18 +560,18 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 	};
 	return nf_nat_setup_info(ct, &range, manip);
 }
-//å› ä¸ºæœ‰çš„æ•°æ®åŒ…åšäº†NATè§„åˆ™ï¼Œæœ‰çš„æ²¡æœ‰
-//ä¸ºäº†ä¿è¯äº”å…ƒç»„çš„å”¯ä¸€æ€§ï¼Œè¦åšç©ºç»‘å®š
-//Linuxçš„NATå®ç°æ˜¯åŸºäºip_conntrackçš„ï¼Œè¿™å¥è¯å·²ç»ä¸çŸ¥é“è¯´äº†å¤šå°‘éã€‚ä¸€åˆ‡å‡å®ç°åœ¨Netflterçš„HOOKå‡½æ•°é‡Œé¢ï¼Œ
-//å…¶é€»è¾‘ä¸€ç‚¹ä¹Ÿä¸å¤æ‚ï¼Œç„¶è€Œæœ‰æ„ä¸ªå°å°çš„è¦ç‚¹ï¼Œé‚£å°±æ˜¯ï¼šå³ä½¿æ²¡æœ‰åŒ¹é…åˆ°ä»»ä½•çš„NATè§„åˆ™çš„å’ŒNATæ— å…³çš„æ•°æ®æµï¼Œ
-//ä¹Ÿè¦é’ˆå¯¹å…¶æ‰§è¡Œä¸€ä¸ªnull_bindingï¼Œæ‰€è°“çš„null_bindingå°±æ˜¯ç”¨å…¶åŸæœ‰çš„æºIPåœ°å€å’Œç›®æ ‡IPåœ°å€æ„é€ ä¸€ä¸ªrangeï¼Œ
-//ç„¶ååŸºäºè¿™ä¸ªrangeåšè½¬æ¢ï¼Œè¿™çœ‹ä¼¼æ˜¯ä¸€ä¸ªæ— ç”¨çš„ä¸œè¥¿ï¼Œå…¶å®è¿˜çœŸçš„æœ‰ç”¨ã€‚
-//ç”¨å¤„åœ¨å“ªé‡Œå‘¢ï¼Ÿæ³¨æ„null_bindingåªæ˜¯ä¸æ”¹å˜IPåœ°å€ï¼Œå…¶ç«¯å£å¯èƒ½è¦å‘ç”Ÿæ”¹å˜ã€‚
-//ä¸ºä½•è¦æ”¹å˜å’ŒNATæ— å…³çš„æ•°æ®æµçš„ç«¯å£å‘¢ï¼Ÿå› ä¸ºå’ŒNATæœ‰å…³çš„æ•°æ®æµå¯èƒ½ä¸ºäº†
-//äº”å…ƒç»„çš„å”¯ä¸€æ€§å·²ç»å°†å’ŒNATæ— å…³çš„æ•°æ®æµçš„æŸä¸ªç«¯å£ç»™å ç”¨äº†ï¼Œè¿™å°±å½±å“äº†å’ŒNATæ— å…³çš„æ•°æ®æµäº”å…ƒç»„çš„å”¯ä¸€æ€§ã€‚
-//ç”±äºip_conntrackæ˜¯ä¸åŒºåˆ†æ˜¯å¦å’ŒNATæœ‰å…³çš„ï¼Œè€ŒNATæ“ä½œè¦æ”¹å˜äº”å…ƒç»„ï¼Œä¸ºäº†æ•´ä¸ªconntrackçš„äº”å…ƒç»„éƒ½æ˜¯å”¯ä¸€çš„ï¼Œ
-//å“ªæ€•åªæœ‰ä¸€ä¸ªæ•°æ®æµæ‰§è¡Œäº†NATï¼Œä¹Ÿå¯èƒ½å ç”¨äº†æŸä¸ªå…¶å®ƒæ•°æ®æµçš„äº”å…ƒç»„è¦ç´ ï¼Œè¿›è€Œå¼•å‘è¿é”ååº”ï¼Œ
-//æ‰€ä»¥å…¨éƒ¨è¦æ‰§è¡Œå”¯ä¸€æ€§æ£€æµ‹å’Œæ›´æ–°ï¼Œalloc_null_bindingå°±æ˜¯ä¸ºäº†åšè¿™ä¸ªæ“ä½œã€‚
+//ÒòÎªÓĞµÄÊı¾İ°ü×öÁËNAT¹æÔò£¬ÓĞµÄÃ»ÓĞ
+//ÎªÁË±£Ö¤ÎåÔª×éµÄÎ¨Ò»ĞÔ£¬Òª×ö¿Õ°ó¶¨
+//LinuxµÄNATÊµÏÖÊÇ»ùÓÚip_conntrackµÄ£¬Õâ¾ä»°ÒÑ¾­²»ÖªµÀËµÁË¶àÉÙ±é¡£Ò»ÇĞ¾ùÊµÏÖÔÚNetflterµÄHOOKº¯ÊıÀïÃæ£¬
+//ÆäÂß¼­Ò»µãÒ²²»¸´ÔÓ£¬È»¶øÓĞÒâ¸öĞ¡Ğ¡µÄÒªµã£¬ÄÇ¾ÍÊÇ£º¼´Ê¹Ã»ÓĞÆ¥Åäµ½ÈÎºÎµÄNAT¹æÔòµÄºÍNATÎŞ¹ØµÄÊı¾İÁ÷£¬
+//Ò²ÒªÕë¶ÔÆäÖ´ĞĞÒ»¸önull_binding£¬ËùÎ½µÄnull_binding¾ÍÊÇÓÃÆäÔ­ÓĞµÄÔ´IPµØÖ·ºÍÄ¿±êIPµØÖ·¹¹ÔìÒ»¸örange£¬
+//È»ºó»ùÓÚÕâ¸örange×ö×ª»»£¬Õâ¿´ËÆÊÇÒ»¸öÎŞÓÃµÄ¶«Î÷£¬ÆäÊµ»¹ÕæµÄÓĞÓÃ¡£
+//ÓÃ´¦ÔÚÄÄÀïÄØ£¿×¢Òânull_bindingÖ»ÊÇ²»¸Ä±äIPµØÖ·£¬Æä¶Ë¿Ú¿ÉÄÜÒª·¢Éú¸Ä±ä¡£
+//ÎªºÎÒª¸Ä±äºÍNATÎŞ¹ØµÄÊı¾İÁ÷µÄ¶Ë¿ÚÄØ£¿ÒòÎªºÍNATÓĞ¹ØµÄÊı¾İÁ÷¿ÉÄÜÎªÁË
+//ÎåÔª×éµÄÎ¨Ò»ĞÔÒÑ¾­½«ºÍNATÎŞ¹ØµÄÊı¾İÁ÷µÄÄ³¸ö¶Ë¿Ú¸øÕ¼ÓÃÁË£¬Õâ¾ÍÓ°ÏìÁËºÍNATÎŞ¹ØµÄÊı¾İÁ÷ÎåÔª×éµÄÎ¨Ò»ĞÔ¡£
+//ÓÉÓÚip_conntrackÊÇ²»Çø·ÖÊÇ·ñºÍNATÓĞ¹ØµÄ£¬¶øNAT²Ù×÷Òª¸Ä±äÎåÔª×é£¬ÎªÁËÕû¸öconntrackµÄÎåÔª×é¶¼ÊÇÎ¨Ò»µÄ£¬
+//ÄÄÅÂÖ»ÓĞÒ»¸öÊı¾İÁ÷Ö´ĞĞÁËNAT£¬Ò²¿ÉÄÜÕ¼ÓÃÁËÄ³¸öÆäËüÊı¾İÁ÷µÄÎåÔª×éÒªËØ£¬½ø¶øÒı·¢Á¬Ëø·´Ó¦£¬
+//ËùÒÔÈ«²¿ÒªÖ´ĞĞÎ¨Ò»ĞÔ¼ì²âºÍ¸üĞÂ£¬alloc_null_binding¾ÍÊÇÎªÁË×öÕâ¸ö²Ù×÷¡£
 unsigned int
 nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 {
@@ -580,14 +579,14 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
-//ä¸€ä¸ªæ•°æ®åŒ…è¦è°ƒç”¨è¯¥å‡½æ•°2æ¬¡
-//å› ä¸ºnatåœ¨å››ä¸ªè§„åˆ™ç‚¹æ³¨å†Œäº†NATå‡½æ•°å›è°ƒ
-//å‡è®¾æ˜¯è½¬å‘çš„æ•°æ®åŒ…ä¼šå…ˆPREROUTING---------->FORWARDING----------->POSTROUTING
-//å‡è®¾æ˜¯åˆ°æœ¬æœºçš„åŒ…PREROUTING--------->LOCAL_IN
-//å‡è®¾æ˜¯æœ¬æœºå‘å‡ºçš„åŒ…LOCAL_OUT--------->POSTROUTING
-//å› æ­¤å§‹ç»ˆä¼šè°ƒç”¨è¯¥å‡½æ•°2æ¬¡
-//å³ä½¿è¯¥æ•°æ®åŒ…ä¸éœ€è¦åšNATè½¬æ¢
-//ä¹Ÿå¿…é¡»ç»è¿‡è¯¥å‡½æ•°çš„æ£€æŸ¥
+//Ò»¸öÊı¾İ°üÒªµ÷ÓÃ¸Ãº¯Êı2´Î
+//ÒòÎªnatÔÚËÄ¸ö¹æÔòµã×¢²áÁËNATº¯Êı»Øµ÷
+//¼ÙÉèÊÇ×ª·¢µÄÊı¾İ°ü»áÏÈPREROUTING---------->FORWARDING----------->POSTROUTING
+//¼ÙÉèÊÇµ½±¾»úµÄ°üPREROUTING--------->LOCAL_IN
+//¼ÙÉèÊÇ±¾»ú·¢³öµÄ°üLOCAL_OUT--------->POSTROUTING
+//Òò´ËÊ¼ÖÕ»áµ÷ÓÃ¸Ãº¯Êı2´Î
+//¼´Ê¹¸ÃÊı¾İ°ü²»ĞèÒª×öNAT×ª»»
+//Ò²±ØĞë¾­¹ı¸Ãº¯ÊıµÄ¼ì²é
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
@@ -609,7 +608,7 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 	if (dir == IP_CT_DIR_REPLY)
 		statusbit ^= IPS_NAT_MASK;
 
-	//æ£€æŸ¥æ•°æ®åŒ…æ˜¯å¦éœ€è¦åšNATè½¬æ¢
+	//¼ì²éÊı¾İ°üÊÇ·ñĞèÒª×öNAT×ª»»
 	/* Non-atomic: these bits don't change. */
 	if (ct->status & statusbit) {
 		struct nf_conntrack_tuple target;

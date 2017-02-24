@@ -164,30 +164,30 @@ nf_ct_find_expectation(struct net *net, u16 zone,
 	 * know that the ct is being destroyed.  If it succeeds, we
 	 * can be sure the ct cannot disappear underneath.
 	 */
-	 //å¢åŠ ä¸»é“¾æ¥å¼•ç”¨è®¡æ•°ï¼Œå› ä¸ºå­è¿æ¥éœ€è¦å¼•ç”¨ä¸»è¿æ¥
-	 //å› ä¸ºæŒæœ‰é”nf_conntrack_expect_lock
-	 //å³ä½¿ctè¶…æ—¶ï¼Œä¼šè°ƒç”¨nf_ct_remove_expectationsï¼Œä¼šé˜»å¡
-	 //å› æ­¤å³ä½¿ctçš„å¼•ç”¨è®¡æ•°ä¸º0ï¼Œä½†æ˜¯ctä¸ä¼šè¢«é‡Šæ”¾
-	 //è¿™é‡Œatomic_inc_not_zeroæ£€æŸ¥åˆ°ä¸º0æ—¶ï¼Œå·²ç»çŸ¥é“ctå³å°†è¢«é‡Šæ”¾
-	 //ä½†æ˜¯ä¸èƒ½ç›´æ¥è°ƒç”¨atomic_inc
-	 //å› ä¸ºctå¯èƒ½å·²ç»åœ¨é‡Šæ”¾ä¸­
+	//Ôö¼ÓÖ÷Á´½ÓÒıÓÃ¼ÆÊı£¬ÒòÎª×ÓÁ¬½ÓĞèÒªÒıÓÃÖ÷Á¬½Ó
+	//ÒòÎª³ÖÓĞËønf_conntrack_expect_lock
+	//¼´Ê¹ct³¬Ê±£¬»áµ÷ÓÃnf_ct_remove_expectations£¬»á×èÈû
+	//Òò´Ë¼´Ê¹ctµÄÒıÓÃ¼ÆÊıÎª0£¬µ«ÊÇct²»»á±»ÊÍ·Å
+	//ÕâÀïatomic_inc_not_zero¼ì²éµ½Îª0Ê±£¬ÒÑ¾­ÖªµÀct¼´½«±»ÊÍ·Å
+	//µ«ÊÇ²»ÄÜÖ±½Óµ÷ÓÃatomic_inc
+	//ÒòÎªct¿ÉÄÜÒÑ¾­ÔÚÊÍ·ÅÖĞ
 	if (unlikely(nf_ct_is_dying(exp->master) ||
 		     !atomic_inc_not_zero(&exp->master->ct_general.use)))
 		return NULL;
 
 	if (exp->flags & NF_CT_EXPECT_PERMANENT) {
-		//ä¸é‡Šæ”¾æœŸå¾…é“¾æ¥ï¼Œé€’å¢å¼•ç”¨è®¡æ•°
-		//æ­¤æ—¶ä¸º3
+		//²»ÊÍ·ÅÆÚ´ıÁ´½Ó£¬µİÔöÒıÓÃ¼ÆÊı
+		//´ËÊ±Îª3
 		atomic_inc(&exp->use);
 		return exp;
 	} else if (del_timer(&exp->timeout)) {
-		//é€’å‡å¼•ç”¨è®¡æ•°ï¼Œæ­¤æ—¶ä¸º1
+		//µİ¼õÒıÓÃ¼ÆÊı£¬´ËÊ±Îª1
 		nf_ct_unlink_expect(exp);
 		return exp;
 	}
 	/* Undo exp->master refcnt increase, if del_timer() failed */
-	//æœŸå¾…é“¾æ¥å·²ç»è¶…æ—¶
-	//é€’å‡ä¸»è¿æ¥å¢åŠ çš„å¼•ç”¨è®¡æ•°
+	//ÆÚ´ıÁ´½ÓÒÑ¾­³¬Ê±
+	//µİ¼õÖ÷Á¬½ÓÔö¼ÓµÄÒıÓÃ¼ÆÊı
 	nf_ct_put(exp->master);
 
 	return NULL;
@@ -314,15 +314,16 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, unsigned int class,
 		exp->tuple.src.u.all = 0;
 		exp->mask.src.u.all = 0;
 	}
-
-	memcpy(&exp->tuple.dst.u3, daddr, len); //å¤åˆ¶ç›®çš„åœ°å€
+	
+	//¸´ÖÆÄ¿µÄµØÖ·
+	memcpy(&exp->tuple.dst.u3, daddr, len); 
 	if (sizeof(exp->tuple.dst.u3) > len)
 		/* address needs to be cleared for nf_ct_tuple_equal */
 		memset((void *)&exp->tuple.dst.u3 + len, 0x00,
 		       sizeof(exp->tuple.dst.u3) - len);
-
-	exp->tuple.dst.u.all = *dst; //å¤åˆ¶ç«¯å£å·
-
+	
+	//¸´ÖÆ¶Ë¿ÚºÅ
+	exp->tuple.dst.u.all = *dst; 
 #ifdef CONFIG_NF_NAT_NEEDED
 	memset(&exp->saved_addr, 0, sizeof(exp->saved_addr));
 	memset(&exp->saved_proto, 0, sizeof(exp->saved_proto));
@@ -353,11 +354,11 @@ static int nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	unsigned int h = nf_ct_expect_dst_hash(&exp->tuple);
 
 	/* two references : one for hash insert, one for the timer */
-	//æ€»çš„å¼•ç”¨è®¡æ•°åº”è¯¥ä¸º3
+	//×ÜµÄÒıÓÃ¼ÆÊıÓ¦¸ÃÎª3
 	atomic_add(2, &exp->use);
-	//åŠ å…¥ä¸»é“¾æ¥çš„é“¾è¡¨ä¸­ï¼Œ
-	//ä¸»é“¾æ¥æ¶ˆå¤±å‰ï¼Œè¦é‡Šæ”¾å’Œè‡ªå·±ç›¸å…³è”çš„æœŸå¾…é“¾æ¥
-	//æ‰€ä»¥ä¸»é“¾æ¥å¿…é¡»è®°å½•å“ªäº›æ˜¯ä¸è‡ªå·±ç›¸å…³è”çš„æœŸå¾…é“¾æ¥
+	//¼ÓÈëÖ÷Á´½ÓµÄÁ´±íÖĞ£¬
+	//Ö÷Á´½ÓÏûÊ§Ç°£¬ÒªÊÍ·ÅºÍ×Ô¼ºÏà¹ØÁªµÄÆÚ´ıÁ´½Ó
+	//ËùÒÔÖ÷Á´½Ó±ØĞë¼ÇÂ¼ÄÄĞ©ÊÇÓë×Ô¼ºÏà¹ØÁªµÄÆÚ´ıÁ´½Ó
 	hlist_add_head(&exp->lnode, &master_help->expectations);
 	master_help->expecting[exp->class]++;
 
@@ -623,8 +624,8 @@ static void exp_proc_remove(struct net *net)
 
 module_param_named(expect_hashsize, nf_ct_expect_hsize, uint, 0400);
 
-//æœŸå¾…è¿æ¥éƒ½æ˜¯ç”±æ¨¡å—æ³¨å†Œçš„helperå‡½æ•°
-//æ£€æŸ¥æ•°æ®åŒ…çš„å†…å®¹æ¥åˆ›å»ºçš„
+//ÆÚ´ıÁ¬½Ó¶¼ÊÇÓÉÄ£¿é×¢²áµÄhelperº¯Êı
+//¼ì²éÊı¾İ°üµÄÄÚÈİÀ´´´½¨µÄ
 int nf_conntrack_expect_pernet_init(struct net *net)
 {
 	int err = -ENOMEM;

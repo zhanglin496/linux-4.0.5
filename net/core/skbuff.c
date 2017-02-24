@@ -197,7 +197,7 @@ out:
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
-  //åˆ†é…skbæè¿°ç¬¦å¯¹è±¡ä»¥åŠsizeå­—èŠ‚ç›¸å…³çš„æ•°æ®åŒºåŸŸ
+//·ÖÅäskbÃèÊö·û¶ÔÏóÒÔ¼°size×Ö½ÚÏà¹ØµÄÊı¾İÇøÓò
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 			    int flags, int node)
 {
@@ -258,8 +258,8 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 	kmemcheck_annotate_variable(shinfo->destructor_arg);
-	//å½“è°ƒç”¨è€…çŸ¥é“éœ€è¦ä¸¤ä¸ªskbæ—¶ï¼Œå¦‚åé¢çš„æ“ä½œå¾ˆå¯èƒ½ä½¿ç”¨skb_cloneæ—¶ï¼Œé‚£ä¹ˆä»
-	//skbuff_fclone_cacheä¸Šåˆ†é…skbä¼šæ›´é«˜æ•ˆä¸€äº›ã€‚
+	//µ±µ÷ÓÃÕßÖªµÀĞèÒªÁ½¸öskbÊ±£¬ÈçºóÃæµÄ²Ù×÷ºÜ¿ÉÄÜÊ¹ÓÃskb_cloneÊ±£¬ÄÇÃ´´Ó
+	//skbuff_fclone_cacheÉÏ·ÖÅäskb»á¸ü¸ßĞ§Ò»Ğ©¡£
 	if (flags & SKB_ALLOC_FCLONE) {
 		struct sk_buff_fclones *fclones;
 
@@ -625,12 +625,12 @@ static void skb_release_data(struct sk_buff *skb)
 	int i;
 
 	if (skb->cloned &&
-	//nohdrä¸º1æ—¶æƒ…å†µä¸‹è¦å¯¹é«˜16ä½çš„åº”ç”¨è®¡æ•°å‡1ï¼Œæ˜¯å› ä¸ºè°ƒç”¨skb_header_releaseæ—¶å¯¹é«˜16ä½çš„å¼•ç”¨è®¡æ•°åŠ 1ï¼Œ
-	//è¿™é‡Œè¦ä¸€å¹¶å‡æ‰
+	//nohdrÎª1Ê±Çé¿öÏÂÒª¶Ô¸ß16Î»µÄÓ¦ÓÃ¼ÆÊı¼õ1£¬ÊÇÒòÎªµ÷ÓÃskb_header_releaseÊ±¶Ô¸ß16Î»µÄÒıÓÃ¼ÆÊı¼Ó1£¬
+	//ÕâÀïÒªÒ»²¢¼õµô
 	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
 			      &shinfo->dataref))
 		return;
-	//é‡Šæ”¾éçº¿æ€§éƒ¨åˆ†
+	//ÊÍ·Å·ÇÏßĞÔ²¿·Ö
 	for (i = 0; i < shinfo->nr_frags; i++)
 		__skb_frag_unref(&shinfo->frags[i]);
 
@@ -649,7 +649,7 @@ static void skb_release_data(struct sk_buff *skb)
 	if (shinfo->frag_list)
 		kfree_skb_list(shinfo->frag_list);
 		
-	//é‡Šæ”¾çº¿æ€§headeréƒ¨åˆ†
+	//ÊÍ·ÅÏßĞÔheader²¿·Ö
 	skb_free_head(skb);
 }
 
@@ -985,9 +985,9 @@ EXPORT_SYMBOL_GPL(skb_copy_ubufs);
  *	If this function is called from an interrupt gfp_mask() must be
  *	%GFP_ATOMIC.
  */
-//å…‹éš†ä¸€ä¸ªskbå¯¹è±¡ï¼Œä½†æ˜¯æ•°æ®åŒºåŸŸæ˜¯å…±äº«çš„
-//å…‹éš†åskbå¯¹è±¡å¯ä»¥ä¿®æ”¹ï¼Œä½†æ˜¯å…±äº«çš„æ•°æ®åŒºåŸŸä¸èƒ½ä¿®æ”¹
-//å› ä¸ºæœ‰å¤šä¸ªskbå…±äº«è¯¥æ•°æ®åŒºåŸŸ
+//¿ËÂ¡Ò»¸öskb¶ÔÏó£¬µ«ÊÇÊı¾İÇøÓòÊÇ¹²ÏíµÄ
+//¿ËÂ¡ºóskb¶ÔÏó¿ÉÒÔĞŞ¸Ä£¬µ«ÊÇ¹²ÏíµÄÊı¾İÇøÓò²»ÄÜĞŞ¸Ä
+//ÒòÎªÓĞ¶à¸öskb¹²Ïí¸ÃÊı¾İÇøÓò
 struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	struct sk_buff_fclones *fclones = container_of(skb,
@@ -1065,13 +1065,13 @@ static inline int skb_alloc_rx_flag(const struct sk_buff *skb)
  *	function is not recommended for use in circumstances when only
  *	header is going to be modified. Use pskb_copy() instead.
  */
-//æ‹·è´skbå¯¹è±¡ä»¥åŠæ‰€æœ‰çš„æ•°æ®åŒºåŸŸ
-//æ‹·è´åskbæ˜¯çº¿æ€§çš„
+//¿½±´skb¶ÔÏóÒÔ¼°ËùÓĞµÄÊı¾İÇøÓò
+//¿½±´ºóskbÊÇÏßĞÔµÄ
 struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 {
 	int headerlen = skb_headroom(skb);
-	//é‡æ–°åˆ†é…çš„å¤§å°ä¸ºåŸæœ‰çº¿æ€§æ•°æ®åŒºåŸŸå’Œéçº¿æ€§æ•°æ®åŒºåŸŸ
-	//æ‹·è´åæ–°çš„skb æ•°æ®åŒºåŸŸéƒ½æ˜¯çº¿æ€§å­˜å‚¨çš„
+	//ÖØĞÂ·ÖÅäµÄ´óĞ¡ÎªÔ­ÓĞÏßĞÔÊı¾İÇøÓòºÍ·ÇÏßĞÔÊı¾İÇøÓò
+	//¿½±´ºóĞÂµÄskb Êı¾İÇøÓò¶¼ÊÇÏßĞÔ´æ´¢µÄ
 	unsigned int size = skb_end_offset(skb) + skb->data_len;
 	struct sk_buff *n = __alloc_skb(size, gfp_mask,
 					skb_alloc_rx_flag(skb), NUMA_NO_NODE);
@@ -1083,8 +1083,8 @@ struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 	skb_reserve(n, headerlen);
 	/* Set the tail pointer and length */
 	skb_put(n, skb->len);
-	//è¿™é‡Œè¦æ‹·è´headroomï¼Œå› ä¸ºskb_copy_bitsæ˜¯ä»skb->dataå¤„å¼€å§‹æ‹·è´ï¼Œ
-	//æ‰€ä»¥ä¸º-headerlen
+	//ÕâÀïÒª¿½±´headroom£¬ÒòÎªskb_copy_bitsÊÇ´Óskb->data´¦¿ªÊ¼¿½±´£¬
+	//ËùÒÔÎª-headerlen
 	if (skb_copy_bits(skb, -headerlen, n->head, headerlen + skb->len))
 		BUG();
 
@@ -1172,16 +1172,16 @@ EXPORT_SYMBOL(__pskb_copy_fclone);
  *	All the pointers pointing into skb header may change and must be
  *	reloaded after call to this function.
  */
-//skbçš„å¼•ç”¨è®¡æ•°å¿…é¡»æ˜¯1
-//åŸå› æ˜¯è¦ä¿®æ”¹skbå¯¹è±¡
-//è¿™é‡Œä¸ä¼šé‡æ–°åˆ†é…skbå¯¹è±¡
+//skbµÄÒıÓÃ¼ÆÊı±ØĞëÊÇ1
+//Ô­ÒòÊÇÒªĞŞ¸Äskb¶ÔÏó
+//ÕâÀï²»»áÖØĞÂ·ÖÅäskb¶ÔÏó
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		     gfp_t gfp_mask)
 {
 	int i;
 	u8 *data;
-	//è®¡æ•°éœ€è¦åˆ†é…çš„å¤§å°
-	//åˆ†é…å¤§å°ä¸ºåŸæœ‰çš„çº¿æ€§æ•°æ®åŒºåŸŸåŠ ä¸Šheadroonå’Œtailroom
+	//¼ÆÊıĞèÒª·ÖÅäµÄ´óĞ¡
+	//·ÖÅä´óĞ¡ÎªÔ­ÓĞµÄÏßĞÔÊı¾İÇøÓò¼ÓÉÏheadroonºÍtailroom
 	int size = nhead + skb_end_offset(skb) + ntail;
 	long off;
 
@@ -1194,7 +1194,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 	if (skb_pfmemalloc(skb))
 		gfp_mask |= __GFP_MEMALLOC;
-	//é‡æ–°åˆ†é…æ•°æ®åŒºåŸŸ
+	//ÖØĞÂ·ÖÅäÊı¾İÇøÓò
 	data = kmalloc_reserve(size + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
 			       gfp_mask, NUMA_NO_NODE, NULL);
 	if (!data)
@@ -1224,14 +1224,14 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 		if (skb_has_frag_list(skb))
 			skb_clone_fraglist(skb);
-	//é€’å‡éçº¿æ€§æ•°æ®åŒºå¼•ç”¨è®¡æ•°ï¼ŒåŒæ—¶é‡Šæ”¾skb->headåŸæœ‰çš„æ•°æ®åŒºåŸŸ
-	//éçº¿æ€§æ•°æ®åŒºåŸŸä¸ä¼šé‡Šæ”¾ï¼Œå› ä¸ºå¢åŠ äº†å¼•ç”¨è®¡æ•°
+		//µİ¼õ·ÇÏßĞÔÊı¾İÇøÒıÓÃ¼ÆÊı£¬Í¬Ê±ÊÍ·Åskb->headÔ­ÓĞµÄÊı¾İÇøÓò
+		//·ÇÏßĞÔÊı¾İÇøÓò²»»áÊÍ·Å£¬ÒòÎªÔö¼ÓÁËÒıÓÃ¼ÆÊı
 		skb_release_data(skb);
 	} else {
 		skb_free_head(skb);
 	}
 	off = (data + nhead) - skb->head;
-	//é‡æ–°è®¾ç½®skbå¯¹è±¡çš„ç›¸å…³æˆå‘˜
+	//ÖØĞÂÉèÖÃskb¶ÔÏóµÄÏà¹Ø³ÉÔ±
 
 	skb->head     = data;
 	skb->head_frag = 0;
@@ -1296,7 +1296,7 @@ EXPORT_SYMBOL(skb_realloc_headroom);
  *	You must pass %GFP_ATOMIC as the allocation priority if this function
  *	is called from an interrupt.
  */
-  //ç±»ä¼¼äºskb_copy, ä½†æ˜¯å¯ä»¥å¢åŠ headroomå’Œtailroom
+//ÀàËÆÓÚskb_copy, µ«ÊÇ¿ÉÒÔÔö¼ÓheadroomºÍtailroom
 struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				int newheadroom, int newtailroom,
 				gfp_t gfp_mask)
@@ -1416,7 +1416,7 @@ EXPORT_SYMBOL_GPL(pskb_put);
  *	exceed the total buffer size the kernel will panic. A pointer to the
  *	first byte of the extra data is returned.
  */
-  //åœ¨skb->tailå‡ºæ·»åŠ lenå­—èŠ‚
+//ÔÚskb->tail³öÌí¼Ólen×Ö½Ú
 unsigned char *skb_put(struct sk_buff *skb, unsigned int len)
 {
 	unsigned char *tmp = skb_tail_pointer(skb);
@@ -1438,7 +1438,7 @@ EXPORT_SYMBOL(skb_put);
  *	start. If this would exceed the total buffer headroom the kernel will
  *	panic. A pointer to the first byte of the extra data is returned.
  */
-  //åœ¨skb->data å‰æ·»åŠ lenå­—èŠ‚
+//ÔÚskb->data Ç°Ìí¼Ólen×Ö½Ú
 unsigned char *skb_push(struct sk_buff *skb, unsigned int len)
 {
 	skb->data -= len;
@@ -1459,7 +1459,7 @@ EXPORT_SYMBOL(skb_push);
  *	is returned. Once the data has been pulled future pushes will overwrite
  *	the old data.
  */
-  //åœ¨åœ¨skb->data åç§»é™¤lenå­—èŠ‚
+	//ÔÚÔÚskb->data ºóÒÆ³ılen×Ö½Ú
 unsigned char *skb_pull(struct sk_buff *skb, unsigned int len)
 {
 	return skb_pull_inline(skb, len);
@@ -1475,8 +1475,8 @@ EXPORT_SYMBOL(skb_pull);
  *	the buffer is already under the length specified it is not modified.
  *	The skb must be linear.
  */
-  //åˆ‡æ–­skbä¸ºlenå­—èŠ‚
- //è¦æ±‚skbä¸ºçº¿æ€§skb
+	 //ÇĞ¶ÏskbÎªlen×Ö½Ú
+	//ÒªÇóskbÎªÏßĞÔskb
 void skb_trim(struct sk_buff *skb, unsigned int len)
 {
 	if (skb->len > len)
@@ -1486,9 +1486,9 @@ EXPORT_SYMBOL(skb_trim);
 
 /* Trims skb to length len. It can change skb pointers.
  */
-//åˆ‡æ–­skbä¸ºlenå­—èŠ‚
-//å¯ä»¥å¤„ç†éçº¿æ€§skb
-//è¦æ±‚skbçš„å¼•ç”¨è®¡æ•°ä¸º1
+	//ÇĞ¶ÏskbÎªlen×Ö½Ú
+	//ºÍskb_trim²»Í¬µÄÊÇ£¬¿ÉÒÔ´¦Àí·ÇÏßĞÔskb
+	//ÒªÇóskbµÄÒıÓÃ¼ÆÊıÎª1
 int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 {
 	struct sk_buff **fragp;
@@ -1597,30 +1597,30 @@ EXPORT_SYMBOL(___pskb_trim);
  *
  * It is pretty complicated. Luckily, it is called only in exceptional cases.
  */
-//å¢åŠ æ•°æ®åˆ°skbçš„å°¾éƒ¨ï¼Œæ³¨æ„deltaä¸èƒ½ä¸ºè´Ÿå€¼
+//Ôö¼ÓÊı¾İµ½skbµÄÎ²²¿£¬×¢Òâdelta²»ÄÜÎª¸ºÖµ
 unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 {
 	/* If skb has not enough free space at tail, get new one
 	 * plus 128 bytes for future expansions. If we have enough
 	 * room at tail, reallocate without expansion only if skb is cloned.
 	 */
-	 //è®¡ç®—è¦å†™çš„æ•°æ®æ˜¯å¦è¶…å‡ºendäº†
+	 //¼ÆËãÒªĞ´µÄÊı¾İÊÇ·ñ³¬³öendÁË
 	int i, k, eat = (skb->tail + delta) - skb->end;
 
-	//å¦‚æœå·²ç»è¶…å‡ºï¼Œåˆ™å¿…é¡»é‡æ–°åˆ†é…çº¿æ€§æ•°æ®åŒºæ‰€éœ€è¦çš„buffer
-	//æˆ–è€…skbæ˜¯cloneçš„ï¼Œä¹Ÿå¿…é¡»é‡æ–°åˆ†é…
+	//Èç¹ûÒÑ¾­³¬³ö£¬Ôò±ØĞëÖØĞÂ·ÖÅäÏßĞÔÊı¾İÇøËùĞèÒªµÄbuffer
+	//»òÕßskbÊÇcloneµÄ£¬Ò²±ØĞëÖØĞÂ·ÖÅä
 	if (eat > 0 || skb_cloned(skb)) {
-		//å¦‚æœskbæ˜¯cloneçš„ï¼Œå¢åŠ tailroom
+		//Èç¹ûskbÊÇcloneµÄ£¬Ôö¼Ótailroom
 		if (pskb_expand_head(skb, 0, eat > 0 ? eat + 128 : 0,
 				     GFP_ATOMIC))
 			return NULL;
 	}
-	//æ‹·è´deltaæ•°æ®åˆ°tailroomä¸­ï¼Œä¿è¯è¦çš„å†™çš„æ•°æ®éƒ½åœ¨
-	//çº¿æ€§æ•°æ®åŒºä¸­
+	//¿½±´deltaÊı¾İµ½tailroomÖĞ£¬±£Ö¤ÒªµÄĞ´µÄÊı¾İ¶¼ÔÚ
+	//ÏßĞÔÊı¾İÇøÖĞ
 	if (skb_copy_bits(skb, skb_headlen(skb), skb_tail_pointer(skb), delta))
 		BUG();
 
-	//åé¢è¦è°ƒæ•´éçº¿æ€§æ•°æ®åŒºï¼Œå› ä¸ºä»éçº¿æ€§æ•°æ®åŒºä¸­æ‹·è´äº†ä¸€éƒ¨åˆ†æ•°æ®åˆ°çº¿æ€§æ•°æ®åŒº
+	//ºóÃæÒªµ÷Õû·ÇÏßĞÔÊı¾İÇø£¬ÒòÎª´Ó·ÇÏßĞÔÊı¾İÇøÖĞ¿½±´ÁËÒ»²¿·ÖÊı¾İµ½ÏßĞÔÊı¾İÇø
 	/* Optimization: no fragments, no reasons to preestimate
 	 * size of pulled pages. Superb.
 	 */
@@ -1736,19 +1736,19 @@ EXPORT_SYMBOL(__pskb_pull_tail);
  *		check arch/{*}/net/{*}.S files,
  *		since it is called from BPF assembly code.
  */
- //ä»skbä¸­çš„æ•°æ®åŒºåŸŸæ‹·è´lenå­—èŠ‚æ•°æ®åˆ°toä¸­
+	//´ÓskbÖĞµÄÊı¾İÇøÓò¿½±´len×Ö½ÚÊı¾İµ½toÖĞ
 int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 {
 	int start = skb_headlen(skb);
 	struct sk_buff *frag_iter;
 	int i, copy;
 	
-	//å¯ä»¥è®¾ç½®çš„åç§»é‡æœ€å¤§å€¼
+	//¿ÉÒÔÉèÖÃµÄÆ«ÒÆÁ¿×î´óÖµ
 	if (offset > (int)skb->len - len)
 		goto fault;
 
 	/* Copy header. */
-	//ä»skb->dataçš„offsetå¤„æ‹·è´
+	//´Óskb->dataµÄoffset´¦¿½±´
 	if ((copy = start - offset) > 0) {
 		if (copy > len)
 			copy = len;
@@ -1758,7 +1758,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		offset += copy;
 		to     += copy;
 	}
-	//ä»éçº¿æ€§æ•°æ®åŒºåŸŸä¸­æ‹·è´
+	//´Ó·ÇÏßĞÔÊı¾İÇøÓòÖĞ¿½±´
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
@@ -2027,7 +2027,7 @@ done:
  *	destination skb.  This function handles all the messy bits of
  *	traversing fragment lists and such.
  */
-// ç›¸å¯¹äºskb->dataçš„offset å¤„å¼€å§‹å­˜å‚¨æ•°æ®
+// Ïà¶ÔÓÚskb->dataµÄoffset ´¦¿ªÊ¼´æ´¢Êı¾İ
 int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 {
 	int start = skb_headlen(skb);

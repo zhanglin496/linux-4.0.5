@@ -107,10 +107,10 @@ static int icmp_packet(struct nf_conn *ct,
 static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		     unsigned int dataoff, unsigned int *timeouts)
 {
-	//å¯¹æ–°å»ºè¿æ¥åªå¯¹è¿™å‡ ä¸ªçŠ¶æ€çš„icmpè·Ÿè¸ª
-	//å®é™…ä¸Šåªå¤„ç†äº†æŸ¥è¯¢æŠ¥æ–‡
-	//è€Œæ²¡æœ‰å¤„ç†å·®é”™æŠ¥æ–‡
-	//å› ä¸ºå·®é”™æŠ¥æ–‡æ˜¯ç”±æŸ¥è¯¢æŠ¥æ–‡å¼•èµ·çš„
+	//¶ÔĞÂ½¨Á¬½ÓÖ»¶ÔÕâ¼¸¸ö×´Ì¬µÄicmp¸ú×Ù
+	//Êµ¼ÊÉÏÖ»´¦ÀíÁË²éÑ¯±¨ÎÄ
+	//¶øÃ»ÓĞ´¦Àí²î´í±¨ÎÄ
+	//ÒòÎª²î´í±¨ÎÄÊÇÓÉ²éÑ¯±¨ÎÄÒıÆğµÄ
 	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
 		[ICMP_TIMESTAMP] = 1,
@@ -118,12 +118,12 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		[ICMP_ADDRESS] = 1
 	};
 	
-	//æœ€å¤§18
-	//åªå¤„ç†è¯·æ±‚æ–¹å‘çš„ICMPè·Ÿè¸ª
-	//å°±æ˜¯è¯´å‘é€ICMP echo request 192.168.18.100---->61.139.2.69è¯·æ±‚
-	//ç„¶åè¿æ¥è¶…æ—¶ï¼Œè¿™æ—¶ICMP echo reply 61.139.2.69---->192.168.18.100
-	//è¿æ¥è·Ÿè¸ªä¸ä¼šå¤„ç†
-	//replyæ–¹å‘çš„ä¸è·Ÿè¸ª
+	//×î´ó18
+	//Ö»´¦ÀíÇëÇó·½ÏòµÄICMP¸ú×Ù
+	//¾ÍÊÇËµ·¢ËÍICMP echo request 192.168.18.100---->61.139.2.69ÇëÇó
+	//È»ºóÁ¬½Ó³¬Ê±£¬ÕâÊ±ICMP echo reply 61.139.2.69---->192.168.18.100
+	//Á¬½Ó¸ú×Ù²»»á´¦Àí
+	//reply·½ÏòµÄ²»¸ú×Ù
 	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new) ||
 	    !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
@@ -147,8 +147,8 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	u16 zone = tmpl ? nf_ct_zone(tmpl) : NF_CT_DEFAULT_ZONE;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
-	//ip å·®é”™æŠ¥æ–‡ä¸­åŒ…å«äº†å‡ºé”™çš„IPé¦–éƒ¨ä»¥åŠL4çš„å‰8ä¸ªå­—èŠ‚
-	//æ‰€ä»¥è¿™é‡Œèƒ½æ­£ç¡®çš„åŒ¹é…åˆ°åŸå§‹çš„è¯·æ±‚
+	//ip ²î´í±¨ÎÄÖĞ°üº¬ÁË³ö´íµÄIPÊ×²¿ÒÔ¼°L4µÄÇ°8¸ö×Ö½Ú
+	//ËùÒÔÕâÀïÄÜÕıÈ·µÄÆ¥Åäµ½Ô­Ê¼µÄÇëÇó
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuplepr(skb,
 			       skb_network_offset(skb) + ip_hdrlen(skb)
@@ -169,15 +169,15 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 	
-//icmp é”™è¯¯æ¶ˆæ¯åº”è¯¥æ˜¯å’Œä¸€ä¸ªå·²ç»å»ºç«‹çš„conntrack ç›¸å…³è”çš„
-//
+	//icmp ´íÎóÏûÏ¢Ó¦¸ÃÊÇºÍÒ»¸öÒÑ¾­½¨Á¢µÄconntrack Ïà¹ØÁªµÄ
+	//
 	*ctinfo = IP_CT_RELATED;
 
 	h = nf_conntrack_find_get(net, zone, &innertuple);
 	if (!h) {
-		//è‹¥æœæ²¡æ‰¾åˆ°ï¼Œä¸ä¸ºè¯¥æ•°æ®åŒ…å…³è”conntrack
-		//åˆ™è¯¥æ•°æ®åŒ…å°†æˆä¸ºä¸€ä¸ªæ¸¸ç¦»çš„æ•°æ®åŒ…
-		//åœ¨NATå¼€å¯æƒ…å†µä¸‹æ˜¯ä¸ä¼šåˆ°è¾¾æœ€ç»ˆç›®çš„åœ°
+		//Èô¹ûÃ»ÕÒµ½£¬²»Îª¸ÃÊı¾İ°ü¹ØÁªconntrack
+		//Ôò¸ÃÊı¾İ°ü½«³ÉÎªÒ»¸öÓÎÀëµÄÊı¾İ°ü
+		//ÔÚNAT¿ªÆôÇé¿öÏÂÊÇ²»»áµ½´ï×îÖÕÄ¿µÄµØ
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}

@@ -317,8 +317,8 @@ destroy_conntrack(struct nf_conntrack *nfct)
 
 	NF_CT_STAT_INC(net, delete);
 	local_bh_enable();
-//å¦‚æžœmasterä¸ä¸ºç©ºï¼Œè¡¨æ˜Žè¿™æ˜¯ä¸€ä¸ªå­è¿žæŽ¥
-//éœ€è¦é€’å‡åŽŸæ¥åœ¨æœŸå¾…è¿žæŽ¥ä¸­å¢žåŠ çš„å¼•ç”¨è®¡æ•°
+	//Èç¹ûmaster²»Îª¿Õ£¬±íÃ÷ÕâÊÇÒ»¸ö×ÓÁ¬½Ó
+	//ÐèÒªµÝ¼õÔ­À´ÔÚÆÚ´ýÁ¬½ÓÖÐÔö¼ÓµÄÒýÓÃ¼ÆÊý
 	if (ct->master)
 		nf_ct_put(ct->master);
 
@@ -432,33 +432,33 @@ begin:
 	 * not the expected one, we must restart lookup.
 	 * We probably met an item that was moved to another chain.
 	 */
-	 //A->B->C
-	//å‡è®¾è¦æ‰¾Cï¼Œè€ŒCç§»åŠ¨äº†åˆ°æ–°çš„hash è¡¨
-	//å˜æˆA->B
-	//è¿™é‡Œå¹¶ä¸èƒ½ä¿è¯ä¸€å®šèƒ½æ‰¾åˆ°C
-	//å¦‚æžœå‘çŽ°Bç§»åŠ¨äº†ï¼Œé‚£ä¹ˆæœ‰å¯èƒ½Cä¹Ÿç§»åŠ¨äº†
-	//æ‰€ä»¥è¦é‡æ–°æ‰¾
-	//å¦‚æžœæ²¡æœ‰å‘çŽ°Bç§»åŠ¨ï¼Œé‚£ä¹ˆæŸ¥æ‰¾å¤±è´¥
+	//A->B->C
+	//¼ÙÉèÒªÕÒC£¬¶øCÒÆ¶¯ÁËµ½ÐÂµÄhash ±í
+	//±ä³ÉA->B
+	//ÕâÀï²¢²»ÄÜ±£Ö¤Ò»¶¨ÄÜÕÒµ½C
+	//Èç¹û·¢ÏÖBÒÆ¶¯ÁË£¬ÄÇÃ´ÓÐ¿ÉÄÜCÒ²ÒÆ¶¯ÁË
+	//ËùÒÔÒªÖØÐÂÕÒ
+	//Èç¹ûÃ»ÓÐ·¢ÏÖBÒÆ¶¯£¬ÄÇÃ´²éÕÒÊ§°Ü
 	//nulls lookup algo must check the null value at the end of lookup and
 	//should restart if the null value is not the expected one.
 	///cf Documentation/RCU/rculist_nulls.txt for details
-	//è¿˜æœ‰ä¸€ç§æƒ…å†µ
-	//æ¯”å¦‚ 1ï¼šA->B->C->Då’Œ2ï¼šE->F->G->Hä¸¤ä¸ªé“¾è¡¨
-	//å‡è®¾æˆ‘ä»¬éœ€è¦æŸ¥æ‰¾1ä¸­çš„Cï¼Œå› ä¸ºrcuæŸ¥æ‰¾æ²¡æœ‰åŠ é”ï¼Œ
-	//æ‰€ä»¥åˆ°1ä¸­çš„Bæ—¶ï¼Œå¯èƒ½Bç§»åŠ¨åˆ°2ä¸­äº†ï¼Œå˜æˆï¼š2ï¼šE->F->B->G->H
-	//æ­¤æ—¶è¯»å–Bçš„åŽç»§æŒ‡é’ˆè¦ä¹ˆæ˜¯Cï¼Œè¦ä¹ˆå°±æ˜¯Gï¼Œä¸å¯èƒ½æ˜¯å…¶ä»–å€¼ï¼Œå› ä¸ºrcuä¿è¯æŒ‡é’ˆçš„è¯»å–å’Œèµ‹å€¼æ˜¯åŽŸå­çš„
-	//å¦‚æžœæ­¤æ—¶æˆ‘ä»¬è¯»å–çš„åŽç»§æŒ‡é’ˆæ˜¯G,é‚£ä¹ˆåˆ°é“¾è¡¨æœ«ç«¯è¯»å–çš„nullså€¼å’Œ1ä¸­å¼€å§‹çš„hash nullså€¼ä¸åŒï¼Œ
-	//æ­¤æ—¶å¿…é¡»é‡æ–°æ‰¾ï¼Œå› ä¸ºCå®žé™…æ˜¯åœ¨1ä¸­çš„ï¼Œåªä¸è¿‡å‘ç”Ÿäº†é“¾è¡¨ç§»åŠ¨å¯¼è‡´åœ¨1ä¸­çš„éåŽ†è¿‡ç¨‹è¢«é”™è¯¯çš„åœæ­¢
-	//å¦‚æžœè¯»å–çš„æ˜¯Cï¼Œé‚£ä¹ˆä¸éœ€è¦é‡æ–°æŸ¥æ‰¾
-	//å¦‚æžœBæ²¡æœ‰ç§»åŠ¨ï¼Œåªæ˜¯åˆ é™¤å¹¶è°ƒç”¨rcuç­‰å¾…é‡Šæ”¾ï¼Œé‚£ä¹ˆä¸éœ€è¦é‡æ–°æŸ¥æ‰¾ï¼Œ
-	//å› ä¸ºhlist_del_rcuä¸ä¼šä¿®æ”¹nextæŒ‡é’ˆï¼Œæ‰€ä»¥Bä»ç„¶æŒ‡å‘C
+	//»¹ÓÐÒ»ÖÖÇé¿ö
+	//±ÈÈç 1£ºA->B->C->DºÍ2£ºE->F->G->HÁ½¸öÁ´±í
+	//¼ÙÉèÎÒÃÇÐèÒª²éÕÒ1ÖÐµÄC£¬ÒòÎªrcu²éÕÒÃ»ÓÐ¼ÓËø£¬
+	//ËùÒÔµ½1ÖÐµÄBÊ±£¬¿ÉÄÜBÒÆ¶¯µ½2ÖÐÁË£¬±ä³É£º2£ºE->F->B->G->H
+	//´ËÊ±¶ÁÈ¡BµÄºó¼ÌÖ¸ÕëÒªÃ´ÊÇC£¬ÒªÃ´¾ÍÊÇG£¬²»¿ÉÄÜÊÇÆäËûÖµ£¬ÒòÎªrcu±£Ö¤Ö¸ÕëµÄ¶ÁÈ¡ºÍ¸³ÖµÊÇÔ­×ÓµÄ
+	//Èç¹û´ËÊ±ÎÒÃÇ¶ÁÈ¡µÄºó¼ÌÖ¸ÕëÊÇG,ÄÇÃ´µ½Á´±íÄ©¶Ë¶ÁÈ¡µÄnullsÖµºÍ1ÖÐ¿ªÊ¼µÄhash nullsÖµ²»Í¬£¬
+	//´ËÊ±±ØÐëÖØÐÂÕÒ£¬ÒòÎªCÊµ¼ÊÊÇÔÚ1ÖÐµÄ£¬Ö»²»¹ý·¢ÉúÁËÁ´±íÒÆ¶¯µ¼ÖÂÔÚ1ÖÐµÄ±éÀú¹ý³Ì±»´íÎóµÄÍ£Ö¹
+	//Èç¹û¶ÁÈ¡µÄÊÇC£¬ÄÇÃ´²»ÐèÒªÖØÐÂ²éÕÒ
+	//Èç¹ûBÃ»ÓÐÒÆ¶¯£¬Ö»ÊÇÉ¾³ý²¢µ÷ÓÃrcuµÈ´ýÊÍ·Å£¬ÄÇÃ´²»ÐèÒªÖØÐÂ²éÕÒ£¬
+	//ÒòÎªhlist_del_rcu²»»áÐÞ¸ÄnextÖ¸Õë£¬ËùÒÔBÈÔÈ»Ö¸ÏòC
 	
-	//ä½†æ˜¯è¿™é‡Œå®žçŽ°æœ‰bugï¼Œç¬¬ä¸€å› ä¸ºæ²¡æœ‰é‡æ–°è®¡ç®—hashå€¼ï¼Œ
-	//æ‰€ä»¥å³ä½¿å‘çŽ°Bç§»åŠ¨åˆ°äº†æ–°çš„hashè¡¨ä¸­ï¼Œ
-	//ä¹Ÿå¯èƒ½æ‰¾ä¸åˆ°C
-	//ç¬¬äºŒnet->ct.hashå¯èƒ½è¯»åˆ°æ–°çš„hashæŒ‡é’ˆï¼Œä½†æ˜¯ä½¿ç”¨äº†æ—§
-	//çš„hashå€¼ï¼Œå¯èƒ½ä¼šå´©æºƒ
-	//æ¯”å¦‚hashæ¡¶æ˜¯128ï¼Œæ—§çš„hashå€¼æ˜¯256
+	//µ«ÊÇÕâÀïÊµÏÖÓÐbug£¬µÚÒ»ÒòÎªÃ»ÓÐÖØÐÂ¼ÆËãhashÖµ£¬
+	//ËùÒÔ¼´Ê¹·¢ÏÖBÒÆ¶¯µ½ÁËÐÂµÄhash±íÖÐ£¬
+	//Ò²¿ÉÄÜÕÒ²»µ½C
+	//µÚ¶þnet->ct.hash¿ÉÄÜ¶Áµ½ÐÂµÄhashÖ¸Õë£¬µ«ÊÇÊ¹ÓÃÁË¾É
+	//µÄhashÖµ£¬¿ÉÄÜ»á±ÀÀ£
+	//±ÈÈçhashÍ°ÊÇ128£¬¾ÉµÄhashÖµÊÇ256
 	if (get_nulls_value(n) != bucket) {
 		NF_CT_STAT_INC(net, search_restart);
 		goto begin;
@@ -617,9 +617,9 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 	zone = nf_ct_zone(ct);
 	local_bh_disable();
-	//è¿™é‡Œè¦ä¿è¯è¯»å–çš„hashæŒ‡é’ˆå’Œhashè¡¨å¤§å°æ˜¯ä¸€è‡´çš„
-	//å› ä¸ºå¯èƒ½è°ƒç”¨nf_conntrack_set_hashsizeæ¥æ›´æ”¹hashè¡¨å¤§å°
-	//æ‰€ä»¥ä½¿ç”¨äº†é¡ºåºé”
+	//ÕâÀïÒª±£Ö¤¶ÁÈ¡µÄhashÖ¸ÕëºÍhash±í´óÐ¡ÊÇÒ»ÖÂµÄ
+	//ÒòÎª¿ÉÄÜµ÷ÓÃnf_conntrack_set_hashsizeÀ´¸ü¸Ähash±í´óÐ¡
+	//ËùÒÔÊ¹ÓÃÁËË³ÐòËø
 	do {
 		sequence = read_seqcount_begin(&net->ct.generation);
 		/* reuse the hash saved before */
@@ -650,8 +650,8 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 	if (unlikely(nf_ct_is_dying(ct)))
 		goto out;
-	//è¿™é‡Œå¯èƒ½ä¼šå‡ºçŽ°ä¸¢åŒ…é—®é¢˜ï¼Œå°¤å…¶æ˜¯åœ¨NATï¼ŒIPåœ°å€å’Œç«¯å£è€—å°½çš„æƒ…å†µä¸‹
-	//tupleä¼šå‡ºçŽ°å†²çªé—®é¢˜
+	//ÕâÀï¿ÉÄÜ»á³öÏÖ¶ª°üÎÊÌâ£¬ÓÈÆäÊÇÔÚNAT£¬IPµØÖ·ºÍ¶Ë¿ÚºÄ¾¡µÄÇé¿öÏÂ
+	//tuple»á³öÏÖ³åÍ»ÎÊÌâ
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
 	   not in the hash.  If there is, we lost race. */
@@ -945,12 +945,12 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 				  hash);
 	if (IS_ERR(ct))
 		return (struct nf_conntrack_tuple_hash *)ct;
-	//ä¸ºsynproxyåŠŸèƒ½æä¾›æ”¯æŒï¼Œè¯¦è§ipt_SYNPROXY.c
+	//Îªsynproxy¹¦ÄÜÌá¹©Ö§³Ö£¬Ïê¼ûipt_SYNPROXY.c
 	if (tmpl && nfct_synproxy(tmpl)) {
 		nfct_seqadj_ext_add(ct);
 		nfct_synproxy_ext_add(ct);
 	}
-	//æ¨¡æ¿æ˜¯å¦è®¾ç½®äº†è¶…æ—¶æ‰©å±•
+	//Ä£°åÊÇ·ñÉèÖÃÁË³¬Ê±À©Õ¹
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
 	if (timeout_ext)
 		timeouts = NF_CT_TIMEOUT_EXT_DATA(timeout_ext);
@@ -962,8 +962,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		pr_debug("init conntrack: can't track with proto module\n");
 		return NULL;
 	}
-	//æ·»åŠ ç›¸å…³ctæ‰©å±•ï¼Œè¿™é‡Œå¹¶ä¸ä¸€å®šä¼šé‡æ–°åˆ†é…ç©ºé—´
-	//è‹¥åœ¨æ­¤å‰æ³¨å†Œçš„æ‰©å±•ï¼Œè¿™é‡Œä¼šä¸€æ¬¡æ€§åˆ†é…å·²ç»æ³¨å†Œçš„æ‰©å±•æ‰€éœ€æ‰€æœ‰çš„ç©ºé—´
+	//Ìí¼ÓÏà¹ØctÀ©Õ¹£¬ÕâÀï²¢²»Ò»¶¨»áÖØÐÂ·ÖÅä¿Õ¼ä
+	//ÈôÔÚ´ËÇ°×¢²áµÄÀ©Õ¹£¬ÕâÀï»áÒ»´ÎÐÔ·ÖÅäÒÑ¾­×¢²áµÄÀ©Õ¹ËùÐèËùÓÐµÄ¿Õ¼ä
 	if (timeout_ext)
 		nf_ct_timeout_ext_add(ct, timeout_ext->timeout, GFP_ATOMIC);
 
@@ -981,16 +981,16 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		spin_lock(&nf_conntrack_expect_lock);
 		exp = nf_ct_find_expectation(net, zone, tuple);
 		if (exp) {
-			//expect_hashè¡¨ä¸­å‘½ä¸­ï¼Œè¡¨æ˜Žè¿™æ˜¯ä¸€ä¸ªæœŸå¾…è¿žæŽ¥
-			//æœŸå¾…è¿žæŽ¥æ˜¯ç”±æ¨¡å—æ³¨å†Œçš„helperå‡½æ•°æ ¹æ®æ•°æ®åŒ…åŠ¨æ€åˆ›å»ºçš„
+			//expect_hash±íÖÐÃüÖÐ£¬±íÃ÷ÕâÊÇÒ»¸öÆÚ´ýÁ¬½Ó
+			//ÆÚ´ýÁ¬½ÓÊÇÓÉÄ£¿é×¢²áµÄhelperº¯Êý¸ù¾ÝÊý¾Ý°ü¶¯Ì¬´´½¨µÄ
 			pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
 				 ct, exp);
 			/* Welcome, Mr. Bond.  We've been expecting you... */
-			//è®¾ç½®æœŸå¾…é“¾æŽ¥ï¼Œé€šçŸ¥é˜²ç«å¢™
+			//ÉèÖÃÆÚ´ýÁ´½Ó£¬Í¨Öª·À»ðÇ½
 			__set_bit(IPS_EXPECTED_BIT, &ct->status);
 			/* exp->master safe, refcnt bumped in nf_ct_find_expectation */
-			//è¿™é‡Œå­è¿žæŽ¥å¢žåŠ äº†ä¸»è¿žæŽ¥çš„å¼•ç”¨è®¡æ•°
-			//æ„å‘³ç€å­è¿žæŽ¥æœªé‡Šæ”¾å‰ä¸»è¿žæŽ¥æ˜¯ä¸ä¼šé‡Šæ”¾çš„
+			//ÕâÀï×ÓÁ¬½ÓÔö¼ÓÁËÖ÷Á¬½ÓµÄÒýÓÃ¼ÆÊý
+			//ÒâÎ¶×Å×ÓÁ¬½ÓÎ´ÊÍ·ÅÇ°Ö÷Á¬½ÓÊÇ²»»áÊÍ·ÅµÄ
 			ct->master = exp->master;
 			if (exp->helper) {
 				help = nf_ct_helper_ext_add(ct, exp->helper,
@@ -998,7 +998,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 				if (help)
 					rcu_assign_pointer(help->helper, exp->helper);
 			}
-			//è®¾ç½®ä¸ºå’Œä¸»è¿žæŽ¥åŒæ ·çš„æ ‡è®°
+			//ÉèÖÃÎªºÍÖ÷Á¬½ÓÍ¬ÑùµÄ±ê¼Ç
 #ifdef CONFIG_NF_CONNTRACK_MARK
 			ct->mark = exp->master->mark;
 #endif
@@ -1010,10 +1010,10 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		spin_unlock(&nf_conntrack_expect_lock);
 	}
 	if (!exp) {
-		//ä¸æ˜¯æœŸå¾…è¿žæŽ¥,  æŸ¥æ‰¾è¯¥è¿žæŽ¥æ˜¯å¦æœ‰åŒ¹é…çš„helperå‡½æ•°
-		//æŒ‡æ´¾helperå‡½æ•°ï¼Œå¹¶åœ¨ipv4_help è°ƒç”¨helperå‡½æ•°åˆ›å»ºæœŸå¾…è¿žæŽ¥
-		//ä¹Ÿå°±æ˜¯æž„å»ºstruct nf_conntrack_expect ç»“æž„ï¼Œå¹¶åŠ å…¥åˆ°expect_hashè¡¨ä¸­ï¼Œ
-		//è‹¥æ²¡æœ‰helperå‡½æ•°ï¼Œåˆ™ä¸ä¼šåˆ†é…helpæ‰©å±•åŒº
+		//²»ÊÇÆÚ´ýÁ¬½Ó,  ²éÕÒ¸ÃÁ¬½ÓÊÇ·ñÓÐÆ¥ÅäµÄhelperº¯Êý
+		//Ö¸ÅÉhelperº¯Êý£¬²¢ÔÚipv4_help µ÷ÓÃhelperº¯Êý´´½¨ÆÚ´ýÁ¬½Ó
+		//Ò²¾ÍÊÇ¹¹½¨struct nf_conntrack_expect ½á¹¹£¬²¢¼ÓÈëµ½expect_hash±íÖÐ£¬
+		//ÈôÃ»ÓÐhelperº¯Êý£¬Ôò²»»á·ÖÅähelpÀ©Õ¹Çø
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 		NF_CT_STAT_INC(net, new);
 	}
@@ -1023,16 +1023,15 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	nf_ct_add_to_unconfirmed_list(ct);
 
 	local_bh_enable();
-	
-	//è°ƒç”¨expectfnå‡½æ•°ï¼Œä¸€èˆ¬å½“ä¸»é“¾æŽ¥åšäº†NATè½¬æ¢
-	//æ‰éœ€è¦é¢å¤–æŒ‡å®šexpectfnå‡½æ•°ï¼Œ
+	//µ÷ÓÃexpectfnº¯Êý£¬Ò»°ãµ±Ö÷Á´½Ó×öÁËNAT×ª»»
+	//²ÅÐèÒª¶îÍâÖ¸¶¨expectfnº¯Êý£¬	
 	if (exp) {
-		// nf_nat_follow_master,æœŸå¾…é“¾æŽ¥å¿…é¡»å’Œä¸»é“¾æŽ¥åšç›¸åŒçš„NATè½¬æ¢
-		// å¦åˆ™æ— æ³•æ­£å¸¸é€šä¿¡
-		//ä¿è¯å­è¿žæŽ¥å’Œä¸»é“¾æŽ¥åšç›¸åŒçš„NATè½¬æ¢
+		// nf_nat_follow_master,ÆÚ´ýÁ´½Ó±ØÐëºÍÖ÷Á´½Ó×öÏàÍ¬µÄNAT×ª»»
+		// ·ñÔòÎÞ·¨Õý³£Í¨ÐÅ
+		//±£Ö¤×ÓÁ¬½ÓºÍÖ÷Á´½Ó×öÏàÍ¬µÄNAT×ª»»
 		if (exp->expectfn)
 			exp->expectfn(ct, exp);
-		//å¼•ç”¨è®¡æ•°åº”è¯¥ä¸º1ï¼Œé‡Šæ”¾æœŸå¾…è¿žæŽ¥
+		//ÒýÓÃ¼ÆÊýÓ¦¸ÃÎª1£¬ÊÍ·ÅÆÚ´ýÁ¬½Ó
 		nf_ct_expect_put(exp);
 	}
 
@@ -1068,16 +1067,16 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	
 	/*
          * Based on NAT treatments of UDP in RFC3489:
-         *  //ä»»æ„å¤–éƒ¨ä¸»æœºéƒ½å¯ä»¥å‘é€æŠ¥æ–‡ç»™
-         * //å†…éƒ¨ä¸»æœºï¼Œä¸éœ€è¦å†…éƒ¨ä¸»æœºæå‰å‘é€æŠ¥æ–‡
+         *  //ÈÎÒâÍâ²¿Ö÷»ú¶¼¿ÉÒÔ·¢ËÍ±¨ÎÄ¸ø
+         * //ÄÚ²¿Ö÷»ú£¬²»ÐèÒªÄÚ²¿Ö÷»úÌáÇ°·¢ËÍ±¨ÎÄ
          * 1)Full Cone: A full cone NAT is one where all requests from the
          * same internal IP address and port are mapped to the same external
          * IP address and port.  Furthermore, any external host can send a
          * packet to the internal host, by sending a packet to the mapped
          * external address.
          *
-         * //å†…éƒ¨ä¸»æœºè¦å…ˆå‘æŠ¥æ–‡åˆ°å¤–éƒ¨ä¸»æœºæŒ‡å®šçš„IP
-         * //è¿™æ ·å¤–éƒ¨ä¸»æœºæ‰èƒ½å‘é€æŠ¥æ–‡åˆ°å†…éƒ¨ä¸»æœº
+         * //ÄÚ²¿Ö÷»úÒªÏÈ·¢±¨ÎÄµ½Íâ²¿Ö÷»úÖ¸¶¨µÄIP
+         * //ÕâÑùÍâ²¿Ö÷»ú²ÅÄÜ·¢ËÍ±¨ÎÄµ½ÄÚ²¿Ö÷»ú
          * 2)Restricted Cone: A restricted cone NAT is one where all requests
          * from the same internal IP address and port are mapped to the same
          * external IP address and port.  Unlike a full cone NAT, an external
@@ -1085,15 +1084,15 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
          * only if the internal host had previously sent a packet to IP
          * address X.
          *
-         * //å†…éƒ¨ä¸»æœºè¦å…ˆå‘æŠ¥æ–‡åˆ°å¤–éƒ¨ä¸»æœºæŒ‡å®šçš„IPå’Œç«¯å£
+         * //ÄÚ²¿Ö÷»úÒªÏÈ·¢±¨ÎÄµ½Íâ²¿Ö÷»úÖ¸¶¨µÄIPºÍ¶Ë¿Ú
          * 3)Port Restricted Cone: A port restricted cone NAT is like a
          * restricted cone NAT, but the restriction includes port numbers.
          * Specifically, an external host can send a packet, with source IP
          * address X and source port P, to the internal host only if the
          * internal host had previously sent a packet to IP address X and
          * port P.
-         * //å¦‚æžœç›®çš„åœ°å€æˆ–ç«¯å£ä¸ä¸€æ ·ï¼Œåˆ™ç›¸åŒçš„IPæºåœ°å€å’Œç«¯å£ä¸ä¸€å®šæ˜ å°„åˆ°ç›¸åŒçš„å¤–éƒ¨åœ°å€å’Œç«¯å£
-         * //å’Œcone nat ä¸ä¸€æ ·
+         * //Èç¹ûÄ¿µÄµØÖ·»ò¶Ë¿Ú²»Ò»Ñù£¬ÔòÏàÍ¬µÄIPÔ´µØÖ·ºÍ¶Ë¿Ú²»Ò»¶¨Ó³Éäµ½ÏàÍ¬µÄÍâ²¿µØÖ·ºÍ¶Ë¿Ú
+         * //ºÍcone nat ²»Ò»Ñù
          * 4)Symmetric: A symmetric NAT is one where all requests from the
          * same internal IP address and port, to a specific destination IP
          * address and port, are mapped to the same external IP address and
@@ -1194,8 +1193,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	}
 
 	l4proto = __nf_ct_l4proto_find(pf, protonum);
-	//udp_error å’Œ tcp_errorå‡½æ•°
-	//tcp_errorä¼šå¯¹tcpæ ‡ç»„åˆåšåˆæ³•æ€§æ£€æŸ¥
+	//udp_error ºÍ tcp_errorº¯Êý
+	//tcp_error»á¶Ôtcp Í·²¿µÄ±êÖ¾×éºÏ×öºÏ·¨ÐÔ¼ì²é
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
@@ -1235,8 +1234,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	/* Decide what timeout policy we want to apply to this flow. */
 	timeouts = nf_ct_timeout_lookup(net, ct, l4proto);
 	
-	//udp_packet å’Œ  tcp_packet
-	//tcp_packetä¼šåšçŠ¶æ€æ£€æŸ¥å’Œåºåˆ—å·æ£€æŸ¥ï¼Œé‡ä¼ æ£€æŸ¥ç­‰
+	//udp_packet ºÍ  tcp_packet
+	//tcp_packet»á×ö×´Ì¬¼ì²éºÍÐòÁÐºÅ¼ì²é£¬ÖØ´«¼ì²éµÈ
 	ret = l4proto->packet(ct, skb, dataoff, ctinfo, pf, hooknum, timeouts);
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
@@ -1250,11 +1249,11 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		ret = -ret;
 		goto out;
 	}
-	//è¿™é‡Œä¸ºä»€ä¹ˆæ²¡æœ‰å…ˆtest_bitå†set_bit
-	//æ˜¯å› ä¸ºè¦ä¿è¯æ˜¯ä¸€ä¸ªåŽŸå­æ“ä½œ
-	//å¦åˆ™ä¼šå‡ºçŽ°è°ƒç”¨nf_conntrack_event_cacheä¸¤æ¬¡çš„æƒ…å†µ
-	//æ¯”å¦‚ä¸¤ä¸ªreplyåŒ…åŒæ—¶åˆ°è¾¾è¿™é‡Œ
-	//åªæœ‰ä¸€ä¸ªåŒ…ä¼šè§¦å‘nf_conntrack_event_cache
+	//ÕâÀïÎªÊ²Ã´Ã»ÓÐÏÈtest_bitÔÙset_bit
+	//ÊÇÒòÎªÒª±£Ö¤ÊÇÒ»¸öÔ­×Ó²Ù×÷
+	//·ñÔò»á³öÏÖµ÷ÓÃnf_conntrack_event_cacheÁ½´ÎµÄÇé¿ö
+	//±ÈÈçÁ½¸öreply°üÍ¬Ê±µ½´ïÕâÀï
+	//Ö»ÓÐÒ»¸ö°ü»á´¥·¢nf_conntrack_event_cache
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
 out:
@@ -1371,7 +1370,7 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 	}
 
 	if (del_timer(&ct->timeout)) {
-		//å®šæ—¶å™¨åˆ é™¤æˆåŠŸï¼Œæ‰‹åŠ¨æ‰§è¡Œé”€æ¯å‡½æ•°
+		//¶¨Ê±Æ÷É¾³ý³É¹¦£¬ÊÖ¶¯Ö´ÐÐÏú»Ùº¯Êý
 		ct->timeout.function((unsigned long)ct);
 		return true;
 	}

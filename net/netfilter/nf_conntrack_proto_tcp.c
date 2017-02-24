@@ -542,14 +542,14 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 sender->td_scale,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		 receiver->td_scale);
-	//å¯¹äºŽsynçš„è¢«åŠ¨å‘èµ·æ–¹è€Œè¨€ï¼Œsender->td_maxwin ä¸€å®šç­‰äºŽ0
+	//¶ÔÓÚsynµÄ±»¶¯·¢Æð·½¶øÑÔ£¬sender->td_maxwin Ò»¶¨µÈÓÚ0
 	if (sender->td_maxwin == 0) {
 		/*
 		 * Initialize sender data.
 		 */
-		 //åˆå§‹åŒ–å‘é€æ–¹çš„æ•°æ®ï¼Œä¹Ÿå°±æ˜¯replyæ–¹å‘çš„æ•°æ®
-		 //è‹¥æ²¡æœ‰è®¾ç½®synæ ‡å¿—ï¼Œè¡¨æ˜ŽæŸäº›æ•°æ®åŒ…æ²¡æœ‰ç»è¿‡
-		 //è·¯ç”±å™¨
+		//³õÊ¼»¯·¢ËÍ·½µÄÊý¾Ý£¬Ò²¾ÍÊÇreply·½ÏòµÄÊý¾Ý
+		//ÈôÃ»ÓÐÉèÖÃsyn±êÖ¾£¬±íÃ÷Ä³Ð©Êý¾Ý°üÃ»ÓÐ¾­¹ý
+		//Â·ÓÉÆ÷
 		if (tcph->syn) {
 			/*
 			 * SYN-ACK in reply to a SYN
@@ -565,18 +565,18 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			 * Both sides must send the Window Scale option
 			 * to enable window scaling in either direction.
 			 */
-			  //çª—å£æ”¾å¤§é€‰é¡¹
+			  //´°¿Ú·Å´óÑ¡Ïî
 			if (!(sender->flags & IP_CT_TCP_FLAG_WINDOW_SCALE
 			      && receiver->flags & IP_CT_TCP_FLAG_WINDOW_SCALE))
 				sender->td_scale =
 				receiver->td_scale = 0;
-			//åŒæ—¶æ‰“å¼€ï¼Œè¿™é‡Œä¸ºä»€ä¹ˆå¯ä»¥åˆ¤æ–­æ˜¯åŒæ—¶æ‰“å¼€
-			//åŽŸå› æ˜¯è‹¥æ˜¯synçš„ç¬¬ä¸€ä¸ªæŠ¥æ–‡ï¼Œåˆ™sender->td_maxwinä¸€å®š
-			//ä¸ç­‰äºŽ0ï¼Œä¼šåœ¨tcp_newä¸­èµ‹å€¼
-			//å‡è®¾
-			//A--->B å‘é€synï¼Œè¿™é‡Œsenderç­‰äºŽA ,td_maxwinä¼šåœ¨tcp_newä¸­èµ‹å€¼ä¸ä¸º0
-			//B--->A å‘é€synï¼Œè¿™é‡Œsenderç­‰äºŽB ,td_maxwinä¼šåœ¨tcp_newä¸­èµ‹å€¼ä¸º0
-			//å› æ­¤è‹¥B--->Aä¸ºè®¾ç½®ACKï¼Œåˆ™è¡¨ç¤ºæ˜¯åŒæ—¶æ‰“å¼€
+			//Í¬Ê±´ò¿ª£¬ÕâÀïÎªÊ²Ã´¿ÉÒÔÅÐ¶ÏÊÇÍ¬Ê±´ò¿ª
+			//Ô­ÒòÊÇÈôÊÇsynµÄµÚÒ»¸ö±¨ÎÄ£¬Ôòsender->td_maxwinÒ»¶¨
+			//²»µÈÓÚ0£¬»áÔÚtcp_newÖÐ¸³Öµ
+			//¼ÙÉè
+			//A--->B ·¢ËÍsyn£¬ÕâÀïsenderµÈÓÚA ,td_maxwin»áÔÚtcp_newÖÐ¸³Öµ²»Îª0
+			//B--->A ·¢ËÍsyn£¬ÕâÀïsenderµÈÓÚB ,td_maxwin»áÔÚtcp_newÖÐ¸³ÖµÎª0
+			//Òò´ËÈôB--->AÎªÉèÖÃACK£¬Ôò±íÊ¾ÊÇÍ¬Ê±´ò¿ª
 
 			if (!tcph->ack)
 				/* Simultaneous open */
@@ -604,8 +604,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		   || (state->state == TCP_CONNTRACK_SYN_RECV
 		     && dir == IP_CT_DIR_REPLY))
 		   && after(end, sender->td_end)) {
-		//å¯¹äºŽé‡å‘çš„synæŠ¥æ–‡ï¼Œå¦‚æžœendå¤§äºŽsender->td_end
-		//è¡¨ç¤ºåœ¨é‡æ–°å»ºç«‹è¿žæŽ¥
+		//¶ÔÓÚÖØ·¢µÄsyn±¨ÎÄ£¬Èç¹ûend´óÓÚsender->td_end
+		//±íÊ¾ÔÚÖØÐÂ½¨Á¢Á¬½Ó
 		/*
 		 * RFC 793: "if a TCP is reinitialized ... then it need
 		 * not wait at all; it must only be sure to use sequence
@@ -650,7 +650,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		 receiver->td_scale);
 	
-	//ä¸‹é¢ç¡®è®¤seqå’Œackçš„åˆæ³•æ€§
+	//ÏÂÃæÈ·ÈÏseqºÍackµÄºÏ·¨ÐÔ
 	/* Is the ending sequence in the receive window (if available)? */
 	in_recv_win = !receiver->td_maxwin ||
 		      after(end, sender->td_end - receiver->td_maxwin - 1);
@@ -662,13 +662,13 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1));
 
 	if (
-	//å‘é€æ–¹çš„åºåˆ—å·ä¸Šé™
+		//·¢ËÍ·½µÄÐòÁÐºÅÉÏÏÞ
 	before(seq, sender->td_maxend + 1) &&
 	    in_recv_win &&
-		// å‘é€æ–¹çš„ç¡®è®¤åºåˆ—å·ä¸Šé™
-	    	//å‘é€æ–¹çš„ç¡®è®¤åºåˆ—å·ä¸èƒ½è¶…è¿‡æŽ¥æ”¶å‘å·²å‘é€çš„æ•°æ®çš„ç»“æŸåºåˆ—å·
+		// ·¢ËÍ·½µÄÈ·ÈÏÐòÁÐºÅÉÏÏÞ
+	    	//·¢ËÍ·½µÄÈ·ÈÏÐòÁÐºÅ²»ÄÜ³¬¹ý½ÓÊÕ·¢ÒÑ·¢ËÍµÄÊý¾ÝµÄ½áÊøÐòÁÐºÅ
 	    before(sack, receiver->td_end + 1) &&
-	    //å‘é€æ–¹çš„ç¡®è®¤åºåˆ—å·ä¸‹é™
+	    //·¢ËÍ·½µÄÈ·ÈÏÐòÁÐºÅÏÂÏÞ
 	    after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1)) {
 		/*
 		 * Take into account window scaling (RFC 1323).
@@ -700,16 +700,16 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		if (receiver->td_maxwin != 0 && after(end, sender->td_maxend))
 			receiver->td_maxwin += end - sender->td_maxend;
 		if (after(sack + win, receiver->td_maxend - 1)) {
-			//æ›´æ–°æŽ¥æ”¶æ–¹çš„æœ€å¤§ç»“æŸåºåˆ—å·
-			//æŽ¥å—æ–¹å‘é€çš„æ•°æ®èµ·å§‹åºåˆ—å·åº”åœ¨å‘é€æ–¹
-			//[ACK, sack + win) èŒƒå›´å†…ï¼Œå› ä¸ºè¿™æ˜¯å‘é€å‘çš„
-			//é€šå‘Šçª—å£å†³å®šçš„
+			//¸üÐÂ½ÓÊÕ·½µÄ×î´ó½áÊøÐòÁÐºÅ
+			//½ÓÊÜ·½·¢ËÍµÄÊý¾ÝÆðÊ¼ÐòÁÐºÅÓ¦ÔÚ·¢ËÍ·½
+			//[ACK, sack + win) ·¶Î§ÄÚ£¬ÒòÎªÕâÊÇ·¢ËÍ·¢µÄ
+			//Í¨¸æ´°¿Ú¾ö¶¨µÄ
 			receiver->td_maxend = sack + win;
 			if (win == 0)
 				receiver->td_maxend++;
 		}
-		//å¦‚æžœackç­‰äºŽæŽ¥æ”¶æ–¹çš„ç»“æŸåºåˆ—å·ï¼Œè¯´æ˜Žæ‰€æœ‰æ•°æ®å·²ç¡®è®¤æ”¶åˆ°
-		//åŽ»é™¤æ•°æ®æœªç¡®è®¤æ ‡è®°
+		//Èç¹ûackµÈÓÚ½ÓÊÕ·½µÄ½áÊøÐòÁÐºÅ£¬ËµÃ÷ËùÓÐÊý¾ÝÒÑÈ·ÈÏÊÕµ½
+		//È¥³ýÊý¾ÝÎ´È·ÈÏ±ê¼Ç
 		if (ack == receiver->td_end)
 			receiver->flags &= ~IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED;
 
@@ -735,7 +735,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		res = true;
 	} else {
 		res = false;
-		//å¯¹éžæ³•åŒ…çš„ç¼ºçœç­–ç•¥,é»˜è®¤ä¸º0
+		//¶Ô·Ç·¨°üµÄÈ±Ê¡²ßÂÔ,Ä¬ÈÏÎª0
 		// /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_be_liberal
 		if (sender->flags & IP_CT_TCP_FLAG_BE_LIBERAL ||
 		    tn->tcp_be_liberal)
@@ -1116,7 +1116,7 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	/* Don't need lock here: this conntrack not in circulation yet */
 	new_state = tcp_conntracks[0][get_conntrack_index(th)][TCP_CONNTRACK_NONE];
 	
-	//æ— æ•ˆçš„çŠ¶æ€ï¼Œæ¯”å¦‚å¯¹äºŽå¸¦finæ ‡å¿—çš„tcpæŠ¥æ–‡ï¼Œä¸ä¼šåˆ›å»ºconntrack
+	//ÎÞÐ§µÄ×´Ì¬£¬±ÈÈç¶ÔÓÚ´øfin±êÖ¾µÄtcp±¨ÎÄ£¬²»»á´´½¨conntrack
 	/* Invalid: delete conntrack */
 	if (new_state >= TCP_CONNTRACK_MAX) {
 		pr_debug("nf_ct_tcp: invalid new deleting.\n");

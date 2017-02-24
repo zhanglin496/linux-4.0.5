@@ -98,7 +98,7 @@ synproxy_send_client_synack(const struct sk_buff *skb, const struct tcphdr *th,
 	if (opts->options & XT_SYNPROXY_OPT_ECN)
 		tcp_flag_word(nth) |= TCP_FLAG_ECE;
 	nth->doff	= tcp_hdr_size / 4;
-	//å‘clientå‘é€ä¸€ä¸ª0çª—å£çš„æŠ¥æ–‡ï¼Œæš‚åœclientå‘é€æ•°æ®
+	//Ïòclient·¢ËÍÒ»¸ö0´°¿ÚµÄ±¨ÎÄ£¬ÔİÍ£client·¢ËÍÊı¾İ
 	nth->window	= 0;
 	nth->check	= 0;
 	nth->urg_ptr	= 0;
@@ -134,12 +134,12 @@ synproxy_send_server_syn(const struct synproxy_net *snet,
 	nth = (struct tcphdr *)skb_put(nskb, tcp_hdr_size);
 	nth->source	= th->source;
 	nth->dest	= th->dest;
-	//ä½¿ç”¨å’Œclient ç›¸åŒçš„isnåºåˆ—å·
+	//Ê¹ÓÃºÍclient ÏàÍ¬µÄisnĞòÁĞºÅ
 	nth->seq	= htonl(recv_seq - 1);
 	/* ack_seq is used to relay our ISN to the synproxy hook to initialize
 	 * sequence number translation once a connection tracking entry exists.
 	 */
-	//è®°å½•å®¢æˆ·ç«¯æœŸæœ›çš„serverçš„isnåºåˆ—å·,å¹¶ä¸­ç»§ç»™syn hookå‡½æ•°
+	//¼ÇÂ¼¿Í»§¶ËÆÚÍûµÄserverµÄisnĞòÁĞºÅ,²¢ÖĞ¼Ì¸øsyn hookº¯Êı
 	nth->ack_seq	= htonl(ntohl(th->ack_seq) - 1);
 	tcp_flag_word(nth) = TCP_FLAG_SYN;
 	if (opts->options & XT_SYNPROXY_OPT_ECN)
@@ -150,11 +150,11 @@ synproxy_send_server_syn(const struct synproxy_net *snet,
 	nth->urg_ptr	= 0;
 
 	synproxy_build_options(nth, opts);
-	//snet->tmplä¸ºsyn proxy åˆå§‹åŒ–æ—¶è®¾ç½®çš„nf_connæ¨¡æ¿
-	//synproxy_send_tcpè°ƒç”¨ip_local_out ,å†è°ƒç”¨NF_INET_LOCAL_OUTé’©å­ç‚¹
-	//åœ¨ipv4_conntrack_localä¸­æ ¹æ®æ¨¡æ¿çš„é…ç½®å†æ–°å»ºä¸€ä¸ªconntrack
-	//åŒæ—¶æ·»åŠ synproxyæ‰©å±•ï¼Œè¿™æ ·ä½¿åç»­çš„æ•°æ®åŒ…
-	//è¿›å…¥ipv4_synproxy_hookå‡½æ•°ä¸­å¤„ç†
+	//snet->tmplÎªsyn proxy ³õÊ¼»¯Ê±ÉèÖÃµÄnf_connÄ£°å
+	//synproxy_send_tcpµ÷ÓÃip_local_out ,ÔÙµ÷ÓÃNF_INET_LOCAL_OUT¹³×Óµã
+	//ÔÚipv4_conntrack_localÖĞ¸ù¾İÄ£°åµÄÅäÖÃÔÙĞÂ½¨Ò»¸öconntrack
+	//Í¬Ê±Ìí¼ÓsynproxyÀ©Õ¹£¬ÕâÑùÊ¹ºóĞøµÄÊı¾İ°ü
+	//½øÈëipv4_synproxy_hookº¯ÊıÖĞ´¦Àí
 	synproxy_send_tcp(skb, nskb, &snet->tmpl->ct_general, IP_CT_NEW,
 			  niph, nth, tcp_hdr_size);
 }
@@ -324,8 +324,8 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 	if (ct == NULL)
 		return NF_ACCEPT;
 		
-	//synproxyæ‰©å±•åœ¨nf_conntrack_inä¸­æ ¹æ®synproxy_tg4 è°ƒç”¨èµ‹å€¼çš„æ¨¡æ¿æ·»åŠ 
-	//åœ¨æ²¡æœ‰æ·»åŠ è¯¥æ‰©å±•æ—¶ï¼Œè·³è¿‡åç»­çš„å¤„ç†æµç¨‹
+	//synproxyÀ©Õ¹ÔÚnf_conntrack_inÖĞ¸ù¾İsynproxy_tg4 µ÷ÓÃ¸³ÖµµÄÄ£°åÌí¼Ó
+	//ÔÚÃ»ÓĞÌí¼Ó¸ÃÀ©Õ¹Ê±£¬Ìø¹ıºóĞøµÄ´¦ÀíÁ÷³Ì
 	synproxy = nfct_synproxy(ct);
 	if (synproxy == NULL)
 		return NF_ACCEPT;
@@ -364,8 +364,8 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 		if (!synproxy_parse_options(skb, thoff, th, &opts))
 			return NF_DROP;
 			
-		//æ¥è‡ªå®¢æˆ·ç«¯çš„ackï¼Œå¯èƒ½serveræ²¡èƒ½åŠæ—¶å›å¤syn/ack
-		//æ‰€ä»¥proxy éœ€è¦å†æ¬¡å‘serverå‘é€syn/ack
+		//À´×Ô¿Í»§¶ËµÄack£¬¿ÉÄÜserverÃ»ÄÜ¼°Ê±»Ø¸´syn/ack
+		//ËùÒÔproxy ĞèÒªÔÙ´ÎÏòserver·¢ËÍsyn/ack
 		if (!th->syn && th->ack &&
 		    CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
 			/* Keep-Alives are sent with SEG.SEQ = SND.NXT-1,
@@ -378,13 +378,13 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 
 			return NF_DROP;
 		}
-		//è®°å½•åŸå§‹çš„isnåºåˆ—å·
+		//¼ÇÂ¼Ô­Ê¼µÄisnĞòÁĞºÅ
 		synproxy->isn = ntohl(th->ack_seq);
 		if (opts.options & XT_SYNPROXY_OPT_TIMESTAMP)
 			synproxy->its = opts.tsecr;
 		break;
 	case TCP_CONNTRACK_SYN_RECV:
-		//æœŸæœ›æ¥æ”¶åˆ°serverçš„syn ack
+		//ÆÚÍû½ÓÊÕµ½serverµÄsyn ack
 		if (!th->syn || !th->ack)
 			break;
 
@@ -400,9 +400,9 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 
 		swap(opts.tsval, opts.tsecr);
 		synproxy_send_server_ack(snet, state, skb, th, &opts);
-		//è®¡ç®—serverç«¯åºåˆ—å·å·®å€¼
-		//clientæœŸæœ›çš„isn(ä¹Ÿå°±æ˜¯proxyä»£ç†ä¸‰æ¬¡æ¡æ‰‹æ—¶äº§ç”Ÿçš„isn)
-		//å‡å»çœŸå®serverç«¯é‡æ–°äº§ç”Ÿçš„isn
+		//¼ÆËãserver¶ËĞòÁĞºÅ²îÖµ
+		//clientÆÚÍûµÄisn(Ò²¾ÍÊÇproxy´úÀíÈı´ÎÎÕÊÖÊ±²úÉúµÄisn)
+		//¼õÈ¥ÕæÊµserver¶ËÖØĞÂ²úÉúµÄisn
 		nf_ct_seqadj_init(ct, ctinfo, synproxy->isn - ntohl(th->seq));
 
 		swap(opts.tsval, opts.tsecr);
@@ -412,7 +412,7 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 		consume_skb(skb);
 		return NF_STOLEN;
 	default:
-	//å¯¹äºå…¶å®ƒåç»­çš„æ•°æ®åŒ…ï¼Œåªéœ€è¦åšåºåˆ—å·è°ƒæ•´å³å¯
+		//¶ÔÓÚÆäËüºóĞøµÄÊı¾İ°ü£¬Ö»ĞèÒª×öĞòÁĞºÅµ÷Õû¼´¿É
 		break;
 	}
 

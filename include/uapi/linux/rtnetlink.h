@@ -192,22 +192,23 @@ struct rtmsg {
 };
 
 /* rtm_type */
-//inet_addr_typeå‡½æ•°è¿”å›žçš„åœ°å€ç±»åž‹
+//inet_addr_typeº¯Êý·µ»ØµÄµØÖ·ÀàÐÍ
 enum {
 	RTN_UNSPEC,
-	//éžæœ¬æœºé…ç½®çš„å•æ’­IPåœ°å€
+	//·Ç±¾»úÅäÖÃµÄµ¥²¥IPµØÖ·
 	RTN_UNICAST,		/* Gateway or direct route	*/
-	//å¦‚æžœIP åœ°å€æ˜¯æœ¬æœºé…ç½®çš„IPåœ°å€ï¼ŒåŒ…æ‹¬127ç½‘æ®µçš„æ‰€æœ‰åœ°å€ï¼Œåˆ™éƒ½æ˜¯localç±»åž‹çš„
+	//Èç¹ûIP µØÖ·ÊÇ±¾»úÅäÖÃµÄIPµØÖ·£¬°üÀ¨127Íø¶ÎµÄËùÓÐµØÖ·£¬Ôò¶¼ÊÇlocalÀàÐÍµÄ
 	RTN_LOCAL,		/* Accept locally		*/
-//å¦‚æžœIP åœ°å€æ˜¯å¹¿æ’­åœ°å€æˆ–è€…æœ¬æœºé…ç½®çš„IPåœ°å€å­ç½‘å¹¿æ’­åœ°å€æˆ–è€…
-//0ç½‘æ®µåœ°å€ï¼Œæ¯”å¦‚0.139.2.69
-// 255.255.255.255ï¼Œå‡è®¾æœ¬æœºé…ç½®æœ‰IPåœ°å€192.168.1.1ï¼Œåˆ™ 192.168.1.255
-//æ˜¯RTN_BROADCASTï¼Œä½†æ˜¯61.139.2.255åˆ™æ˜¯RTN_UNICAST
+	//Èç¹ûIP µØÖ·ÊÇ¹ã²¥µØÖ·»òÕß±¾»úÅäÖÃµÄIPµØÖ·×ÓÍø¹ã²¥µØÖ·»òÕß
+	//0Íø¶ÎµØÖ·£¬±ÈÈç0.139.2.69
+	// 255.255.255.255£¬¼ÙÉè±¾»úÅäÖÃÓÐIPµØÖ·192.168.1.1£¬Ôò 192.168.1.255
+	//ÊÇRTN_BROADCAST£¬µ«ÊÇ61.139.2.255ÔòÊÇRTN_UNICAST
+
 	RTN_BROADCAST,		/* Accept locally as broadcast,
 				   send as broadcast */
 	RTN_ANYCAST,		/* Accept locally as broadcast,
 				   but send as unicast */
-//å¦‚æžœIPåœ°å€æ˜¯å¤šæ’­åœ°å€ï¼Œä¹Ÿå°±æ˜¯Dç±»åœ°å€ï¼Œéƒ½ä¸ºRTN_MULTICAST
+	//Èç¹ûIPµØÖ·ÊÇ¶à²¥µØÖ·£¬Ò²¾ÍÊÇDÀàµØÖ·£¬¶¼ÎªRTN_MULTICAST
 	RTN_MULTICAST,		/* Multicast route		*/
 	RTN_BLACKHOLE,		/* Drop				*/
 	RTN_UNREACHABLE,	/* Destination is unreachable   */

@@ -37,11 +37,11 @@ void __nf_ct_ext_destroy(struct nf_conn *ct)
 		 * area in all conntracks when it is unregisterd.
 		 */
 		 
-		//å¦‚æœextåœ¨è°ƒç”¨__nf_ct_ext_destroyä¹‹å‰è¢«æ³¨é”€ï¼Œåˆ™ç”±æ³¨é”€æ“ä½œæ¥é‡Šæ”¾æ‰€æœ‰
-		//conntrackè·Ÿæ‰©å±•ç›¸å…³çš„èµ„æºï¼Œåœ¨å¤§é‡conntrackçš„æƒ…å†µä¸‹
-		//å®é™…ä¸Šæœ€å¥½ä¸è¦åŠ¨æ€æ³¨é”€ï¼Œå¦åˆ™éœ€è¦éå†æ‰€æœ‰çš„conntrack
-		//ä½†æ˜¯å¦‚æœè¯¥æ‰©å±•çš„destroyå‡½æ•°å’Œmoveå‡½æ•°ä¸ºç©ºçš„æƒ…å†µä¸‹
-		//åŠ¨æ€æ³¨é”€æ²¡æœ‰é—®é¢˜
+		//Èç¹ûextÔÚµ÷ÓÃ__nf_ct_ext_destroyÖ®Ç°±»×¢Ïú£¬ÔòÓÉ×¢Ïú²Ù×÷À´ÊÍ·ÅËùÓĞ
+		//conntrack¸úÀ©Õ¹Ïà¹ØµÄ×ÊÔ´£¬ÔÚ´óÁ¿conntrackµÄÇé¿öÏÂ
+		//Êµ¼ÊÉÏ×îºÃ²»Òª¶¯Ì¬×¢Ïú£¬·ñÔòĞèÒª±éÀúËùÓĞµÄconntrack
+		//µ«ÊÇÈç¹û¸ÃÀ©Õ¹µÄdestroyº¯ÊıºÍmoveº¯ÊıÎª¿ÕµÄÇé¿öÏÂ
+		//¶¯Ì¬×¢ÏúÃ»ÓĞÎÊÌâ
 		if (t && t->destroy)
 			t->destroy(ct);
 		rcu_read_unlock();
@@ -82,15 +82,15 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 	int i, newlen, newoff;
 	struct nf_ct_ext_type *t;
 	
-	//æœªç¡®è®¤çŠ¶æ€æ—¶
-	//åªå¯èƒ½æœ‰ä¸€ä¸ªskbå¼•ç”¨è€…ï¼Œä¸ä¼šå‡ºç°ç«äº‰
-	//è‹¥æœconntrackå·²ç»è¢«ç¡®è®¤ï¼Œåˆ™ä¸èƒ½å†æ·»åŠ æ–°çš„æ‰©å±•åŒº
-	//å› ä¸ºæ ‡å‡†å†…æ ¸åœ¨åˆ†é…æ‰©å±•åŒºæ—¶å¹¶æ²¡æœ‰åŠ é”
+	//Î´È·ÈÏ×´Ì¬Ê±
+	//Ö»¿ÉÄÜÓĞÒ»¸öskbÒıÓÃÕß£¬²»»á³öÏÖ¾ºÕù
+	//Èô¹ûconntrackÒÑ¾­±»È·ÈÏ£¬Ôò²»ÄÜÔÙÌí¼ÓĞÂµÄÀ©Õ¹Çø
+	//ÒòÎª±ê×¼ÄÚºËÔÚ·ÖÅäÀ©Õ¹ÇøÊ±²¢Ã»ÓĞ¼ÓËø
 	/* Conntrack must not be confirmed to avoid races on reallocation. */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
 	
-	//var_alloc_lenæŒ‡å®šåœ¨é™æ€æ³¨å†Œæ—¶çš„å›ºå®šé•¿åº¦çš„åŸºç¡€ä¸Š
-	//éœ€è¦åˆ†é…çš„é¢å¤–é•¿åº¦ï¼Œæ¯”å¦‚nf_ct_helper_ext_addç”¨åˆ°äº†è¿™ä¸ªåŠŸèƒ½
+	//var_alloc_lenÖ¸¶¨ÔÚ¾²Ì¬×¢²áÊ±µÄ¹Ì¶¨³¤¶ÈµÄ»ù´¡ÉÏ
+	//ĞèÒª·ÖÅäµÄ¶îÍâ³¤¶È£¬±ÈÈçnf_ct_helper_ext_addÓÃµ½ÁËÕâ¸ö¹¦ÄÜ
 	old = ct->ext;
 	if (!old)
 		return nf_ct_ext_create(&ct->ext, id, var_alloc_len, gfp);
@@ -141,13 +141,13 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 	enum nf_ct_ext_id min = 0, max = NF_CT_EXT_NUM - 1;
 
 	/* unnecessary to update all types */
-	//å¦‚æœæ²¡æŒ‡å®šNF_CT_EXT_F_PREALLOC
-	//åˆ™ä¸éœ€è¦æ›´æ–°æ‰€æœ‰å·²ç»æ³¨å†Œtypeçš„alloc_sizeå¤§å°ï¼Œä½†æ˜¯å¯èƒ½ä¼šæ›´æ–°è‡ªèº«çš„alloc_sizeï¼Œ
-	//å› ä¸ºä¹‹å‰æ³¨å†Œçš„typeå¯èƒ½è®¾ç½®äº†æ ‡å¿—NF_CT_EXT_F_PREALLOCï¼Œæ‰€ä»¥éœ€è¦é‡æ–°è®¡ç®—å¤§å°
-	//å¦‚æœæŒ‡å®šäº†æ ‡å¿—NF_CT_EXT_F_PREALLOCï¼Œåˆ™ä¼šæ›´æ–°æ‰€æœ‰å·²æ³¨å†Œtypeçš„alloc_sizeï¼Œåœ¨æ·»åŠ æ‰©å±•çš„æ—¶å€™ï¼Œ
-	//å°±ä¼šä¸€æ¬¡æ€§åˆ†é…åŒ…å«NF_CT_EXT_F_PREALLOCæ ‡å¿—typeæ‰€éœ€æ€»çš„æ‰©å±•ç©ºé—´ï¼Œ
-	//è¿™æ ·æ·»åŠ æ‰©å±•çš„æ—¶å€™å°±ä¸éœ€è¦å†é‡æ–°åˆ†é…ç©ºé—´ï¼Œå› ä¸ºç©ºé—´å·²ç»æå‰åˆ†é…å¥½äº†ï¼Œ
-	//å¥½å¤„æ˜¯å¯ä»¥é¿å…reallocï¼Œåå¤„æ˜¯å¯èƒ½ä¼šæµªè´¹ç©ºé—´
+	//Èç¹ûÃ»Ö¸¶¨NF_CT_EXT_F_PREALLOC
+	//Ôò²»ĞèÒª¸üĞÂËùÓĞÒÑ¾­×¢²átypeµÄalloc_size´óĞ¡£¬µ«ÊÇ¿ÉÄÜ»á¸üĞÂ×ÔÉíµÄalloc_size£¬
+	//ÒòÎªÖ®Ç°×¢²áµÄtype¿ÉÄÜÉèÖÃÁË±êÖ¾NF_CT_EXT_F_PREALLOC£¬ËùÒÔĞèÒªÖØĞÂ¼ÆËã´óĞ¡
+	//Èç¹ûÖ¸¶¨ÁË±êÖ¾NF_CT_EXT_F_PREALLOC£¬Ôò»á¸üĞÂËùÓĞÒÑ×¢²átypeµÄalloc_size£¬ÔÚÌí¼ÓÀ©Õ¹µÄÊ±ºò£¬
+	//¾Í»áÒ»´ÎĞÔ·ÖÅä°üº¬NF_CT_EXT_F_PREALLOC±êÖ¾typeËùĞè×ÜµÄÀ©Õ¹¿Õ¼ä£¬
+	//ÕâÑùÌí¼ÓÀ©Õ¹µÄÊ±ºò¾Í²»ĞèÒªÔÙÖØĞÂ·ÖÅä¿Õ¼ä£¬ÒòÎª¿Õ¼äÒÑ¾­ÌáÇ°·ÖÅäºÃÁË£¬
+	//ºÃ´¦ÊÇ¿ÉÒÔ±ÜÃârealloc£¬»µ´¦ÊÇ¿ÉÄÜ»áÀË·Ñ¿Õ¼ä
 	if ((type->flags & NF_CT_EXT_F_PREALLOC) == 0) {
 		min = type->id;
 		max = type->id;
@@ -158,33 +158,33 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 	for (i = min; i <= max; i++) {
 		t1 = rcu_dereference_protected(nf_ct_ext_types[i],
 				lockdep_is_held(&nf_ct_ext_type_mutex));
-		//å¯èƒ½æ‰©å±•ç±»å‹è¿˜æ²¡æœ‰æ³¨å†Œ
+		//¿ÉÄÜÀ©Õ¹ÀàĞÍ»¹Ã»ÓĞ×¢²á
 		if (!t1)
 			continue;
 
 		t1->alloc_size = ALIGN(sizeof(struct nf_ct_ext), t1->align) +
 				 t1->len;
 				 
-		//éå†æ‰€ç”¨å·²æ³¨å†Œçš„æ‰©å±•
+		//±éÀúËùÓÃÒÑ×¢²áµÄÀ©Õ¹
 		for (j = 0; j < NF_CT_EXT_NUM; j++) {
 			t2 = rcu_dereference_protected(nf_ct_ext_types[j],
 				lockdep_is_held(&nf_ct_ext_type_mutex));
-			//t2æ²¡è®¾ç½®NF_CT_EXT_F_PREALLOCæ ‡å¿—ï¼Œå°±ä¸ä¼šæ›´æ–°alloc_size
-			//ç›®å‰åªæœ‰nat_extendè®¾ç½®äº†è¯¥æ ‡å¿—
-			//æ³¨æ„t2==t1çš„æƒ…å†µä¸‹æ˜¯ä¸èƒ½æ›´æ–°alloc_size
-			//NF_CT_EXT_F_PREALLOCçš„ç›®çš„æ˜¯åœ¨åˆ†é…å…¶ä»–ç±»å‹çš„æ‰©å±•æ—¶ï¼ŒæŠŠå½“å‰æ³¨å†Œçš„ç©ºé—´åŒ…å«è¿›å»
-			//å‡è®¾æœ‰t1ã€t2ã€t3ä¸‰ä¸ªç±»å‹ï¼Œåªæœ‰t3è®¾ç½®äº†NF_CT_EXT_F_PREALLOCï¼Œ
-			//é‚£ä¹ˆåˆ†é…t1æˆ–t2æ—¶ä¼šå§t3çš„ç©ºé—´åŒ…å«è¿›å»ï¼Œä½†æ˜¯åˆ†é…t3æ—¶åªåŒ…å«t3è‡ªèº«çš„å¤§å°
-			//ä½†æ˜¯å¦‚æœt1ã€t2ä¹Ÿè®¾ç½®äº†NF_CT_EXT_F_PREALLOCï¼Œ
-			//åˆ™ä¸‰ä¸ªç±»å‹çš„alloc_sizeå¤§å°éƒ½ä¸ºï¼ˆt1+t2+t3ï¼‰
-			//å¦‚æœt1ã€t2è®¾ç½®è€Œt3æ²¡è®¾ç½®NF_CT_EXT_F_PREALLOC
-			//é‚£ä¹ˆt1=(t1+t2),t2=(t2+t1),t3=(t3+t1+t2)
-			//ä¹Ÿå°±æ˜¯è¯´æ‰©å±•çš„alloc_sizeä¸ºè‡ªèº«åŠ ä¸Šå…¶ä»–è®¾ç½®äº†NF_CT_EXT_F_PREALLOCçš„æ‰©å±•å¤§å°
+			//t2Ã»ÉèÖÃNF_CT_EXT_F_PREALLOC±êÖ¾£¬¾Í²»»á¸üĞÂalloc_size
+			//Ä¿Ç°Ö»ÓĞnat_extendÉèÖÃÁË¸Ã±êÖ¾
+			//×¢Òât2==t1µÄÇé¿öÏÂÊÇ²»ÄÜ¸üĞÂalloc_size
+			//NF_CT_EXT_F_PREALLOCµÄÄ¿µÄÊÇÔÚ·ÖÅäÆäËûÀàĞÍµÄÀ©Õ¹Ê±£¬°Ñµ±Ç°×¢²áµÄ¿Õ¼ä°üº¬½øÈ¥
+			//¼ÙÉèÓĞt1¡¢t2¡¢t3Èı¸öÀàĞÍ£¬Ö»ÓĞt3ÉèÖÃÁËNF_CT_EXT_F_PREALLOC£¬
+			//ÄÇÃ´·ÖÅät1»òt2Ê±»á°Ét3µÄ¿Õ¼ä°üº¬½øÈ¥£¬µ«ÊÇ·ÖÅät3Ê±Ö»°üº¬t3×ÔÉíµÄ´óĞ¡
+			//µ«ÊÇÈç¹ût1¡¢t2Ò²ÉèÖÃÁËNF_CT_EXT_F_PREALLOC£¬
+			//ÔòÈı¸öÀàĞÍµÄalloc_size´óĞ¡¶¼Îª£¨t1+t2+t3£©
+			//Èç¹ût1¡¢t2ÉèÖÃ¶øt3Ã»ÉèÖÃNF_CT_EXT_F_PREALLOC
+			//ÄÇÃ´t1=(t1+t2),t2=(t2+t1),t3=(t3+t1+t2)
+			//Ò²¾ÍÊÇËµÀ©Õ¹µÄalloc_sizeÎª×ÔÉí¼ÓÉÏÆäËûÉèÖÃÁËNF_CT_EXT_F_PREALLOCµÄÀ©Õ¹´óĞ¡
 			if (t2 == NULL || t2 == t1 ||
 			    (t2->flags & NF_CT_EXT_F_PREALLOC) == 0)
 				continue;
-			//å¦‚æœt2è®¾ç½®äº†NF_CT_EXT_F_PREALLOCæ ‡å¿—ï¼Œåˆ™éœ€è¦æ›´æ–°t1çš„alloc_size
-			//ç´¯è®¡éœ€è¦åˆ†é…çš„æ€»å¤§å°åˆ°t1ä¸­
+			//Èç¹ût2ÉèÖÃÁËNF_CT_EXT_F_PREALLOC±êÖ¾£¬ÔòĞèÒª¸üĞÂt1µÄalloc_size
+			//ÀÛ¼ÆĞèÒª·ÖÅäµÄ×Ü´óĞ¡µ½t1ÖĞ
 			t1->alloc_size = ALIGN(t1->alloc_size, t2->align)
 					 + t2->len;
 		}
