@@ -3649,9 +3649,9 @@ another_round:
 	skb->skb_iif = skb->dev->ifindex;
 
 	__this_cpu_inc(softnet_data.processed);
-//å¤„ç†vlanæ•°æ®åŒ…,åŽ»æŽ‰tag
-//ç›¸å¯¹æ—§ç‰ˆå†…æ ¸çš„å¤„ç†æ–¹å¼ï¼Œä¸éœ€è¦å†ä¸€æ¬¡è°ƒç”¨netif_receive_skb
-//
+	//´¦ÀívlanÊý¾Ý°ü,È¥µôtag
+	//Ïà¶Ô¾É°æÄÚºËµÄ´¦Àí·½Ê½£¬²»ÐèÒªÔÙÒ»´Îµ÷ÓÃnetif_receive_skb
+	//
 	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
 	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
 		skb = skb_vlan_untag(skb);
@@ -3692,8 +3692,8 @@ ncls:
 	if (pfmemalloc && !skb_pfmemalloc_protocol(skb))
 		goto drop;
 		
-//å¦‚æžœæ˜¯vlanæ•°æ®åŒ…ï¼Œæ ¹æ®vlan idæ‰¾åˆ°å¯¹åº”çš„è™šæ‹Ÿdev
-//å¹¶ç»‘å®šåˆ°skbä¸­
+	//Èç¹ûÊÇvlanÊý¾Ý°ü£¬¸ù¾Ývlan idÕÒµ½¶ÔÓ¦µÄÐéÄâdev
+	//²¢°ó¶¨µ½skbÖÐ
 	if (skb_vlan_tag_present(skb)) {
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
@@ -3705,9 +3705,9 @@ ncls:
 			goto unlock;
 	}
 	
-//è°ƒç”¨æ³¨å†Œçš„rx_handler
-//é€šè¿‡netdev_rx_handler_registeræ³¨å†Œã€‚macvlanï¼Œipvlanï¼Œbridgeï¼Œbondç­‰è™šæ‹Ÿ
-//è®¾å¤‡éƒ½æ˜¯é€šè¿‡æ­¤æ–¹å¼æ¥å®žçŽ°çš„
+	//µ÷ÓÃ×¢²áµÄrx_handler
+	//Í¨¹ýnetdev_rx_handler_register×¢²á¡£macvlan£¬ipvlan£¬bridge£¬bondµÈÐéÄâ
+	//Éè±¸¶¼ÊÇÍ¨¹ý´Ë·½Ê½À´ÊµÏÖµÄ
 	rx_handler = rcu_dereference(skb->dev->rx_handler);
 	if (rx_handler) {
 		if (pt_prev) {

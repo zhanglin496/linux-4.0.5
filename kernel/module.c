@@ -2658,14 +2658,14 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 			break;
 		}
 	}
-	//æŸ¥æ‰¾THIS_MODULE(&this_module)
-	//ç”±gccåœ¨ç¼–è¯‘æ¨¡å—æ—¶è‡ªåŠ¨ç”Ÿæˆï¼Œæ¨¡å—ä¸éœ€è¦å…³å¿ƒ
+	//²éÕÒTHIS_MODULE(&this_module)
+	//ÓÉgccÔÚ±àÒëÄ£¿éÊ±×Ô¶¯Éú³É£¬Ä£¿é²»ĞèÒª¹ØĞÄ
 	info->index.mod = find_sec(info, ".gnu.linkonce.this_module");
 	if (!info->index.mod) {
 		pr_warn("No module found in object\n");
 		return ERR_PTR(-ENOEXEC);
 	}
-	//è·å–åœ°å€,ç¨åéœ€è¦è°ƒç”¨å…¶initå‡½æ•°
+	//»ñÈ¡µØÖ·,ÉÔºóĞèÒªµ÷ÓÃÆäinitº¯Êı
 	/* This is temporary: point mod into copy of data. */
 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
 	//·ûºÅ±í±ØĞë´æÔÚ£¬·ñÔòÎŞ·¨½âÎöÄ£¿éĞèÒªµÄ·ûºÅ

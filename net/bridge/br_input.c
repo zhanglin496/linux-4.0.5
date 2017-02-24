@@ -133,7 +133,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
-	//ä»¥æºmacåœ°å€å»ºç«‹æŸ¥æ‰¾è¡¨
+	//ÒÔÔ´macµØÖ·½¨Á¢²éÕÒ±í
 	if (p->flags & BR_LEARNING)
 		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
 
@@ -178,12 +178,12 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 		unicast = false;
 		br->dev->stats.multicast++;
-	//é€šè¿‡ç›®çš„macåœ°å€è·å–æœ¬åœ°è½¬å‘è¡¨
-	//æœ¬åœ°é€šè¿‡brctl addif æ·»åŠ çš„æ¥å£fdbéƒ½æ˜¯localç±»å‹
+	//Í¨¹ıÄ¿µÄmacµØÖ·»ñÈ¡±¾µØ×ª·¢±í
+	//±¾µØÍ¨¹ıbrctl addif Ìí¼ÓµÄ½Ó¿Úfdb¶¼ÊÇlocalÀàĞÍ
 	} else if ((dst = __br_fdb_get(br, dest, vid)) &&
 			dst->is_local) {
-		//å¦‚æœæ˜¯åˆ°æœ¬åœ°çš„
-		//åˆ™ä¸éœ€è¦è½¬å‘
+		//Èç¹ûÊÇµ½±¾µØµÄ
+		//Ôò²»ĞèÒª×ª·¢
 		skb2 = skb;
 		/* Do not forward the packet since it's local. */
 		skb = NULL;
@@ -196,8 +196,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		} else
 			br_flood_forward(br, skb, skb2, unicast);
 	}
-	//å‘ä¸ŠæŠ•é€’åˆ°æœ¬åœ°æ¡¥æ¥å£ï¼Œæ¯”å¦‚br0
-	//å†æ¬¡è°ƒç”¨netif_receive_skb
+	//ÏòÉÏÍ¶µİµ½±¾µØÇÅ½Ó¿Ú£¬±ÈÈçbr0
+	//ÔÙ´Îµ÷ÓÃnetif_receive_skb
 	if (skb2)
 		return br_pass_frame_up(skb2);
 
