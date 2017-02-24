@@ -300,6 +300,8 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	case IP_CT_RELATED:
 	case IP_CT_RELATED_REPLY:
 		//如果是ICMP协议，需要做特殊的NAT处理
+		//前提是skb 为IP_CT_RELATED类型的，
+		//如果不是就不需要做特别的处理
 		if (ip_hdr(skb)->protocol == IPPROTO_ICMP) {
 			if (!nf_nat_icmp_reply_translation(skb, ct, ctinfo,
 							   ops->hooknum))
@@ -335,7 +337,7 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 				 ct);
 			//对于MASQUERADE 模块，会记录出口设备的索引到
 			// masq_index, 如果这里的出口索引变更了，表示
-			//设备有变化，比如IP地址变更了，需要销毁conntrack
+			//设备有变化，比如在多wan的情况下，每次选择的出口有变化，需要销毁conntrack
 			// MASQUERADE 是根据规则配置的出口设备动态选择IP地址的
 			// 而SNAT 和DNAT 模块则是完全静态的
 			//会根据你设置的规则来转换

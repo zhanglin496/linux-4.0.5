@@ -55,7 +55,8 @@ nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
 		pr_info("%s ate my IP address\n", out->name);
 		return NF_DROP;
 	}
-
+	//记录当前出口设备的索引号
+	//
 	nat->masq_index = out->ifindex;
 
 	/* Transfer from original range. */
