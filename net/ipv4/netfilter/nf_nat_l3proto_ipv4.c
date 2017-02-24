@@ -308,6 +308,9 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	switch (ctinfo) {
 	case IP_CT_RELATED:
 	case IP_CT_RELATED_REPLY:
+		//会出现IP_CT_RELATED的情况
+		//比如对于UDP 有可能连接的发起方关闭了套接字
+		//如果对端再发数据，就会出现ICMP_DEST_UNREACH错误
 		//如果是ICMP协议，需要做特殊的NAT处理
 		//前提是skb 为IP_CT_RELATED类型的，
 		//如果不是就不需要做特别的处理
