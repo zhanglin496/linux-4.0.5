@@ -338,6 +338,8 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 			//对于MASQUERADE 模块，会记录出口设备的索引到
 			// masq_index, 如果这里的出口索引变更了，表示
 			//设备有变化，比如在多wan的情况下，每次选择的出口有变化，需要销毁conntrack
+			//这里意思应该是对于同一条数据流应该始终选择同一个出口
+			//除非设备注销了或者确实不可用
 			// MASQUERADE 是根据规则配置的出口设备动态选择IP地址的
 			// 而SNAT 和DNAT 模块则是完全静态的
 			//会根据你设置的规则来转换
