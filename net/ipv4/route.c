@@ -1573,10 +1573,10 @@ static int __mkroute_input(struct sk_buff *skb,
 	}
 
 	do_cache = res->fi && !itag;
-	//å¦‚æžœå…¥å£å’Œå‡ºå£è®¾å¤‡ç›¸åŒ
-	//è¡¨ç¤ºå‘é€æ–¹å’ŒæŽ¥æ”¶æ–¹æ˜¯å¯ä»¥ç›´æŽ¥åˆ°è¾¾çš„
-	//ä¸éœ€è¦è·¯ç”±å™¨å‚ä¸Žè½¬å‘ï¼ŒåŒæ—¶è®¾ç½®é‡å®šå‘æ ‡å¿—
-	//åœ¨ip_forwardä¸­å‘é€ICMPé‡å®šå‘æŠ¥æ–‡
+	//Èç¹ûÈë¿ÚºÍ³ö¿ÚÉè±¸ÏàÍ¬
+	//±íÊ¾·¢ËÍ·½ºÍ½ÓÊÕ·½ÊÇ¿ÉÒÔÖ±½Óµ½´ïµÄ
+	//²»ÐèÒªÂ·ÓÉÆ÷²ÎÓë×ª·¢£¬Í¬Ê±ÉèÖÃÖØ¶¨Ïò±êÖ¾
+	//ÔÚip_forwardÖÐ·¢ËÍICMPÖØ¶¨Ïò±¨ÎÄ
 	if (out_dev == in_dev && err && IN_DEV_TX_REDIRECTS(out_dev) &&
 	    skb->protocol == htons(ETH_P_IP) &&
 	    (IN_DEV_SHARED_MEDIA(out_dev) ||
@@ -1597,7 +1597,7 @@ static int __mkroute_input(struct sk_buff *skb,
 			goto cleanup;
 		}
 	}
-	//å…ˆåŒ¹é…ä¸‹ä¸€è·³å¼‚å¸¸è¡¨
+	//ÏÈÆ¥ÅäÏÂÒ»ÌøÒì³£±í
 	fnhe = find_exception(&FIB_RES_NH(*res), daddr);
 	if (do_cache) {
 		if (fnhe != NULL)
@@ -1611,8 +1611,8 @@ static int __mkroute_input(struct sk_buff *skb,
 		}
 	}
 	
-	//ä¸‹é¢åˆ†é…rtableè®°å½•è·¯ç”±ç»“æžœ
-	//out_dev->dev æ˜¯æ ¹æ®è·¯ç”±ç»“æžœèŽ·å–çš„å‡ºå£ç½‘ç»œè®¾å¤‡
+	//ÏÂÃæ·ÖÅärtable¼ÇÂ¼Â·ÓÉ½á¹û
+	//out_dev->dev ÊÇ¸ù¾ÝÂ·ÓÉ½á¹û»ñÈ¡µÄ³ö¿ÚÍøÂçÉè±¸
 	rth = rt_dst_alloc(out_dev->dev,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
 			   IN_DEV_CONF_GET(out_dev, NOXFRM), do_cache);
@@ -1638,7 +1638,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.output = ip_output;
 
 	rt_set_nexthop(rth, daddr, res, fnhe, res->fi, res->type, itag);
-	//å°†è·¯ç”±ç»“æžœè®°å½•åˆ°skbä¸Š
+	//½«Â·ÓÉ½á¹û¼ÇÂ¼µ½skbÉÏ
 	skb_dst_set(skb, &rth->dst);
 out:
 	err = 0;
@@ -1686,9 +1686,9 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	bool do_cache;
 
 	/* IP on this device is disabled. */
-	//æ²¡æœ‰é…ç½®in_deviceï¼Œä¸¢å¼ƒæ•°æ®åŒ…
-	//å¦‚æžœæ˜¯éœ€è¦è½¬å‘çš„æ•°æ®åŒ…ï¼Œå¯ä»¥ä¸ç”¨é…ç½®IPåœ°å€ï¼Œä¹Ÿå°±æ˜¯è¯´in_dev->ifa_listå¯ä»¥ç­‰äºŽNULL
-	//in_device ç»“æž„åœ¨inetdev_initä¸­åˆ†é…
+	//Ã»ÓÐÅäÖÃin_device£¬¶ªÆúÊý¾Ý°ü
+	//Èç¹ûÊÇÐèÒª×ª·¢µÄÊý¾Ý°ü£¬¿ÉÒÔ²»ÓÃÅäÖÃIPµØÖ·£¬Ò²¾ÍÊÇËµin_dev->ifa_list¿ÉÒÔµÈÓÚNULL
+	//in_device ½á¹¹ÔÚinetdev_initÖÐ·ÖÅä
 	if (!in_dev)
 		goto out;
 
@@ -1739,7 +1739,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			err = -EHOSTUNREACH;
 		goto no_route;
 	}
-	//è·¯ç”±æŸ¥æ‰¾æˆåŠŸï¼Œres.fiä¸ä¸ºNULL
+	//Â·ÓÉ²éÕÒ³É¹¦£¬res.fi²»ÎªNULL
 	if (res.type == RTN_BROADCAST)
 		goto brd_input;
 
@@ -1762,8 +1762,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 out:	return err;
 
 brd_input:
-	//ç›®çš„åœ°å€æ˜¯å¹¿æ’­åœ°å€æ—¶ï¼Œä¸éœ€è¦è·¯ç”±æŸ¥æ‰¾ï¼Œres.fi=NULL
-	//ä¸ç¼“å­˜rth
+	//Ä¿µÄµØÖ·ÊÇ¹ã²¥µØÖ·Ê±£¬²»ÐèÒªÂ·ÓÉ²éÕÒ£¬res.fi=NULL
+	//²»»º´ærth
 	if (skb->protocol != htons(ETH_P_IP))
 		goto e_inval;
 
@@ -1780,34 +1780,34 @@ brd_input:
 local_input:
 	do_cache = false;
 	if (res.fi) {
-		//itagä¸º0ï¼Œçœ‹èƒ½å¦æ˜¯ç”¨ç¼“å­˜çš„rth
+		//itagÎª0£¬¿´ÄÜ·ñÊÇÓÃ»º´æµÄrth
 		if (!itag) {
 			rth = rcu_dereference(FIB_RES_NH(res).nh_rth_input);
-			//fb_nhä¸­æ˜¯å¦æœ‰ä¸Šæ¬¡ç¼“å­˜çš„ç»“æžœ
-			//å¦‚æžœæœ‰çš„è¯ï¼Œçœ‹æ˜¯å¦å¯ä»¥ä½¿ç”¨
-			//å¯¹äºŽä¸€æ¡æŒç»­é•¿æ—¶é—´çš„æ•°æ®æµ
-			//å¯ä»¥é¿å…é¢‘ç¹çš„åˆ†é…rthç»“æž„æ¥è®°å½•æŸ¥æ‰¾ç»“æžœ
+			//fb_nhÖÐÊÇ·ñÓÐÉÏ´Î»º´æµÄ½á¹û
+			//Èç¹ûÓÐµÄ»°£¬¿´ÊÇ·ñ¿ÉÒÔÊ¹ÓÃ
+			//¶ÔÓÚÒ»Ìõ³ÖÐø³¤Ê±¼äµÄÊý¾ÝÁ÷
+			//¿ÉÒÔ±ÜÃâÆµ·±µÄ·ÖÅärth½á¹¹À´¼ÇÂ¼²éÕÒ½á¹û
 
 			if (rt_cache_valid(rth)) {
-				//ä¸å¢žåŠ rthçš„å¼•ç”¨è®¡æ•°
-				//åªæ˜¯æŒ‡é’ˆèµ‹å€¼ï¼Œå¹¶æ‰“ä¸Šæ ‡è®°SKB_DST_NOREF
+				//²»Ôö¼ÓrthµÄÒýÓÃ¼ÆÊý
+				//Ö»ÊÇÖ¸Õë¸³Öµ£¬²¢´òÉÏ±ê¼ÇSKB_DST_NOREF
 				skb_dst_set_noref(skb, &rth->dst);
 				err = 0;
 				goto out;
 			}
-			//ç¼“å­˜å¤±æ•ˆ,æ—§çš„ç¼“å­˜åœ¨rt_cache_routeä¸­é‡Šæ”¾
+			//»º´æÊ§Ð§,¾ÉµÄ»º´æÔÚrt_cache_routeÖÐÊÍ·Å
 			do_cache = true;
 		}
 	}
-	//åˆ†é…rthç»“æž„è®°å½•è·¯ç”±æŸ¥æ‰¾ç»“æžœ
-	//do_cacheä¸ºtrueæ—¶ï¼Œä¸ä¼šè®¾ç½®dst->flagsæ ‡å¿—DST_NOCACHEï¼Œåœ¨dst_releaseä¸­ä¸ä¼šé‡Šæ”¾rthï¼Œè€Œæ˜¯åœ¨rt_cache_routeä¸­é‡Šæ”¾æ—§çš„rth
-	//do_cacheä¸ºfalseæ—¶ï¼Œä¼šè®¾ç½®dst->flagsæ ‡å¿—DST_NOCACHEï¼Œåœ¨dst_releaseä¸­é‡Šæ”¾rth
-	//è¿™æ„å‘³ç€å¦‚æžœdo_cacheä¸ºtrueï¼Œåˆ™ä¸ä¼šé‡Šæ”¾rthï¼Œ
-	//1ã€åŽç»­çš„æ•°æ®åŒ…å¦‚æžœä¸€ç›´å‘½ä¸­è¯¥ç¼“å­˜ï¼Œåˆ™é™¤éžåˆ·æ–°ç¼“å­˜è¡¨ï¼Œå¦åˆ™ç¼“å­˜ä¸ä¼šå¤±æ•ˆ
-	//2ã€è·¯ç”±è¡¨åˆ·æ–°ï¼Œå¼•èµ·ç¼“å­˜å¤±æ•ˆï¼Œåœ¨ä¸‹ä¸€ä¸ªæ•°æ®åŒ…åˆ°æ¥æ—¶ï¼Œä¼šé‡Šæ”¾æ—§çš„ç¼“å­˜
-	//skb_dst_dropä¼šæ£€æŸ¥skb->_skb_refdstæ˜¯å¦è®¾ç½®äº†SKB_DST_NOREF
-	//å¦‚æžœè®¾ç½®äº†ï¼Œè¡¨ç¤ºå½“å‰æ•°æ®åŒ…æ²¡æœ‰å¯¹dsté€’å¢žå¼•ç”¨è®¡æ•°ï¼Œå› æ­¤ä¸ä¼šè°ƒç”¨dst_release
-	//å¦åˆ™ä¼šè°ƒç”¨dst_releaseæ¥é‡Šæ”¾
+	//·ÖÅärth½á¹¹¼ÇÂ¼Â·ÓÉ²éÕÒ½á¹û
+	//do_cacheÎªtrueÊ±£¬²»»áÉèÖÃdst->flags±êÖ¾DST_NOCACHE£¬ÔÚdst_releaseÖÐ²»»áÊÍ·Årth£¬¶øÊÇÔÚrt_cache_routeÖÐÊÍ·Å¾ÉµÄrth
+	//do_cacheÎªfalseÊ±£¬»áÉèÖÃdst->flags±êÖ¾DST_NOCACHE£¬ÔÚdst_releaseÖÐÊÍ·Årth
+	//ÕâÒâÎ¶×ÅÈç¹ûdo_cacheÎªtrue£¬Ôò²»»áÊÍ·Årth£¬
+	//1¡¢ºóÐøµÄÊý¾Ý°üÈç¹ûÒ»Ö±ÃüÖÐ¸Ã»º´æ£¬Ôò³ý·ÇË¢ÐÂ»º´æ±í£¬·ñÔò»º´æ²»»áÊ§Ð§
+	//2¡¢Â·ÓÉ±íË¢ÐÂ£¬ÒýÆð»º´æÊ§Ð§£¬ÔÚÏÂÒ»¸öÊý¾Ý°üµ½À´Ê±£¬»áÊÍ·Å¾ÉµÄ»º´æ
+	//skb_dst_drop»á¼ì²éskb->_skb_refdstÊÇ·ñÉèÖÃÁËSKB_DST_NOREF
+	//Èç¹ûÉèÖÃÁË£¬±íÊ¾µ±Ç°Êý¾Ý°üÃ»ÓÐ¶ÔdstµÝÔöÒýÓÃ¼ÆÊý£¬Òò´Ë²»»áµ÷ÓÃdst_release
+	//·ñÔò»áµ÷ÓÃdst_releaseÀ´ÊÍ·Å
 	rth = rt_dst_alloc(net->loopback_dev,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, do_cache);
 	if (!rth)
@@ -1819,8 +1819,8 @@ local_input:
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
-	//å½“rt_genid_ipv4çš„å€¼ä¸ç­‰äºŽè®°å½•çš„rt_genidæ—¶ï¼Œè¡¨ç¤ºè·¯ç”±æœ‰å˜åŒ–ï¼Œ
-	//æ­¤æ—¶ç¼“å­˜å¤±æ•ˆï¼Œrt_genidå¯ä»¥ç†è§£ä¸ºå½“å‰çš„è·¯ç”±ç»“æžœidå·
+	//µ±rt_genid_ipv4µÄÖµ²»µÈÓÚ¼ÇÂ¼µÄrt_genidÊ±£¬±íÊ¾Â·ÓÉÓÐ±ä»¯£¬
+	//´ËÊ±»º´æÊ§Ð§£¬rt_genid¿ÉÒÔÀí½âÎªµ±Ç°µÄÂ·ÓÉ½á¹ûidºÅ
 
 	rth->rt_genid = rt_genid_ipv4(net);
 	rth->rt_flags 	= flags|RTCF_LOCAL;
@@ -1838,18 +1838,18 @@ local_input:
 		rth->rt_flags 	&= ~RTCF_LOCAL;
 	}
 	if (do_cache) {
-		//è®°å½•ç¼“å­˜rthåˆ°fib_nhç»“æž„ä¸­
-		//ä¸‹ä¸€æ¬¡è·¯ç”±æŸ¥æ‰¾å¦‚æžœå‘½ä¸­ï¼Œå¯ä»¥ç›´æŽ¥ä½¿ç”¨fib_nnä¸­è®°å½•çš„rth
+		//¼ÇÂ¼»º´ærthµ½fib_nh½á¹¹ÖÐ
+		//ÏÂÒ»´ÎÂ·ÓÉ²éÕÒÈç¹ûÃüÖÐ£¬¿ÉÒÔÖ±½ÓÊ¹ÓÃfib_nnÖÐ¼ÇÂ¼µÄrth
 		if (unlikely(!rt_cache_route(&FIB_RES_NH(res), rth))) {
 			rth->dst.flags |= DST_NOCACHE;
 			rt_add_uncached_list(rth);
 		}
 	}
-	//rthçš„å¼•ç”¨è®¡æ•°ä¸º1
-	//ç¬¬ä¸€æ¬¡åˆ›å»ºrthï¼Œæœªè®¾ç½®SKB_DST_NOREFï¼Œ
-	//skbé‡Šæ”¾æ—¶ä¼šè°ƒç”¨skb_dst_dropé€’å‡å¼•ç”¨è®¡æ•°ï¼Œ
-	//ä½†æ˜¯ä¸ä¼šé‡Šæ”¾rthï¼Œå› ä¸ºæœªè®¾ç½®DST_NOCACHE
-	//æ­¤æ—¶è¯¥rthçš„é‡Šæ”¾å·¥ä½œç”±rt_cache_routeæ¥å®Œæˆ
+	//rthµÄÒýÓÃ¼ÆÊýÎª1
+	//µÚÒ»´Î´´½¨rth£¬Î´ÉèÖÃSKB_DST_NOREF£¬
+	//skbÊÍ·ÅÊ±»áµ÷ÓÃskb_dst_dropµÝ¼õÒýÓÃ¼ÆÊý£¬
+	//µ«ÊÇ²»»áÊÍ·Årth£¬ÒòÎªÎ´ÉèÖÃDST_NOCACHE
+	//´ËÊ±¸ÃrthµÄÊÍ·Å¹¤×÷ÓÉrt_cache_routeÀ´Íê³É
 	skb_dst_set(skb, &rth->dst);
 	err = 0;
 	goto out;
