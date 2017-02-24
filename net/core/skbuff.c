@@ -4152,7 +4152,8 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		*delta_truesize = 0;
 		return true;
 	}
-
+//如果带有链表类型的数据区段
+//不能使用该函数合并
 	if (skb_has_frag_list(to) || skb_has_frag_list(from))
 		return false;
 
@@ -4185,6 +4186,7 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 
 	WARN_ON_ONCE(delta < len);
 
+//合并分页数据区到to中
 	memcpy(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
 	       skb_shinfo(from)->frags,
 	       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));

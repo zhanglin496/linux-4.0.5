@@ -254,9 +254,9 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(nf_nat_icmp_reply_translation);
 
-//åªè¦å†…æ ¸é…ç½®äº†æ”¯æŒNATï¼Œå³ä½¿ç”¨æˆ·æ²¡æœ‰æ·»åŠ natè§„åˆ™ï¼Œ
-//æ¯ä¸ªconntrack éƒ½éœ€è¦é¢å¤–åšä¸€æ¬¡NATç©ºç»‘å®šï¼Œæ‰€è°“ç©ºç»‘å®šï¼Œå°±æ˜¯ä¸ä¼šæ”¹å˜IPåœ°å€
-//ä½†æ˜¯æœ‰å¯èƒ½ä¼šæ”¹å˜ç«¯å£ï¼Œç©ºç»‘å®šçš„ç›®çš„æ˜¯ä¸ºäº†ä¿è¯conntrackè¡¨ä¸­äº”å…ƒç»„çš„å”¯ä¸€æ€§
+//Ö»ÒªÄÚºËÅäÖÃÁËÖ§³ÖNAT£¬¼´Ê¹ÓÃ»§Ã»ÓÐÌí¼Ónat¹æÔò£¬
+//Ã¿¸öconntrack ¶¼ÐèÒª¶îÍâ×öÒ»´ÎNAT¿Õ°ó¶¨£¬ËùÎ½¿Õ°ó¶¨£¬¾ÍÊÇ²»»á¸Ä±äIPµØÖ·
+//µ«ÊÇÓÐ¿ÉÄÜ»á¸Ä±ä¶Ë¿Ú£¬¿Õ°ó¶¨µÄÄ¿µÄÊÇÎªÁË±£Ö¤conntrack±íÖÐÎåÔª×éµÄÎ¨Ò»ÐÔ
 unsigned int
 nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	       const struct net_device *in, const struct net_device *out,
@@ -297,7 +297,7 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	switch (ctinfo) {
 	case IP_CT_RELATED:
 	case IP_CT_RELATED_REPLY:
-		//å¦‚æžœæ˜¯ICMPåè®®ï¼Œéœ€è¦åšç‰¹æ®Šçš„NATå¤„ç†
+		//Èç¹ûÊÇICMPÐ­Òé£¬ÐèÒª×öÌØÊâµÄNAT´¦Àí
 		if (ip_hdr(skb)->protocol == IPPROTO_ICMP) {
 			if (!nf_nat_icmp_reply_translation(skb, ct, ctinfo,
 							   ops->hooknum))
@@ -312,16 +312,18 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		 */
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
-			//éåŽ†ç”¨æˆ·é…ç½®çš„NATè§„åˆ™ï¼Œæœ€ç»ˆéƒ½ä¼šè°ƒç”¨nf_nat_setup_infoå‡½æ•°åŒ…NATä¿¡æ¯ä¿å­˜åˆ°conntrakä¸­
-			//æ³¨æ„å†…æ ¸å®žçŽ°åªä¼šå°†NATåŽçš„åœ°å€ä¿å­˜åˆ°reply tupleä¸­ï¼Œè€Œä¸ä¼šåŽ»æ›´æ”¹original tuple
-			//å› æ­¤ç”¨æˆ·åŽŸå§‹çš„è¿žæŽ¥ä¿¡æ¯éƒ½å¯ä»¥é€šè¿‡original tupleæ¥èŽ·å–
+			//±éÀúÓÃ»§ÅäÖÃµÄNAT¹æÔò£¬×îÖÕ¶¼»áµ÷ÓÃnf_nat_setup_infoº¯Êý°üNATÐÅÏ¢±£´æµ½conntrakÖÐ
+			//×¢ÒâÄÚºËÊµÏÖÖ»»á½«NATºóµÄµØÖ·±£´æµ½reply tupleÖÐ£¬¶ø²»»áÈ¥¸ü¸Äoriginal tuple
+			//Òò´ËÓÃ»§Ô­Ê¼µÄÁ¬½ÓÐÅÏ¢¶¼¿ÉÒÔÍ¨¹ýoriginal tupleÀ´»ñÈ¡
 			ret = do_chain(ops, skb, in, out, ct);
 			if (ret != NF_ACCEPT)
 				return ret;
-
+			//Èç¹ûÊý¾Ý°üÒÑ¾­ÔÚNATÄ£¿éÖÐ´¦Àí¹ýÁË
+			//Ò²¾ÍÊÇµ÷ÓÃ¹ýnf_nat_setup_infoº¯Êý
+			//ÄÇÃ´¾Í²»ÐèÒªÔÙÖ´ÐÐÏÂÃæµÄ¿Õ°ó¶¨Á÷³ÌÁË
 			if (nf_nat_initialized(ct, HOOK2MANIP(ops->hooknum)))
 				break;
-			//ç©ºç»‘å®š
+			//¿Õ°ó¶¨
 			ret = nf_nat_alloc_null_binding(ct, ops->hooknum);
 			if (ret != NF_ACCEPT)
 				return ret;
@@ -329,14 +331,14 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 			pr_debug("Already setup manip %s for ct %p\n",
 				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
 				 ct);
-			//å¯¹äºŽMASQUERADE æ¨¡å—ï¼Œä¼šè®°å½•å‡ºå£è®¾å¤‡çš„ç´¢å¼•åˆ°
-			// masq_index, å¦‚æžœè¿™é‡Œçš„å‡ºå£ç´¢å¼•å˜æ›´äº†ï¼Œè¡¨ç¤º
-			//è®¾å¤‡æœ‰å˜åŒ–ï¼Œæ¯”å¦‚IPåœ°å€å˜æ›´äº†ï¼Œéœ€è¦é”€æ¯conntrack
-			// MASQUERADE æ˜¯æ ¹æ®è§„åˆ™é…ç½®çš„å‡ºå£è®¾å¤‡åŠ¨æ€é€‰æ‹©IPåœ°å€çš„
-			// è€ŒSNAT å’ŒDNAT æ¨¡å—åˆ™æ˜¯å®Œå…¨é™æ€çš„
-			//ä¼šæ ¹æ®ä½ è®¾ç½®çš„è§„åˆ™æ¥è½¬æ¢
-			//è§„åˆ™ä¸ä¼šå—å‡ºå£è®¾å¤‡çš„å½±å“ï¼Œè¿™ä¹Ÿæ˜¯ä»–çš„ç¼ºç‚¹ï¼Œå¦‚æžœå‡ºå£IPåœ°å€æ”¹å˜äº†
-			//åˆ™æ— æ³•æ­£å¸¸å·¥ä½œ
+			//¶ÔÓÚMASQUERADE Ä£¿é£¬»á¼ÇÂ¼³ö¿ÚÉè±¸µÄË÷Òýµ½
+			// masq_index, Èç¹ûÕâÀïµÄ³ö¿ÚË÷Òý±ä¸üÁË£¬±íÊ¾
+			//Éè±¸ÓÐ±ä»¯£¬±ÈÈçIPµØÖ·±ä¸üÁË£¬ÐèÒªÏú»Ùconntrack
+			// MASQUERADE ÊÇ¸ù¾Ý¹æÔòÅäÖÃµÄ³ö¿ÚÉè±¸¶¯Ì¬Ñ¡ÔñIPµØÖ·µÄ
+			// ¶øSNAT ºÍDNAT Ä£¿éÔòÊÇÍêÈ«¾²Ì¬µÄ
+			//»á¸ù¾ÝÄãÉèÖÃµÄ¹æÔòÀ´×ª»»
+			//¹æÔò²»»áÊÜ³ö¿ÚÉè±¸µÄÓ°Ïì£¬ÕâÒ²ÊÇËûµÄÈ±µã£¬Èç¹û³ö¿ÚIPµØÖ·¸Ä±äÁË
+			//ÔòÎÞ·¨Õý³£¹¤×÷
 			if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
 				goto oif_changed;
 		}
@@ -349,7 +351,7 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		if (nf_nat_oif_changed(ops->hooknum, ctinfo, nat, out))
 			goto oif_changed;
 	}
-	//åšå®žé™…çš„æ•°æ®åŒ…ä¿®æ”¹å·¥ä½œï¼Œæ ¹æ®conntrackä¸­ä¿å­˜çš„ä¿¡æ¯å¯¹æ•°æ®åŒ…åšNATè½¬æ¢
+	//×öÊµ¼ÊµÄÊý¾Ý°üÐÞ¸Ä¹¤×÷£¬¸ù¾ÝconntrackÖÐ±£´æµÄÐÅÏ¢¶ÔÊý¾Ý°ü×öNAT×ª»»
 	return nf_nat_packet(ct, ctinfo, ops->hooknum, skb);
 
 oif_changed:
@@ -406,7 +408,7 @@ nf_nat_ipv4_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	    !(IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED) &&
 	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-
+		//Èç¹û¸Ä±äÁËÄ¿µÄIPµØÖ·£¬ÐèÒªÖØÐÂÂ·ÓÉ
 		if ((ct->tuplehash[dir].tuple.src.u3.ip !=
 		     ct->tuplehash[!dir].tuple.dst.u3.ip) ||
 		    (ct->tuplehash[dir].tuple.dst.protonum != IPPROTO_ICMP &&

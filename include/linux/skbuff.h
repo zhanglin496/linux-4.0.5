@@ -206,14 +206,14 @@ typedef struct skb_frag_struct skb_frag_t;
 
 struct skb_frag_struct {
 	struct {
-		struct page *p;
+		struct page *p; // 代表一页数据  
 	} page;
 #if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
 	__u32 page_offset;
 	__u32 size;
 #else
-	__u16 page_offset;
-	__u16 size;
+	__u16 page_offset; // 代表相对开始位置的页偏移量  
+	__u16 size; // page中数据长度  
 #endif
 };
 
@@ -311,11 +311,11 @@ struct ubuf_info {
  * the end of the header data, ie. at skb->end.
  */
 struct skb_shared_info {
-	unsigned char	nr_frags;
+	unsigned char	nr_frags;  // 分页段数目，即frags数组元素个数  
 	__u8		tx_flags;
-	unsigned short	gso_size;
+	unsigned short	gso_size; //每个通用分段卸载的大小
 	/* Warning: this field is not always filled in (UFO)! */
-	unsigned short	gso_segs;
+	unsigned short	gso_segs; //通用分段卸载的数目
 	unsigned short  gso_type;
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;

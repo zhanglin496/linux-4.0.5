@@ -389,6 +389,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		goto found;
 	}
 	prev = NULL;
+	//按序排列分片报文
 	for (next = qp->q.fragments; next != NULL; next = next->next) {
 		if (FRAG_CB(next)->offset >= offset)
 			break;	/* bingo! */
@@ -471,6 +472,7 @@ found:
 	qp->q.meat += skb->len;
 	qp->ecn |= ecn;
 	add_frag_mem_limit(&qp->q, skb->truesize);
+	//第一个分片报文，偏移量为0
 	if (offset == 0)
 		qp->q.flags |= INET_FRAG_FIRST_IN;
 
@@ -498,7 +500,7 @@ err:
 
 
 /* Build a new IP datagram from all its fragments. */
-
+//ip分片已经收集完成，重组所有的分片
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			 struct net_device *dev)
 {
@@ -555,12 +557,18 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	/* If the first fragment is fragmented itself, we split
 	 * it to two chunks: the first with data and paged part
 	 * and the second, holding only fragments. */
+	 //如果head带有链表类型的区段
+	 //必须将链表类型的区段放到一个新
+	 //的skb中
+	 //因为在skb_try_coalesce中可能会直接拷贝数据到
+	 //skb_tailroom(head)中
 	if (skb_has_frag_list(head)) {
 		struct sk_buff *clone;
 		int i, plen = 0;
 
 		if ((clone = alloc_skb(0, GFP_ATOMIC)) == NULL)
 			goto out_nomem;
+		//clone按序插入到head后
 		clone->next = head->next;
 		head->next = clone;
 		skb_shinfo(clone)->frag_list = skb_shinfo(head)->frag_list;
@@ -588,10 +596,12 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			head->ip_summed = CHECKSUM_NONE;
 		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
-
+		
+		//是否可以直接合并数据到head中
 		if (skb_try_coalesce(head, fp, &headstolen, &delta)) {
 			kfree_skb_partial(fp, headstolen);
 		} else {
+		//合并失败，使用frag_list 链表类型
 			if (!skb_shinfo(head)->frag_list)
 				skb_shinfo(head)->frag_list = fp;
 			head->data_len += fp->len;
@@ -601,7 +611,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		fp = next;
 	}
 	sub_frag_mem_limit(&qp->q, sum_truesize);
-
+//设置head->next为NULL
+//head即有可能带有frag_list类型数据也可能带有page数据
 	head->next = NULL;
 	head->dev = dev;
 	head->tstamp = qp->q.stamp;
@@ -609,6 +620,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 
 	iph = ip_hdr(head);
 	/* max_size != 0 implies at least one fragment had IP_DF set */
+	//去除分片IP_OFFSET 和IP_MF标志
 	iph->frag_off = qp->q.max_size ? htons(IP_DF) : 0;
 	iph->tot_len = htons(len);
 	iph->tos |= ecn;

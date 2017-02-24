@@ -1285,6 +1285,8 @@ enum perf_event_task_context {
 
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+	//指向struct thread_info 内核栈空间
+	//每个进程一个
 	void *stack;
 	atomic_t usage;
 	unsigned int flags;	/* per process flags, defined below */
