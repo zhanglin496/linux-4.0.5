@@ -292,6 +292,8 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	if (nf_ct_is_untracked(ct))
 		return NF_ACCEPT;
 
+	//检查nat扩展是否存在
+	//nat实现依赖此扩展
 	nat = nf_ct_nat_ext_add(ct);
 	if (nat == NULL)
 		return NF_ACCEPT;
