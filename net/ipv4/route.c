@@ -1688,6 +1688,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	/* IP on this device is disabled. */
 	//没有配置in_device，丢弃数据包
 	//如果是需要转发的数据包，可以不用配置IP地址，也就是说in_dev->ifa_list可以等于NULL
+	//比如在lan口上收到数据包通过wan口转发出去
+	//但是响应包在过wan口时，如果没有配置ip地址会被丢弃
 	//in_device 结构在inetdev_init中分配
 	if (!in_dev)
 		goto out;

@@ -120,15 +120,15 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	 || (!IN_DEV_FORWARD(in_dev) && \
 	  IN_DEV_ORCONF((in_dev), ACCEPT_REDIRECTS)))
 
-//è¿‡æ»¤arpå¼€å…³
+//¹ıÂËarp¿ª¹Ø
 #define IN_DEV_ARPFILTER(in_dev)	IN_DEV_ORCONF((in_dev), ARPFILTER)
-//æ˜¯å¦æ¥å—å…è´¹arp
+//ÊÇ·ñ½ÓÊÜÃâ·Ñarp
 #define IN_DEV_ARP_ACCEPT(in_dev)	IN_DEV_ORCONF((in_dev), ARP_ACCEPT)
-//æœ¬æœºå‘é€arpæŸ¥è¯¢æ—¶é€‰æ‹©æºåœ°å€çš„ä¾æ®
+//±¾»ú·¢ËÍarp²éÑ¯Ê±Ñ¡ÔñÔ´µØÖ·µÄÒÀ¾İ
 #define IN_DEV_ARP_ANNOUNCE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_ANNOUNCE)
-//å¯¹æ”¶åˆ°çš„arpè¯·æ±‚æ‰§è¡Œé¢å¤–çš„æ£€æŸ¥
+//¶ÔÊÕµ½µÄarpÇëÇóÖ´ĞĞ¶îÍâµÄ¼ì²é
 #define IN_DEV_ARP_IGNORE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_IGNORE)
-//è®¾å¤‡å˜æ›´IPåœ°å€æ—¶æ˜¯å¦å‘é€å…è´¹arp
+//Éè±¸±ä¸üIPµØÖ·Ê±ÊÇ·ñ·¢ËÍÃâ·Ñarp
 #define IN_DEV_ARP_NOTIFY(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_NOTIFY)
 
 struct in_ifaddr {
