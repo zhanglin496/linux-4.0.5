@@ -244,7 +244,7 @@ static void *section_objs(const struct load_info *info,
 			  unsigned int *num)
 {
 	unsigned int sec = find_sec(info, name);
-
+	//¶ÔÓÚsection 0 °´ÕÕELF±êÖ¾Ê¼ÖÕÊÇ0
 	/* Section 0 has sh_addr 0 and sh_size 0. */
 	*num = info->sechdrs[sec].sh_size / object_size;
 	return (void *)info->sechdrs[sec].sh_addr;
@@ -2649,10 +2649,16 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 		return ERR_PTR(err);
 	//²éÕÒ·ûºÅ±í
 	/* Find internal symbols and strings. */
+	//e_shnum Îªsection headerµÄÊıÁ¿
 	for (i = 1; i < info->hdr->e_shnum; i++) {
+		//Ã¿¸ösection headerµÄ´óĞ¡ÎªElf_Shdr
+		//ÅĞ¶Ïsection ÊÇ·ñÊÇ·ûºÅ±í
+		//¶ÔÓÚÄÚºËÄ£¿éÀ´ËµÖ»ÔÊĞíÓĞ1¸öSYMTAB section
 		if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
 			info->index.sym = i;
 			info->index.str = info->sechdrs[i].sh_link;
+			//¼ÆÊı×Ö·û´®±íµÄµØÖ·
+			//Ö÷ÒªÊÇĞèÒªÖªµÀº¯ÊıµÄÃû³Æ
 			info->strtab = (char *)info->hdr
 				+ info->sechdrs[info->index.str].sh_offset;
 			break;
@@ -2665,7 +2671,7 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 		pr_warn("No module found in object\n");
 		return ERR_PTR(-ENOEXEC);
 	}
-	//»ñÈ¡µØÖ·,ÉÔºóĞèÒªµ÷ÓÃÆäinitº¯Êı
+	//»ñÈ¡ĞéÄâµØÖ·,ÉÔºóĞèÒªµ÷ÓÃÆäinitº¯Êı
 	/* This is temporary: point mod into copy of data. */
 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
 	//·ûºÅ±í±ØĞë´æÔÚ£¬·ñÔòÎŞ·¨½âÎöÄ£¿éĞèÒªµÄ·ûºÅ
@@ -3263,7 +3269,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = module_sig_check(info);
 	if (err)
 		goto free_copy;
-
+//¼ì²éelfÎÄ¼şÍ·ÊÇ·ñÂú×ãÒªÇó
 	err = elf_header_check(info);
 	if (err)
 		goto free_copy;
@@ -3302,11 +3308,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	/* Now we've got everything in the final locations, we can
 	 * find optional sections. */
-	//åœ¨æ¨¡å—ä¸­æŸ¥æ‰¾ç‰¹å®šçš„sectionï¼Œ
-	//æ¯”å¦‚æ¨¡å—å‚æ•°åŒº__param sectionï¼Œ
-	//æ‰€æœ‰çš„æ¨¡å—å‚æ•°éƒ½æ˜¯æ”¾åœ¨__param sectionä¸­çš„
-	//è¯¦ç»†å‚è§å®ç°params.c å’Œmoduleparam.h
-
+	//ÔÚÄ£¿éÖĞ²éÕÒÌØ¶¨µÄsection£¬
+	//±ÈÈçÄ£¿é²ÎÊıÇø__param section£¬
+	//ËùÓĞµÄÄ£¿é²ÎÊı¶¼ÊÇ·ÅÔÚ__param sectionÖĞµÄ
+	//ÏêÏ¸²Î¼ûÊµÏÖparams.c ºÍmoduleparam.h
+	//ºÜ¶àsection¶¼ÊÇ¿ÉÑ¡µÄ
 	err = find_module_sections(mod, info);
 	if (err)
 		goto free_unload;
@@ -3323,6 +3329,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	if (err < 0)
 		goto free_modinfo;
 
+	//´øREL ºÍRELA ±êÖ¾µÄsection ĞèÒªÖØ¶¨Î»
 	err = apply_relocations(mod, info);
 	if (err < 0)
 		goto free_modinfo;
@@ -3349,7 +3356,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = complete_formation(mod, info);
 	if (err)
 		goto ddebug_cleanup;
-	//è§£ææ¨¡å—ä¼ å…¥çš„å‚æ•°å€¼ï¼Œè°ƒç”¨å¯¹åº”çš„struct kernel_param_ops opså‡½æ•°
+	//½âÎöÄ£¿é´«ÈëµÄ²ÎÊıÖµ£¬µ÷ÓÃ¶ÔÓ¦µÄstruct kernel_param_ops opsº¯Êı
 	/* Module is ready to execute: parsing args may do that. */
 	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
 				  -32768, 32767, unknown_module_param_cb);
@@ -3360,7 +3367,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		pr_warn("%s: parameters '%s' after `--' ignored\n",
 		       mod->name, after_dashes);
 	}
-	//å’Œsysæ–‡ä»¶å…³è”ï¼Œåœ¨sysæ–‡ä»¶ä¸­åˆ›å»ºç›¸å…³è¡¨é¡¹,æ¯”å¦‚ parametersåŒº
+	//ºÍsysÎÄ¼ş¹ØÁª£¬ÔÚsysÎÄ¼şÖĞ´´½¨Ïà¹Ø±íÏî,±ÈÈç parametersÇø
 	/* Link in to syfs. */
 	err = mod_sysfs_setup(mod, info, mod->kp, mod->num_kp);
 	if (err < 0)
