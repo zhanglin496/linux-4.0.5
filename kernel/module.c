@@ -216,6 +216,8 @@ void __module_put_and_exit(struct module *mod, long code)
 EXPORT_SYMBOL(__module_put_and_exit);
 
 /* Find a module section: 0 means not found. */
+//在shstrtab 节头字符串表中
+//根据名称查找Elf_Shdr 对应的索引值
 static unsigned int find_sec(const struct load_info *info, const char *name)
 {
 	unsigned int i;
@@ -415,7 +417,12 @@ static bool find_symbol_in_section(const struct symsearch *syms,
 {
 	struct find_symbol_arg *fsa = data;
 	struct kernel_symbol *sym;
-
+	//syms 按地址大小排列的有序数组
+	//使用二分查找
+	//内核模块对于SHN_UNDEF未定义的符号为什么
+	//不能strip掉.strtab中的信息
+	//因为对于SHN_UNDEF的引用是通过符号名称来查找的
+	//如果没有符号名就无法解析引用的符号
 	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
 			sizeof(struct kernel_symbol), cmp_name);
 
@@ -493,7 +500,7 @@ static int percpu_modalloc(struct module *mod, struct load_info *info)
 			mod->name, align, PAGE_SIZE);
 		align = PAGE_SIZE;
 	}
-
+//分配每cpu数据
 	mod->percpu = __alloc_reserved_percpu(pcpusec->sh_size, align);
 	if (!mod->percpu) {
 		pr_warn("%s: Could not allocate %lu bytes percpu data\n",
@@ -567,6 +574,8 @@ static inline void __percpu *mod_percpu(struct module *mod)
 }
 static int percpu_modalloc(struct module *mod, struct load_info *info)
 {
+	//在UP下，percpu实际是就是一个数组
+	//位于.data 或者.bss段中
 	/* UP modules shouldn't have this section: ENOMEM isn't quite right */
 	if (info->sechdrs[info->index.pcpu].sh_size != 0)
 		return -ENOMEM;
@@ -1935,7 +1944,9 @@ static int verify_export_symbols(struct module *mod)
 /* Change all symbols so that st_value encodes the pointer directly. */
 static int simplify_symbols(struct module *mod, const struct load_info *info)
 {
+	//获取符号表的section header
 	Elf_Shdr *symsec = &info->sechdrs[info->index.sym];
+	//获取符号表的地址
 	Elf_Sym *sym = (void *)symsec->sh_addr;
 	unsigned long secbase;
 	unsigned int i;
@@ -1943,6 +1954,8 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 	const struct kernel_symbol *ksym;
 
 	for (i = 1; i < symsec->sh_size / sizeof(Elf_Sym); i++) {
+		//strtab加上偏移为该符号的名称
+		//符号名称是必须存在
 		const char *name = info->strtab + sym[i].st_name;
 
 		switch (sym[i].st_shndx) {
@@ -1966,9 +1979,17 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			break;
 
 		case SHN_UNDEF:
+			//解析模块中未定义的符号
 			ksym = resolve_symbol_wait(mod, info, name);
 			/* Ok if resolved.  */
+			//为什么要导出符号表
+			//原因是不导致符号表
+			//就解析不 了符号
+			//也就是说模块引用的符号
+			//在内核中若未导出的话
+			//在符号表中就找不到
 			if (ksym && !IS_ERR(ksym)) {
+				//ksym->value对应内核符号的虚拟地址
 				sym[i].st_value = ksym->value;
 				break;
 			}
@@ -1976,7 +1997,7 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			/* Ok if weak.  */
 			if (!ksym && ELF_ST_BIND(sym[i].st_info) == STB_WEAK)
 				break;
-
+			//解析失败，退出模块加载
 			pr_warn("%s: Unknown symbol %s (err %li)\n",
 				mod->name, name, PTR_ERR(ksym));
 			ret = PTR_ERR(ksym) ?: -ENOENT;
@@ -1988,6 +2009,9 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 				secbase = (unsigned long)mod_percpu(mod);
 			else
 				secbase = info->sechdrs[sym[i].st_shndx].sh_addr;
+			//对于可重定位的文件
+			//sym[i].st_value为相对于sechdrs[sym[i].st_shndx]节的偏移
+			//加上相对于secbase的偏移
 			sym[i].st_value += secbase;
 			break;
 		}
@@ -2040,6 +2064,7 @@ static long get_offset(struct module *mod, unsigned int *size,
 	long ret;
 
 	*size += arch_mod_section_prepend(mod, section);
+	//是否需要对齐
 	ret = ALIGN(*size, sechdr->sh_addralign ?: 1);
 	*size = ret + sechdr->sh_size;
 	return ret;
@@ -2049,6 +2074,8 @@ static long get_offset(struct module *mod, unsigned int *size,
    might -- code, read-only data, read-write data, small data.  Tally
    sizes, and place the offsets into sh_entsize fields: high bit means it
    belongs in init. */
+ //sh_entsize代表相对于起始地址的偏移
+ //sh_entsize最高位为 1表示属于init 段
 static void layout_sections(struct module *mod, struct load_info *info)
 {
 	static unsigned long const masks[][2] = {
@@ -2076,6 +2103,12 @@ static void layout_sections(struct module *mod, struct load_info *info)
 			    || s->sh_entsize != ~0UL
 			    || strstarts(sname, ".init"))
 				continue;
+			//计算每个section 拷贝时的偏移量
+			//第一个为0
+			//在后面move_module中根据sh_entsize偏移量
+			//拷贝该s->sh_addr 指向的数据到
+			//动态分配的内存中
+			//累加mod->core_size
 			s->sh_entsize = get_offset(mod, &mod->core_size, s, i);
 			pr_debug("\t%s\n", sname);
 		}
@@ -2105,6 +2138,7 @@ static void layout_sections(struct module *mod, struct load_info *info)
 			    || s->sh_entsize != ~0UL
 			    || !strstarts(sname, ".init"))
 				continue;
+			// INIT_OFFSET_MASK 表示这是.init section 
 			s->sh_entsize = (get_offset(mod, &mod->init_size, s, i)
 					 | INIT_OFFSET_MASK);
 			pr_debug("\t%s\n", sname);
@@ -2293,18 +2327,25 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 	unsigned int i, nsrc, ndst, strtab_size = 0;
 
 	/* Put symbol section at end of init part of module. */
+	//正常情况下，符号表是不需要
+	//分配空间来记录
+	//CONFIG_KALLSYMS开启下，需要分配额外的空间来记录
 	symsect->sh_flags |= SHF_ALLOC;
 	symsect->sh_entsize = get_offset(mod, &mod->init_size, symsect,
 					 info->index.sym) | INIT_OFFSET_MASK;
 	pr_debug("\t%s\n", info->secstrings + symsect->sh_name);
 
+	//符号表的起始地址
 	src = (void *)info->hdr + symsect->sh_offset;
+	//符号表数量
 	nsrc = symsect->sh_size / sizeof(*src);
 
 	/* Compute total space required for the core symbols' strtab. */
+	//计算字符串表需要的空间
 	for (ndst = i = 0; i < nsrc; i++) {
 		if (i == 0 ||
 		    is_core_symbol(src+i, info->sechdrs, info->hdr->e_shnum)) {
+		    	//符号名的长度
 			strtab_size += strlen(&info->strtab[src[i].st_name])+1;
 			ndst++;
 		}
@@ -2312,7 +2353,9 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 
 	/* Append room for core symbols at end of core part. */
 	info->symoffs = ALIGN(mod->core_size, symsect->sh_addralign ?: 1);
+	//计算符号表的空间
 	info->stroffs = mod->core_size = info->symoffs + ndst * sizeof(Elf_Sym);
+	//加上模块所用符号名的大小
 	mod->core_size += strtab_size;
 	mod->core_size = debug_align(mod->core_size);
 
@@ -2332,6 +2375,7 @@ static void add_kallsyms(struct module *mod, const struct load_info *info)
 	char *s;
 	Elf_Shdr *symsec = &info->sechdrs[info->index.sym];
 
+	//设置符号表地址
 	mod->symtab = (void *)symsec->sh_addr;
 	mod->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
 	/* Make sure we get permanent strtab: don't use info->strtab. */
@@ -2349,6 +2393,7 @@ static void add_kallsyms(struct module *mod, const struct load_info *info)
 		    is_core_symbol(src+i, info->sechdrs, info->hdr->e_shnum)) {
 			dst[ndst] = src[i];
 			dst[ndst++].st_name = s - mod->core_strtab;
+			//拷贝符号名
 			s += strlcpy(s, &mod->strtab[src[i].st_name],
 				     KSYM_NAME_LEN) + 1;
 		}
@@ -2517,7 +2562,8 @@ static int copy_module_from_user(const void __user *umod, unsigned long len,
 	info->hdr = vmalloc(info->len);
 	if (!info->hdr)
 		return -ENOMEM;
-//拷贝模块到内核空间
+//拷贝模块内容到内核空间
+//ELF文件的开头固定为ELF文件头
 	if (copy_chunked_from_user(info->hdr, umod, info->len) != 0) {
 		vfree(info->hdr);
 		return -EFAULT;
@@ -2593,10 +2639,13 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 	unsigned int i;
 
 	/* This should always be true, but let's be sure. */
+	//第一个section header 是无效的
+	//应该始终为0
 	info->sechdrs[0].sh_addr = 0;
 
 	for (i = 1; i < info->hdr->e_shnum; i++) {
 		Elf_Shdr *shdr = &info->sechdrs[i];
+		//检查section header 大小是否超过文件大小
 		if (shdr->sh_type != SHT_NOBITS
 		    && info->len < shdr->sh_offset + shdr->sh_size) {
 			pr_err("Module len %lu truncated\n", info->len);
@@ -2605,10 +2654,14 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 
 		/* Mark all sections sh_addr with their address in the
 		   temporary image. */
+		 //计算每个section header在内存中的起始地址
 		shdr->sh_addr = (size_t)info->hdr + shdr->sh_offset;
 
 #ifndef CONFIG_MODULE_UNLOAD
 		/* Don't load .exit sections */
+		//如果不允许卸载模块
+		//就去掉.exit section SHF_ALLOC标志
+		//不对其分配内存
 		if (strstarts(info->secstrings+shdr->sh_name, ".exit"))
 			shdr->sh_flags &= ~(unsigned long)SHF_ALLOC;
 #endif
@@ -2619,7 +2672,10 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 		info->index.vers = 0; /* Pretend no __versions section! */
 	else
 		info->index.vers = find_sec(info, "__versions");
+	//定位.modinfo index 索引
 	info->index.info = find_sec(info, ".modinfo");
+	//都不需要动态分配内存
+	//所以去掉SHF_ALLOC标志
 	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	return 0;
@@ -2640,7 +2696,9 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 	struct module *mod;
 
 	/* Set up the convenience variables */
+	//设置section header 地址
 	info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
+	//设置section header 字符串表的地址
 	info->secstrings = (void *)info->hdr
 		+ info->sechdrs[info->hdr->e_shstrndx].sh_offset;
 
@@ -2681,6 +2739,11 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 	}
 
 	info->index.pcpu = find_pcpusec(info);
+
+	//检查module_layout 函数的crc
+	//该函数的主要目的就是检查内核模块的
+	//数据结构是否有变动
+	//如果有变动，则加载失败
 
 	/* Check module struct version now, before we try to use module. */
 	if (!check_modstruct_version(info->sechdrs, info->index.vers, mod))
@@ -2814,6 +2877,7 @@ static int move_module(struct module *mod, struct load_info *info)
 	void *ptr;
 
 	/* Do the allocs. */
+	//分配空间
 	ptr = module_alloc_update_bounds(mod->core_size);
 	/*
 	 * The pointer to this block is stored in the module structure
@@ -2826,7 +2890,7 @@ static int move_module(struct module *mod, struct load_info *info)
 
 	memset(ptr, 0, mod->core_size);
 	mod->module_core = ptr;
-
+	//为init section 分配空间
 	if (mod->init_size) {
 		ptr = module_alloc_update_bounds(mod->init_size);
 		/*
@@ -2847,10 +2911,14 @@ static int move_module(struct module *mod, struct load_info *info)
 
 	/* Transfer each section which specifies SHF_ALLOC */
 	pr_debug("final section addresses:\n");
+	//从info->hdr原始的文件中
+	//拷贝需要的数据到新分配的内存空间中
 	for (i = 0; i < info->hdr->e_shnum; i++) {
 		void *dest;
 		Elf_Shdr *shdr = &info->sechdrs[i];
 
+		//没有SHF_ALLOC
+		//表示不需要分配空间
 		if (!(shdr->sh_flags & SHF_ALLOC))
 			continue;
 
@@ -2860,9 +2928,11 @@ static int move_module(struct module *mod, struct load_info *info)
 		else
 			dest = mod->module_core + shdr->sh_entsize;
 
+		//SHT_NOBITS表示不 占据空间
 		if (shdr->sh_type != SHT_NOBITS)
 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
 		/* Update sh_addr to point to copy in image. */
+		//更新sh_addr指向重新分配的地址
 		shdr->sh_addr = (unsigned long)dest;
 		pr_debug("\t0x%lx %s\n",
 			 (long)shdr->sh_addr, info->secstrings + shdr->sh_name);
@@ -2959,12 +3029,19 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 		return ERR_PTR(err);
 
 	/* We will do a special allocation for per-cpu sections later. */
+	//percpu section 是linux自定义的section
+	//内核会特殊处理该section
 	info->sechdrs[info->index.pcpu].sh_flags &= ~(unsigned long)SHF_ALLOC;
 
 	/* Determine total sizes, and put offsets in sh_entsize.  For now
 	   this is done generically; there doesn't appear to be any
 	   special cases for the architectures. */
 	layout_sections(mod, info);
+	//如果没有定义CONFIG_KALLSYMS
+	//为空函数
+	//如果定义了，就拷贝模块自身定义的符号表
+	//到模块的内存空间中
+	//这样会增加模块实际占用的内存空间
 	layout_symtab(mod, info);
 
 	/* Allocate and move to the final place */
@@ -3302,6 +3379,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto unlink_mod;
 
 	/* Now module is in final location, initialize linked lists, etc. */
+	//CONFIG_MODULE_UNLOAD开启下，初始化和
+	//unload有关的数据项
 	err = module_unload_init(mod);
 	if (err)
 		goto unlink_mod;
@@ -3325,6 +3404,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	setup_modinfo(mod, info);
 
 	/* Fix up syms, so that st_value is a pointer to location. */
+	//解析未定义的符号引用
 	err = simplify_symbols(mod, info);
 	if (err < 0)
 		goto free_modinfo;
