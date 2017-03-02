@@ -185,6 +185,7 @@ typedef struct elf32_sym{
   Elf32_Word	st_size;
   unsigned char	st_info;
   unsigned char	st_other;
+  //该符号表对应的section header
   Elf32_Half	st_shndx;
 } Elf32_Sym;
 

@@ -1963,7 +1963,7 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			/* Ignore common symbols */
 			if (!strncmp(name, "__gnu_lto", 9))
 				break;
-
+			//不支持common 符号类型
 			/* We compiled with -fno-common.  These are not
 			   supposed to happen.  */
 			pr_debug("Common symbol: %s\n", name);
@@ -2008,6 +2008,8 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			if (sym[i].st_shndx == info->index.pcpu)
 				secbase = (unsigned long)mod_percpu(mod);
 			else
+				//sym[i].st_shndx 描述该符号表所属的section
+				//sh_addr已经在move_module 中重新分配了地址
 				secbase = info->sechdrs[sym[i].st_shndx].sh_addr;
 			//对于可重定位的文件
 			//sym[i].st_value为相对于sechdrs[sym[i].st_shndx]节的偏移
@@ -3410,6 +3412,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_modinfo;
 
 	//带REL 和RELA 标志的section 需要重定位
+	//注意内核模不是PIC的，所以不需要got表和plt表
 	err = apply_relocations(mod, info);
 	if (err < 0)
 		goto free_modinfo;
