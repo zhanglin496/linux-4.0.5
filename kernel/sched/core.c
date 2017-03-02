@@ -2735,6 +2735,9 @@ static void __sched __schedule(void)
 	preempt_disable();
 	cpu = smp_processor_id();
 	rq = cpu_rq(cpu);
+	//标记本地cpu已经完成了一次进程切换
+	//也就是说退出了临界区，调用rcu来检查状态
+	//目前rcu的实现支持开启抢占
 	rcu_note_context_switch();
 	prev = rq->curr;
 
