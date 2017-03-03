@@ -57,6 +57,8 @@ static inline void rcu_barrier(void)
 	rcu_barrier_sched();  /* Only one CPU, so only one list of callbacks! */
 }
 
+//把 softirq 的执行完毕也认为是一个 quiescent state，
+//相对应的读者要使用rcu_read_lock_bh
 static inline void synchronize_rcu_bh(void)
 {
 	synchronize_sched();

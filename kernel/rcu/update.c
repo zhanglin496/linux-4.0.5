@@ -63,7 +63,9 @@ MODULE_ALIAS("rcupdate");
 module_param(rcu_expedited, int, 0);
 
 #ifdef CONFIG_PREEMPT_RCU
-
+//抢占式的RCU实现
+//对比与classic rcu ，调用者可以被内核抢占，
+//在进程上下文中可以睡眠
 /*
  * Preemptible RCU implementation for rcu_read_lock().
  * Just increment ->rcu_read_lock_nesting, shared state will be updated
@@ -87,6 +89,7 @@ void __rcu_read_unlock(void)
 {
 	struct task_struct *t = current;
 
+	//rcu可以嵌套调用
 	if (t->rcu_read_lock_nesting != 1) {
 		--t->rcu_read_lock_nesting;
 	} else {

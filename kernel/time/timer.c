@@ -1377,6 +1377,8 @@ unsigned long get_next_timer_interrupt(unsigned long now)
  * Called from the timer interrupt handler to charge one tick to the current
  * process.  user_tick is 1 if the tick is user time, 0 for system.
  */
+ //每个tick 检查rcu callbacks
+ //并触发RCU_SOFTIRQ
 void update_process_times(int user_tick)
 {
 	struct task_struct *p = current;

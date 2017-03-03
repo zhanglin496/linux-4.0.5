@@ -156,12 +156,23 @@ static void rcu_preempt_note_context_switch(void)
 
 		/* Possibly blocking in an RCU read-side critical section. */
 		rdp = this_cpu_ptr(rcu_preempt_state.rda);
+		//rda 为当前cpu的rcu_data
 		rnp = rdp->mynode;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		smp_mb__after_unlock_lock();
+		//记录当前进程被阻塞
 		t->rcu_read_unlock_special.b.blocked = true;
+		//记录当前进程属于的node
 		t->rcu_blocked_node = rnp;
-
+		//如果当前进程在RCU临界区被抢占
+		//只有等到当前进程被重新调度回来
+		//释放rcu_read_unlock 
+		//如果有第三者在等待rcu结束
+		//这完全只有依赖调度器的实现何时
+		//重新调度该进程
+		//内核会检查满足条件时调用force_quiescent_state
+		//强制进程调度系统发起一次进程切换
+		//比如callback太多了
 		/*
 		 * If this CPU has already checked in, then this task
 		 * will hold up the next grace period rather than the
@@ -190,6 +201,7 @@ static void rcu_preempt_note_context_switch(void)
 				rnp->boost_tasks = rnp->gp_tasks;
 #endif /* #ifdef CONFIG_RCU_BOOST */
 		} else {
+			//记录当前被阻塞的进程
 			list_add(&t->rcu_node_entry, &rnp->blkd_tasks);
 			if (rnp->qsmask & rdp->grpmask)
 				rnp->gp_tasks = &t->rcu_node_entry;
@@ -334,6 +346,10 @@ void rcu_read_unlock_special(struct task_struct *t)
 	}
 
 	/* Hardware IRQ handlers cannot block, complain if they get here. */
+	//在中断上下文不能睡眠
+	//所以不应该出现这个状态
+	//只有可能在进程上下或内核线程的情况
+	//下才可能睡眠
 	if (WARN_ON_ONCE(in_irq() || in_serving_softirq())) {
 		local_irq_restore(flags);
 		return;
@@ -361,6 +377,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 		empty_exp = !rcu_preempted_readers_exp(rnp);
 		smp_mb(); /* ensure expedited fastpath sees end of RCU c-s. */
 		np = rcu_next_node_entry(t, rnp);
+		//从列表删除
 		list_del_init(&t->rcu_node_entry);
 		t->rcu_blocked_node = NULL;
 		trace_rcu_unlock_preempted_task(TPS("rcu_preempt"),
@@ -806,6 +823,9 @@ EXPORT_SYMBOL_GPL(rcu_barrier);
 /*
  * Initialize preemptible RCU's state structures.
  */
+ //初始化rcu_preempt_state
+ //rcu_preempt_state 为全局变量
+ //rcu_preempt_data 为per-cpu变量
 static void __init __rcu_init_preempt(void)
 {
 	rcu_init_one(&rcu_preempt_state, &rcu_preempt_data);
@@ -842,6 +862,7 @@ static void __init rcu_bootup_announce(void)
 	rcu_bootup_announce_oddness();
 }
 
+//非抢占式RCU下为空函数
 /*
  * Because preemptible RCU does not exist, we never have to check for
  * CPUs being in quiescent states.

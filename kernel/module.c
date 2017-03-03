@@ -2766,9 +2766,11 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
 		//是否允许强行加载
+		//若不允许强制加载，则返回失败
 		err = try_to_force_load(mod, "bad vermagic");
 		if (err)
 			return err;
+	//否则vermagic必须一致
 	} else if (!same_magic(modmagic, vermagic, info->index.vers)) {
 		pr_err("%s: version magic '%s' should be '%s'\n",
 		       mod->name, modmagic, vermagic);
@@ -2792,11 +2794,14 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 
 static int find_module_sections(struct module *mod, struct load_info *info)
 {
+	//模块的参数区
 	mod->kp = section_objs(info, "__param",
 			       sizeof(*mod->kp), &mod->num_kp);
+	//查找模块导出的符号表
 	mod->syms = section_objs(info, "__ksymtab",
 				 sizeof(*mod->syms), &mod->num_syms);
 	mod->crcs = section_addr(info, "__kcrctab");
+	//查找模块导出的GPL 符号表
 	mod->gpl_syms = section_objs(info, "__ksymtab_gpl",
 				     sizeof(*mod->gpl_syms),
 				     &mod->num_gpl_syms);
@@ -3052,6 +3057,7 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 		return ERR_PTR(err);
 
 	/* Module has been copied to its final place now: return it. */
+	//重新设置mod指针
 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
 	kmemleak_load_module(mod, info);
 	return mod;
@@ -3157,9 +3163,12 @@ static noinline int do_init_module(struct module *mod)
 	 * PF_USED_ASYNC.  async_schedule*() will set it.
 	 */
 	current->flags &= ~PF_USED_ASYNC;
-
+	
+	//调用模块的构造函数
 	do_mod_ctors(mod);
 	/* Start the module */
+
+	//调用模块的init函数
 	if (mod->init != NULL)
 		ret = do_one_initcall(mod->init);
 	if (ret < 0) {

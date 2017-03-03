@@ -265,10 +265,10 @@ static int ip_finish_output(struct sk_buff *skb)
 	if (skb_is_gso(skb))
 		return ip_finish_output_gso(skb);
 		
-	//è¿™é‡Œskbçš„é•¿åº¦ä¸åŒ…æ‹¬L2çš„é•¿åº¦
-	//å‡è®¾mtuä¸º1500,åˆ™æ•´ä¸ªIPåŒ…çš„é•¿åº¦ä¸º1500
-	//è´Ÿè½½é•¿åº¦ä¸º1500 - 20(IPé¦–éƒ¨) - 20(TCPé¦–éƒ¨) =1460
-	//mtuè¿™é‡ŒæŒ‡çš„æ˜¯ipæ€»é•¿åº¦
+	//ÕâÀïskbµÄ³¤¶È²»°üÀ¨L2µÄ³¤¶È
+	//¼ÙÉèmtuÎª1500,ÔòÕû¸öIP°üµÄ³¤¶ÈÎª1500
+	//¸ºÔØ³¤¶ÈÎª1500 - 20(IPÊ×²¿) - 20(TCPÊ×²¿) =1460
+	//mtuÕâÀïÖ¸µÄÊÇip×Ü³¤¶È
 	if (skb->len > ip_skb_dst_mtu(skb))
 		return ip_fragment(skb, ip_finish_output2);
 

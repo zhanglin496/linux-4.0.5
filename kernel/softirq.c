@@ -55,7 +55,7 @@ EXPORT_SYMBOL(irq_stat);
 
 static struct softirq_action softirq_vec[NR_SOFTIRQS];
 
-//每cpu一个内核线程
+//ÿcpuһ���ں��߳�
 DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
 
 const char * const softirq_to_name[NR_SOFTIRQS] = {
@@ -307,11 +307,11 @@ asmlinkage __visible void do_softirq(void)
 	__u32 pending;
 	unsigned long flags;
 
-//如果禁止了软中断或者硬中断，则退出
-//如果当前CPU指令运行于中断或者软中断文境中，必须直接返回。
- //这可以回答guotie的问题， local_bh_disable()的实际作用是标志当前任务_互斥_软中断。
-  // 1. 如果软中断文境下，任务在__do_softirq()函数时，被中断打断，进入中断处理，中断执行完后，再次进入软中断，到达这里就会返回。 
-   //2. 还有一个，就是如果在内核任务ksoftirqd文境中执行 do_softirq()的时候，被中断打断后，也不会实质进入软中断，这样可以避免大部分的内核同步问题 */
+//�����ֹ�����жϻ���Ӳ�жϣ����˳�
+//�����ǰCPUָ���������жϻ������ж��ľ��У�����ֱ�ӷ��ء�
+//����Իش�guotie�����⣬ local_bh_disable()��ʵ�������Ǳ�־��ǰ����_����_���жϡ�
+// 1. ������ж��ľ��£�������__do_softirq()����ʱ�����жϴ�ϣ������жϴ������ж�ִ������ٴν������жϣ���������ͻ᷵�ء� 
+//2. ����һ��������������ں�����ksoftirqd�ľ���ִ�� do_softirq()��ʱ�򣬱��жϴ�Ϻ�Ҳ����ʵ�ʽ������жϣ��������Ա���󲿷ֵ��ں�ͬ������ 
 	if (in_interrupt())
 		return;
 
@@ -393,8 +393,8 @@ void irq_exit(void)
 
 	account_irq_exit_time(current);
 	preempt_count_sub(HARDIRQ_OFFSET);
-	//如果当前CPU在硬件中断或者软中断则退出
-	//因此软中断在当前cpu上不能并行执行
+	//�����ǰCPU��Ӳ���жϻ������ж����˳�
+	//������ж��ڵ�ǰcpu�ϲ��ܲ���ִ��
 	if (!in_interrupt() && local_softirq_pending())
 		invoke_softirq();
 

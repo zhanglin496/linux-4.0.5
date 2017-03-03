@@ -149,6 +149,12 @@ void rcu_bh_qs(void)
  */
 void rcu_check_callbacks(int user)
 {
+//user 为1 表示当前进程运行于用户态
+//表示当前进程已经退出读临界区，只适用于非抢占
+//的情况下
+//对于tree rcu 和抢占rcu 来说
+//发生进程切换并不表示进程已经退出了临界区
+//只能说当前cpu 已经经历了一个quiescent state
 	RCU_TRACE(check_cpu_stalls());
 	if (user)
 		rcu_sched_qs();

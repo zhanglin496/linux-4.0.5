@@ -1520,6 +1520,9 @@ int register_kprobe(struct kprobe *p)
 		goto out;
 
 	INIT_HLIST_NODE(&p->hlist);
+	//记录插入调试代码的位置
+	//在x86下遇到int3 指令会执行do_int3函数
+	//然后根据addr 获取对应注册的kprobe 结构
 	hlist_add_head_rcu(&p->hlist,
 		       &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
 

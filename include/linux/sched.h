@@ -1327,8 +1327,11 @@ struct task_struct {
 	cpumask_t cpus_allowed;
 
 #ifdef CONFIG_PREEMPT_RCU
+	//记录rcu_read_lock 嵌套的次数
 	int rcu_read_lock_nesting;
+	//记录是否被阻塞
 	union rcu_special rcu_read_unlock_special;
+	//记录当前被阻塞的进程
 	struct list_head rcu_node_entry;
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 #ifdef CONFIG_PREEMPT_RCU
