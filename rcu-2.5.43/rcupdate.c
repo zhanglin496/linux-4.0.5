@@ -132,10 +132,15 @@ static void rcu_check_quiescent_state(void)
 	 * we may miss one quiescent state of that CPU. That is
 	 * tolerable. So no need to disable interrupts.
 	 */
+	//CPU第一次经历的静止状态在这里实际上被忽略了
 	if (RCU_last_qsctr(cpu) == RCU_QSCTR_INVALID) {
 		RCU_last_qsctr(cpu) = RCU_qsctr(cpu);
 		return;
 	}
+	//检测当前cpu是否完成了静止期
+	//不管当前CPU是否注册的有callback
+	//也必须处理这个流程
+	//因为要判断多个cpu是否都经历了静止状态
 	if (RCU_qsctr(cpu) == RCU_last_qsctr(cpu)) {
 		return;
 	}
@@ -146,6 +151,7 @@ static void rcu_check_quiescent_state(void)
 		return;
 	}
 	clear_bit(cpu, &rcu_ctrlblk.rcu_cpu_mask);
+	//复位当前
 	RCU_last_qsctr(cpu) = RCU_QSCTR_INVALID;
 	//rcu_ctrlblk.rcu_cpu_mask不为0，表示其他cpu还未完成静止期
 	if (rcu_ctrlblk.rcu_cpu_mask != 0) {
@@ -186,7 +192,7 @@ static void rcu_process_callbacks(unsigned long unused)
 		 * start the next batch of callbacks
 		 */
 		spin_lock(&rcu_ctrlblk.mutex);
-		// 初始值为2，当前批次的ID号
+		// 初始值为2，当前批次的ID号，宽限期的开始
 		RCU_batch(cpu) = rcu_ctrlblk.curbatch + 1;
 		rcu_start_batch(RCU_batch(cpu));
 		spin_unlock(&rcu_ctrlblk.mutex);
@@ -200,6 +206,7 @@ static void rcu_process_callbacks(unsigned long unused)
 
 //为什么要在时钟中断周期检查
 //原因是内核空间返回到用户空间时不一定会发生调度
+//注意每个cpu都有一个时钟中断源
 void rcu_check_callbacks(int cpu, int user)
 {
 	if (user || 
