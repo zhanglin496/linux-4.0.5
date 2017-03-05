@@ -140,7 +140,8 @@ static void rcu_check_quiescent_state(void)
 	//检测当前cpu是否完成了静止期
 	//不管当前CPU是否注册的有callback
 	//也必须处理这个流程
-	//因为要判断多个cpu是否都经历了静止状态
+	//因为要判断多个cpu是否都经历了一次静止状态
+	//实际设置一个标志位就可以了
 	if (RCU_qsctr(cpu) == RCU_last_qsctr(cpu)) {
 		return;
 	}
