@@ -52,6 +52,10 @@ static inline void synchronize_rcu_expedited(void)
 	synchronize_sched();	/* Only one CPU, so pretty fast anyway!!! */
 }
 
+//当使用call_rcu函数的模块卸载时，必须等待当前所有的rcu回调函数完成
+//注意跟synchronize_rcu的区别，synchronize_rcu只是保证读者已经退出临界区了
+//实际实现是把当前的rcu回调加入链表末尾
+//因此当末尾的rcu回调执行时，之前的rcu回调一定执行完成了
 static inline void rcu_barrier(void)
 {
 	rcu_barrier_sched();  /* Only one CPU, so only one list of callbacks! */

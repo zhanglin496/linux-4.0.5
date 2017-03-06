@@ -235,6 +235,15 @@ static void rcu_process_callbacks(struct softirq_action *unused)
  * But we want to make this a static inline later.  The cond_resched()
  * currently makes this problematic.
  */
+ //在rcu临界区内不允许调用该函数
+ //配置了CONFIG_SMP
+ //就强行选择TREE RCU
+ //否则选择TINY RCU
+ //synchronize_sched 不会等待宽限期结束，在SMP机器上
+ //如果使用TINY RCU 会有问题
+ //在UP机器上因为不允许在rcu 临界区内调用该函数
+ //因此在调用该函数的时候，一定已经退出了rcu临界区
+ //所以不会有问题
 void synchronize_sched(void)
 {
 	rcu_lockdep_assert(!lock_is_held(&rcu_bh_lock_map) &&
