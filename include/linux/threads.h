@@ -16,6 +16,8 @@
 #define CONFIG_NR_CPUS	1
 #endif
 
+//系统支持的最大CPU数量
+//注意并不是指系统实际运行的cpu 数量
 /* Places which use this should consider cpumask_var_t. */
 #define NR_CPUS		CONFIG_NR_CPUS
 

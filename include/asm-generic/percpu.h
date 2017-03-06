@@ -53,6 +53,9 @@ extern void setup_per_cpu_areas(void);
 #ifdef CONFIG_SMP
 #define PER_CPU_BASE_SECTION ".data..percpu"
 #else
+//放在.data段在UP 机器上，如果声明一个大的PER cpu变量
+//会增大程序的尺寸
+//为什么不放在.bss 段????
 #define PER_CPU_BASE_SECTION ".data"
 #endif
 #endif
