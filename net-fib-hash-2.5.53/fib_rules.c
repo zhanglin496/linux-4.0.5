@@ -327,6 +327,8 @@ FRprintk("Lookup: %u.%u.%u.%u <- %u.%u.%u.%u ",
 		//src 和dst要在同一个网段
 		//实现策略路由规则，实现如下的类似效果
 		//所谓的策略路由，就是多了一些匹配条件而已
+		//本质上是一种过滤行为
+		//每一条对应一条fib_rule
 		///var/tmp $ ip ru
 		//0:      from all lookup local 
 		//10:     from all lookup main 
@@ -338,7 +340,9 @@ FRprintk("Lookup: %u.%u.%u.%u <- %u.%u.%u.%u ",
 		//101:    from all lookup 201 
 		//32766:  from all lookup main 
 		//32767:  from all lookup default 
-		//按优先级遍历
+		//按优先级遍历,遍历顺序
+		//local->user define rule ->main->default
+		
 		if (((saddr^r->r_src) & r->r_srcmask) ||
 		    ((daddr^r->r_dst) & r->r_dstmask) ||
 #ifdef CONFIG_IP_ROUTE_TOS
