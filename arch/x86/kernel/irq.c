@@ -208,7 +208,13 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 			__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
 		}
 	}
-
+	//执行退出处理工作
+	//比如调用软中断,
+	//rcu 处理,
+	//no hz处理等
+	//中断均衡的目的也是为了可以均衡软中断的处理
+	//因为软中断是在当前的中断上下文中
+	//被调用的
 	irq_exit();
 
 	set_irq_regs(old_regs);
