@@ -326,6 +326,7 @@ FRprintk("Lookup: %u.%u.%u.%u <- %u.%u.%u.%u ",
 	for (r = fib_rules; r; r=r->r_next) {
 		//src 和dst要在同一个网段
 		//实现策略路由规则，实现如下的类似效果
+		//所谓的策略路由，就是多了一些匹配条件而已
 		///var/tmp $ ip ru
 		//0:      from all lookup local 
 		//10:     from all lookup main 
