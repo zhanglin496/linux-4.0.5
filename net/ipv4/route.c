@@ -1307,22 +1307,25 @@ static bool rt_cache_route(struct fib_nh *nh, struct rtable *rt)
 {
 	struct rtable *orig, *prev, **p;
 	bool ret = true;
-	//å¯¹äºéœ€è¦è½¬å‘çš„æ•°æ®åŒ…ï¼Œç¼“å­˜åˆ°inputä¸­
+	//¶ÔÓÚÊäÈëÂ·ÓÉ£¬»º´æµ½inputÖĞ
+	//¶ÔÓÚÉè±¸ÊÕµ½µÄÊı¾İ°ü¶¼ÊôÓÚÊäÈëÂ·ÓÉ
+	//ÎŞÂÛ¸ÃÊı¾İ°üÊÇĞèÒª×ª·¢»¹ÊÇÖÕ½áÓÚ±¾Éè±¸
 	if (rt_is_input_route(rt)) {
 		p = (struct rtable **)&nh->nh_rth_input;
 	} else {
-	//å¯¹äºæœ¬æœºå‘å‡ºçš„æ•°æ®åŒ…ï¼Œç¼“å­˜åˆ°outputä¸­
+		//¶ÔÓÚ±¾»úÖ÷¶¯·¢³öµÄÊı¾İ°ü£¬¶¼ÊôÓÚoutput
+		//»º´æµ½outputÖĞ
 		p = (struct rtable **)raw_cpu_ptr(nh->nh_pcpu_rth_output);
 	}
 	orig = *p;
 	//cmpxchg(void *ptr, unsigned long old, unsigned long new);
-	//å‡½æ•°å®Œæˆçš„åŠŸèƒ½æ˜¯ï¼šå°†oldå’ŒptræŒ‡å‘çš„å†…å®¹æ¯”è¾ƒï¼Œå¦‚æœç›¸ç­‰ï¼Œ
-	//åˆ™å°†newå†™å…¥åˆ°pträ¸­ï¼Œè¿”å›oldï¼Œå¦‚æœä¸ç›¸ç­‰ï¼Œåˆ™è¿”å›ptræŒ‡å‘çš„å†…å®¹ã€‚
-	//å¦‚æœåŒæ—¶æœ‰äººæ”¹åŠ¨*pï¼Œä¼šç¼“å­˜å¤±è´¥
-	//è¿™æ˜¯ä¸ªåŸå­æ“ä½œ
+	//º¯ÊıÍê³ÉµÄ¹¦ÄÜÊÇ£º½«oldºÍptrÖ¸ÏòµÄÄÚÈİ±È½Ï£¬Èç¹ûÏàµÈ£¬
+	//Ôò½«newĞ´Èëµ½ptrÖĞ£¬·µ»Øold£¬Èç¹û²»ÏàµÈ£¬Ôò·µ»ØptrÖ¸ÏòµÄÄÚÈİ¡£
+	//Èç¹ûÍ¬Ê±ÓĞÈË¸Ä¶¯*p£¬»á»º´æÊ§°Ü
+	//ÕâÊÇ¸öÔ­×Ó²Ù×÷
 
 	prev = cmpxchg(p, orig, rt);
-	//ç¼“å­˜æˆåŠŸ
+	//»º´æ³É¹¦
 	if (prev == orig) {
 		if (orig)
 			rt_free(orig);
@@ -1702,12 +1705,14 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto martian_source;
 
 	res.fi = NULL;
+	//Ä¿µÄµØÖ·ÊÇ¹ã²¥µØÖ·£¬²»ĞèÒª²éÕÒÂ·ÓÉ
 	if (ipv4_is_lbcast(daddr) || (saddr == 0 && daddr == 0))
 		goto brd_input;
 
 	/* Accept zero addresses only to limited broadcast;
 	 * I even do not know to fix it or not. Waiting for complains :-)
 	 */
+	 //0.x.x.xµØÖ·
 	if (ipv4_is_zeronet(saddr))
 		goto martian_source;
 
@@ -1782,7 +1787,7 @@ brd_input:
 local_input:
 	do_cache = false;
 	if (res.fi) {
-		//itagÎª0£¬¿´ÄÜ·ñÊÇÓÃ»º´æµÄrth
+		//itagÎª0£¬¿´ÄÜ·ñÊ¹ÓÃ»º´æµÄrth
 		if (!itag) {
 			rth = rcu_dereference(FIB_RES_NH(res).nh_rth_input);
 			//fb_nhÖĞÊÇ·ñÓĞÉÏ´Î»º´æµÄ½á¹û
@@ -1910,15 +1915,20 @@ int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		struct in_device *in_dev = __in_dev_get_rcu(dev);
 
 		if (in_dev) {
+			//¼ì²éÊÇ·ñÃüÖĞ±¾µØ¶à²¥µØÖ·ÁĞ±í
 			int our = ip_check_mc_rcu(in_dev, daddr, saddr,
 						  ip_hdr(skb)->protocol);
 			if (our
 #ifdef CONFIG_IP_MROUTE
 				||
-			    (!ipv4_is_local_multicast(daddr) &&
+				//ÊÇ·ñ¿ªÆôÁË¶à²¥×ª·¢
+				//Ä¿µÄµØÖ·²»µÈÓÚ224.0.0.x
+				(!ipv4_is_local_multicast(daddr) &&
 			     IN_DEV_MFORWARD(in_dev))
 #endif
 			   ) {
+			   //¶à²¥Â·ÓÉ²»ĞèÒª²éÕÒÂ·ÓÉ±í
+			   //ÕâÀïÊµ¼ÊÉÏÖ»ÊÇÈ¥·ÖÅäÂ·ÓÉ»º´æ±í
 				int res = ip_route_input_mc(skb, daddr, saddr,
 							    tos, dev, our);
 				rcu_read_unlock();
@@ -2081,6 +2091,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			 RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
 	rcu_read_lock();
+	//¶àÊıÇé¿öÏÂÔ­µØÖ·²»Îª¿Õ
 	if (fl4->saddr) {
 		rth = ERR_PTR(-EINVAL);
 		if (ipv4_is_multicast(fl4->saddr) ||

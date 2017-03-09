@@ -247,12 +247,12 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	struct flowi4 fl4;
 	struct net *net;
 	bool dev_match;
-	//将目的地址和源地址反转，验证如此的路由出口是否和正方向的入口一致。
-	//比如如果一个包的源地址是s1，目的地址是d1，从e1进入，那么在开启源验证的情况下，
-	//源为d1，目的为s1的路由出口必须是e1，正所谓从哪里进入，从哪里出去
-	//交换源目的地址
-	//能否找到从dst到src的路由
-	//即反向路由是否存在
+	//��Ŀ�ĵ�ַ��Դ��ַ��ת����֤��˵�·�ɳ����Ƿ������������һ�¡�
+	//�������һ������Դ��ַ��s1��Ŀ�ĵ�ַ��d1����e1���룬��ô�ڿ���Դ��֤������£�
+	//ԴΪd1��Ŀ��Ϊs1��·�ɳ��ڱ�����e1������ν��������룬�������ȥ
+	//����ԴĿ�ĵ�ַ
+	//�ܷ��ҵ���dst��src��·��
+	//������·���Ƿ����
 	fl4.flowi4_oif = 0;
 	fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
@@ -277,8 +277,8 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	dev_match = false;
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	//若果存在多路径路由，遍历下一跳
-	//看是否有相同的dev
+	//�������ڶ�·��·�ɣ�������һ��
+	//���Ƿ�����ͬ��dev
 	for (ret = 0; ret < res.fi->fib_nhs; ret++) {
 		struct fib_nh *nh = &res.fi->fib_nh[ret];
 
@@ -288,8 +288,8 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		}
 	}
 #else
-	//入口设备和出口设备是否相同
-	//即来回路径是否一致
+	//����豸�ͳ����豸�Ƿ���ͬ
+	//������·���Ƿ�һ��
 	if (FIB_RES_DEV(res) == dev)
 		dev_match = true;
 #endif
@@ -297,12 +297,12 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
 		return ret;
 	}
-	//没有配置IP地址
+	//û������IP��ַ
 	if (no_addr)
 		goto last_resort;
 		
 	///proc/sys/net/ipv4/conf/all/rp_filter
-        //表示对于路径来回不一致的数据包是否要丢弃
+	//��ʾ����·�����ز�һ�µ����ݰ��Ƿ�Ҫ����
 	if (rpf == 1)
 		goto e_rpf;
 	fl4.flowi4_oif = dev->ifindex;

@@ -340,6 +340,7 @@ FRprintk("Lookup: %u.%u.%u.%u <- %u.%u.%u.%u ",
 		//101:    from all lookup 201 
 		//32766:  from all lookup main 
 		//32767:  from all lookup default 
+		//先遍历FIB规则
 		//按优先级遍历,遍历顺序
 		//local->user define rule ->main->default
 		

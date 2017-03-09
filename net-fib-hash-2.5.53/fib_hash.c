@@ -92,10 +92,11 @@ struct fn_zone
 	struct fib_node	**fz_hash;	/* Hash table pointer	*/
 	int		fz_nent;	/* Number of entries	*/
 
+	
 	int		fz_divisor;	/* Hash divisor		*/
 	u32		fz_hashmask;	/* (1<<fz_divisor) - 1	*/
 #define FZ_HASHMASK(fz)	((fz)->fz_hashmask)
-
+	//fn_zones 表的索引
 	int		fz_order;	/* Zone order		*/
 	u32		fz_mask;
 #define FZ_MASK(fz)	((fz)->fz_mask)
@@ -249,7 +250,7 @@ fn_new_zone(struct fn_hash *table, int z)
 	}
 	memset(fz->fz_hash, 0, fz->fz_divisor*sizeof(struct fib_node*));
 	fz->fz_order = z;
-	//根据掩码长度生成一个全1 的掩码值
+	//根据掩码长度生成一个掩码值
 	fz->fz_mask = inet_make_mask(z);
 
 	/* Find the first not empty zone with more specific mask */
@@ -462,10 +463,12 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 			rta->rta_prefsrc ? *(u32*)rta->rta_prefsrc : 0);
 	if (z > 32)
 		return -EINVAL;
+	//根据子网掩码长度定位zone
 	fz = table->fn_zones[z];
 	if (!fz && !(fz = fn_new_zone(table, z)))
 		return -ENOBUFS;
 
+	//默认路由的地址为0
 	fz_key_0(key);
 	if (rta->rta_dst) {
 		u32 dst;
@@ -474,6 +477,20 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 			return -EINVAL;
 		key = fz_key(dst, fz);
 	}
+	//	[  377.916000] ##zhanglin##:fib_table_insert[422]: tb->id=255,cfg->fc_type=2,fc_dst_len=32,key=192.168.1.1,cfg->fc_dst=192.168.1.1
+	//	[  377.924000] ##zhanglin##:fib_table_insert[422]: tb->id=254,cfg->fc_type=1,fc_dst_len=24,key=192.168.1.0,cfg->fc_dst=192.168.1.0
+	//	[  377.928000] ##zhanglin##:fib_table_lookup[293]: fz_order=32, key=192.168.1.1, err=0
+	//	[  377.932000] ##zhanglin##:fib_table_insert[422]: tb->id=255,cfg->fc_type=3,fc_dst_len=32,key=192.168.1.0,cfg->fc_dst=192.168.1.0
+	//	[  377.936000] ##zhanglin##:fib_table_lookup[293]: fz_order=32, key=192.168.1.1, err=0
+	//	[  377.940000] ##zhanglin##:fib_table_insert[422]: tb->id=255,cfg->fc_type=3,fc_dst_len=32,key=192.168.1.255,cfg->fc_dst=192.168.1.255
+	//	[  377.944000] ##zhanglin##:fib_table_lookup[293]: fz_order=32, key=192.168.1.1, err=0
+	//	fc_dst_len为掩码长度
+	// 对于本机配置的IP地址，比如192.168.1.1/24
+	// 1.要添加一个精确的IP地址192.168.1.1/32,也就是掩码是32位，对应的rtm_type 为RTN_LOCAL
+	// 2.同时要添加一个对应子网地址，比如192.168.1.1/24,对应的rtm_type 为RTN_UNICAST
+	// 3.同时要添加一个对应子网广播地址，比如192.168.1.255/32,对应的rtm_type 为RTN_BROADCAST
+	// 4.同时要添加一个对应主机位全0 的广播地址，比如192.168.1.0/32,对应的rtm_type 为RTN_BROADCAST
+	// 所以有4 个fib_node节点
 
 	if  ((fi = fib_create_info(r, rta, n, &err)) == NULL)
 		return err;

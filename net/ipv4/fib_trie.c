@@ -94,23 +94,23 @@ typedef unsigned int t_key;
 #define get_index(_key, _kv) (((_key) ^ (_kv)->key) >> (_kv)->pos)
 
 struct tnode {
-	//å­˜å‚¨çš„æ˜¯IPåœ°å€å‰ç¼€
-	//ipåœ°å€å’Œæ©ç çš„ä¸,ie.
+	//´æ´¢µÄÊÇIPµØÖ·Ç°×º
+	//ipµØÖ·ºÍÑÚÂëµÄÓë,ie.
 	//172.168.3.36 & 255.255.255.0 = 172.168.3.0
 	t_key key;
-	//posæŒ‡ç¤ºä»æœ€ä½æœ‰æ•ˆä½å“ªä¸€ä½å¼€å§‹æ£€æµ‹
-	//pos=8è¡¨ç¤ºæœ€ä½8ä½ç›¸åŒï¼Œä»ç¬¬9ä½å¼€å§‹æ£€æµ‹
-	//posè¡¨ç¤ºä»æœ€ä½æœ‰æ•ˆä½å¼€å§‹ç›¸åŒçš„ä½æ•°é•¿åº¦
-	//bitsæŒ‡ç¤ºäº†å­©å­ç»“ç‚¹æ•°ç»„
-	//è¿™ä¸ªå­—æ®µæŒ‡å‡ºè¡¨ç¤ºè¿™ä¸ªèŠ‚ç‚¹çš„å­©å­èŠ‚ç‚¹çš„ä½æ•°
-	//è¡¨ç¤ºå­©å­çš„ä¸ªæ•°2^bits
-	//bits=0è¡¨ç¤ºä¸ºå¶å­èŠ‚ç‚¹
+	//posÖ¸Ê¾´Ó×îµÍÓĞĞ§Î»ÄÄÒ»Î»¿ªÊ¼¼ì²â
+	//pos=8±íÊ¾×îµÍ8Î»ÏàÍ¬£¬´ÓµÚ9Î»¿ªÊ¼¼ì²â
+	//pos±íÊ¾´Ó×îµÍÓĞĞ§Î»¿ªÊ¼ÏàÍ¬µÄÎ»Êı³¤¶È
+	//bitsÖ¸Ê¾ÁËº¢×Ó½áµãÊı×é
+	//Õâ¸ö×Ö¶ÎÖ¸³ö±íÊ¾Õâ¸ö½ÚµãµÄº¢×Ó½ÚµãµÄÎ»Êı
+	//±íÊ¾º¢×ÓµÄ¸öÊı2^bits
+	//bits=0±íÊ¾ÎªÒ¶×Ó½Úµã
 
 	unsigned char bits;		/* 2log(KEYLENGTH) bits needed */
 	unsigned char pos;		/* 2log(KEYLENGTH) bits needed */
-	//list åˆ—è¡¨ä¸­åç¼€é•¿åº¦çš„æœ€å¤§å€¼
+	//list ÁĞ±íÖĞºó×º³¤¶ÈµÄ×î´óÖµ
 	unsigned char slen;
-	//æŒ‡å‘çˆ¶èŠ‚ç‚¹
+	//Ö¸Ïò¸¸½Úµã
 	struct tnode __rcu *parent;
 	struct rcu_head rcu;
 	union {
@@ -125,15 +125,15 @@ struct tnode {
 	};
 };
 
-//å¶å­èŠ‚ç‚¹
+//Ò¶×Ó½Úµã
 struct leaf_info {
-	//é“¾æ¥åˆ°tnodeçš„list è¡¨ä¸­
+	//Á´½Óµ½tnodeµÄlist ±íÖĞ
 	struct hlist_node hlist;
-	//æ©ç é•¿åº¦
+	//ÑÚÂë³¤¶È
 	int plen;
-	//æ©ç å€¼ï¼Œæ ¹æ®plenè®¡ç®—å¾—åˆ°
+	//ÑÚÂëÖµ£¬¸ù¾İplen¼ÆËãµÃµ½
 	u32 mask_plen; /* ntohl(inet_make_mask(plen)) */
-	//é“¾æ¥åŒ¹é…çš„struct fib_alias 
+	//Á´½ÓÆ¥ÅäµÄstruct fib_alias 
 	struct list_head falh;
 	struct rcu_head rcu;
 };
@@ -1330,7 +1330,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 	struct tnode *n, *pn;
 	struct leaf_info *li;
 	t_key cindex;
-	 //ä»æ ¹èŠ‚ç‚¹å¼€å§‹
+	//´Ó¸ù½Úµã¿ªÊ¼
 	n = rcu_dereference(t->trie);
 	if (!n)
 		return -EAGAIN;
@@ -1366,12 +1366,12 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		/* only record pn and cindex if we are going to be chopping
 		 * bits later.  Otherwise we are just wasting cycles.
 		 */
-		  //åç¼€é•¿åº¦å¤§äºç›¸åŒçš„bitä½
+		   //ºó×º³¤¶È´óÓÚÏàÍ¬µÄbitÎ»
 		if (n->slen > n->pos) {
 			pn = n;
 			cindex = index;
 		}
-		//å¦‚æœå­©å­èŠ‚ç‚¹ä¸ºç©ºï¼Œè¡¨æ˜éœ€è¦å›æº¯
+		//Èç¹ûº¢×Ó½ÚµãÎª¿Õ£¬±íÃ÷ĞèÒª»ØËİ
 		n = tnode_get_child_rcu(n, index);
 		if (unlikely(!n))
 			goto backtrace;
@@ -1421,7 +1421,7 @@ backtrace:
 				/* Get Child's index */
 				cindex = get_index(pkey, pn);
 			}
-			//æ¶ˆé™¤cindexæœ€ä½æœ‰æ•ˆä½ä¸º1çš„bit
+			//Ïû³ıcindex×îµÍÓĞĞ§Î»Îª1µÄbit
 			/* strip the least significant bit from the cindex */
 			cindex &= cindex - 1;
 
@@ -1434,8 +1434,8 @@ found:
 	/* Step 3: Process the leaf, if that fails fall back to backtracing */
 	hlist_for_each_entry_rcu(li, &n->list, hlist) {
 		struct fib_alias *fa;
-		//æ¯”è¾ƒprefix çš„keyæ˜¯å¦ç›¸ç­‰
-		//é»˜è®¤è·¯ç”±çš„æ©ç é•¿åº¦ä¸º0ï¼Œæ©ç å€¼ä¹Ÿä¸º0 
+		//±È½Ïprefix µÄkeyÊÇ·ñÏàµÈ
+		//Ä¬ÈÏÂ·ÓÉµÄÑÚÂë³¤¶ÈÎª0£¬ÑÚÂëÖµÒ²Îª0 
 
 		if ((key ^ n->key) & li->mask_plen)
 			continue;
@@ -1448,9 +1448,9 @@ found:
 				continue;
 			if (fi->fib_dead)
 				continue;
-			//å¤§äºç­‰äºæŒ‡å®šçš„èŒƒå›´ï¼Œè¡¨ç¤ºæ›´æ¥è¿‘ç›®çš„åœ°
+			//´óÓÚµÈÓÚÖ¸¶¨µÄ·¶Î§£¬±íÊ¾¸ü½Ó½üÄ¿µÄµØ
 			//if(fa->fa_info->fib_scope >= flp->flowi4_scope)
-			// 	go on;
+			//	go on;
 
 			if (fa->fa_info->fib_scope < flp->flowi4_scope)
 				continue;
@@ -1462,11 +1462,11 @@ found:
 #endif
 				return err;
 			}
-			//è·¯ç”±å·²ç»å¤±æ•ˆ
+			//Â·ÓÉÒÑ¾­Ê§Ğ§
 			if (fi->fib_flags & RTNH_F_DEAD)
 				continue;
 				
-			//åœ¨å¤šä¸ªä¸‹ä¸€è·³ä¸­é€‰æ‹©ä¸€ä¸ª
+			//ÔÚ¶à¸öÏÂÒ»ÌøÖĞÑ¡ÔñÒ»¸ö
 			for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
 				const struct fib_nh *nh = &fi->fib_nh[nhsel];
 

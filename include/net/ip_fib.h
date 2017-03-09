@@ -157,7 +157,8 @@ struct fib_result_nl {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 #define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
 #else /* CONFIG_IP_ROUTE_MULTIPATH */
-//å¦‚æœæ²¡æœ‰é…ç½®å¤šè·¯å¾„è·¯ç”±ï¼Œåˆ™åªæœ‰ä¸€ä¸ªä¸‹ä¸€è·³
+//Èç¹ûÃ»ÓĞÅäÖÃ¶àÂ·¾¶Â·ÓÉ£¬ÔòÖ»ÓĞÒ»¸öÏÂÒ»Ìø
+//·ñ²à¿ÉÄÜ´æÔÚ¶à¸öÏÂÒ»Ìø
 #define FIB_RES_NH(res)		((res).fi->fib_nh[0])
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
@@ -247,18 +248,21 @@ struct fib_table *fib_get_table(struct net *net, u32 id);
 
 int __fib_lookup(struct net *net, struct flowi4 *flp, struct fib_result *res);
 
+//Èç¹ûÅäÖÃÁËÖ§³Ö¶àÕÅÂ·ÓÉ±í
+//Ä¿Ç°ÄÚºËµÄÂ·ÓÉ²éÕÒËã·¨ÊÇ»ùÓÚfib trie
+//hash²éÕÒËã·¨ÒÑ¾­·ÏÆú
 static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res)
 {
-	//æ£€æŸ¥æ˜¯å¦æ”¹å˜äº†ç³»ç»Ÿåˆå§‹çš„ä¸‰å¼ è·¯ç”±è¡¨
-	//ä¹Ÿå°±æ˜¯æ£€æŸ¥æ˜¯å¦æœ‰è‡ªå®šä¹‰è§„åˆ™
+	//¼ì²éÊÇ·ñ¸Ä±äÁËÏµÍ³³õÊ¼µÄÈıÕÅÂ·ÓÉ±í
+	//Ò²¾ÍÊÇ¼ì²éÊÇ·ñÓĞ×Ô¶¨Òå¹æÔò
 	if (!net->ipv4.fib_has_custom_rules) {
 		int err = -ENETUNREACH;
 
 		rcu_read_lock();
 		
-		//é€šè¿‡ä»¥ç›®çš„åœ°å€å’Œtosä¸ºkeyæ¥æŸ¥æ‰¾è·¯ç”±
-		//å’Œç­–ç•¥è·¯ç”±æœ¬è´¨ä¸åŒçš„åœ°æ–¹å°±æ˜¯ä½¿ç”¨çš„å…³é”®å­—ä¸ä¸€æ ·
+		//Í¨¹ıÒÔÄ¿µÄµØÖ·ºÍtosÎªkeyÀ´²éÕÒÂ·ÓÉ
+		//ºÍ²ßÂÔÂ·ÓÉ±¾ÖÊ²»Í¬µÄµØ·½¾ÍÊÇÊ¹ÓÃµÄ¹Ø¼ü×Ö²»Ò»Ñù
 		res->tclassid = 0;
 		if ((net->ipv4.fib_local &&
 		     !fib_table_lookup(net->ipv4.fib_local, flp, res,
@@ -275,8 +279,9 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 
 		return err;
 	}
-	//ç­–ç•¥è·¯ç”±æŸ¥æ‰¾ï¼Œå®é™…ä¸Šæ˜¯ä½¿ç”¨å¤šä¸ªå…³é”®å­—æ¥åŒ¹é…è·¯ç”±
-	//æ¯”å¦‚æºåœ°å€ã€ç›®çš„åœ°å€ã€markç­‰
+	//Èç¹ûÓĞ×Ô¶¨Òå¹æÔò
+	//²ßÂÔÂ·ÓÉ²éÕÒ£¬Êµ¼ÊÉÏÊÇÊ¹ÓÃ¶à¸ö¹Ø¼ü×ÖÀ´Æ¥ÅäÂ·ÓÉ
+	//±ÈÈçÔ´µØÖ·¡¢Ä¿µÄµØÖ·¡¢markµÈ
 	return __fib_lookup(net, flp, res);
 }
 
