@@ -1092,7 +1092,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	 */
 	ELF_PLAT_INIT(regs, reloc_func_desc);
 #endif
-
+//替换regs->ip的值
+//elf_entry为入口地址
+//要么为动态解释器的入口地址
+//要么为elf 自身的入口地址
 	start_thread(regs, elf_entry, bprm->p);
 	retval = 0;
 out:

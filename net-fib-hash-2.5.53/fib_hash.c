@@ -464,6 +464,7 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	if (z > 32)
 		return -EINVAL;
 	//根据子网掩码长度定位zone
+	//相同的子网掩码在同一个zone
 	fz = table->fn_zones[z];
 	if (!fz && !(fz = fn_new_zone(table, z)))
 		return -ENOBUFS;

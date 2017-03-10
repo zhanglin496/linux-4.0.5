@@ -21,6 +21,8 @@ struct linux_binprm {
 	struct page *page[MAX_ARG_PAGES];
 #endif
 	struct mm_struct *mm;
+//内存页最高低值
+//栈顶地址
 	unsigned long p; /* current top of mem */
 	unsigned int
 		cred_prepared:1,/* true if creds already prepared (multiple
