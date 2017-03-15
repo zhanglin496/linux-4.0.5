@@ -1757,16 +1757,17 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			goto martian_source_keep_err;
 		goto local_input;
 	}
-
+	//如果入口设备部不允许转发，则丢弃
 	if (!IN_DEV_FORWARD(in_dev)) {
 		err = -EHOSTUNREACH;
 		goto no_route;
 	}
 	if (res.type != RTN_UNICAST)
 		goto martian_destination;
-
+	//创建转发路由
 	err = ip_mkroute_input(skb, &res, &fl4, in_dev, daddr, saddr, tos);
-out:	return err;
+out:	
+	return err;
 
 brd_input:
 	//目的地址是广播地址时，不需要路由查找，res.fi=NULL
@@ -1789,12 +1790,19 @@ local_input:
 	if (res.fi) {
 		//itag为0，看能否使用缓存的rth
 		if (!itag) {
+			//fib_info 中下一跳fib_nh 缓存了rth
+			//只要命中了同一个fib_info的fib_nh
+			//则使用相同的下一跳结果
+			//极大的节约了空间
+			//也就是说rth的数目和路由表的条目成正比
+			//这和以前的路由hash缓存有本质的区别
+			//以前的路由缓存在遭到攻击时会膨胀到系统的上限
 			rth = rcu_dereference(FIB_RES_NH(res).nh_rth_input);
-			//fb_nh中是否有上次缓存的结果
+			//fib_nh中是否有上次缓存的结果
 			//如果有的话，看是否可以使用
 			//对于一条持续长时间的数据流
 			//可以避免频繁的分配rth结构来记录查找结果
-
+			
 			if (rt_cache_valid(rth)) {
 				//不增加rth的引用计数
 				//只是指针赋值，并打上标记SKB_DST_NOREF
