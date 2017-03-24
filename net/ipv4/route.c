@@ -436,6 +436,8 @@ void rt_cache_flush(struct net *net)
 	rt_genid_bump_ipv4(net);
 }
 
+//根据目的IP地址或者rt的网关地址查找邻居项
+//获取对应的二层mac地址
 static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 					   struct sk_buff *skb,
 					   const void *daddr)
