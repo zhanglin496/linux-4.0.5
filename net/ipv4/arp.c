@@ -383,7 +383,7 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 {
 	struct net *net = dev_net(in_dev->dev);
 	int scope;
-	//éªŒè¯æ”¶åˆ°çš„arpæŠ¥æ–‡å’ŒæŽ¥å£æ˜¯å¦æ»¡è¶³ç»™å®šæ¡ä»¶
+	//ÑéÖ¤ÊÕµ½µÄarp±¨ÎÄºÍ½Ó¿ÚÊÇ·ñÂú×ã¸ø¶¨Ìõ¼þ
 	switch (IN_DEV_ARP_IGNORE(in_dev)) {
 	case 0:	/* Reply, the tip is already validated */
 		return 0;
@@ -421,16 +421,16 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	int flag = 0;
 	/*unsigned long now; */
 	struct net *net = dev_net(dev);
-	//arp_filter åªå¯¹arpç³»ç»Ÿèµ·ä½œç”¨
-	//rp_filter å¯¹æ•´ä¸ªè·¯ç”±ç³»ç»Ÿèµ·ä½œç”¨
-	//ä¸»è¦åŠŸèƒ½æ˜¯éªŒè¯åå‘è·¯ç”±æ˜¯å¦å­˜åœ¨
-	//ä»¥åŠå…¥å£å’Œå‡ºå£æ˜¯å¦ä¸€è‡´
-	//åå‘è·¯ç”±æŸ¥æ‰¾
+	//arp_filter Ö»¶ÔarpÏµÍ³Æð×÷ÓÃ
+	//rp_filter ¶ÔÕû¸öÂ·ÓÉÏµÍ³Æð×÷ÓÃ
+	//Ö÷Òª¹¦ÄÜÊÇÑéÖ¤·´ÏòÂ·ÓÉÊÇ·ñ´æÔÚ
+	//ÒÔ¼°Èë¿ÚºÍ³ö¿ÚÊÇ·ñÒ»ÖÂ
+	//·´ÏòÂ·ÓÉ²éÕÒ
 	rt = ip_route_output(net, sip, tip, 0, 0);
 	if (IS_ERR(rt))
 		return 1;
-	//ç¡®å®šå‡ºå£å…¥å£æ˜¯å¦ä¸€è‡´
-	//å…¥å£è®¾å¤‡ä¸ç­‰äºŽå‡ºå£è®¾å¤‡
+	//È·¶¨³ö¿ÚÈë¿ÚÊÇ·ñÒ»ÖÂ
+	//Èë¿ÚÉè±¸²»µÈÓÚ³ö¿ÚÉè±¸
 	if (rt->dst.dev != dev) {
 		NET_INC_STATS_BH(net, LINUX_MIB_ARPFILTER);
 		flag = 1;
