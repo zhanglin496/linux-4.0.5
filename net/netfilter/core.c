@@ -134,6 +134,12 @@ unsigned int nf_iterate(struct list_head *head,
 	 * function because of risk of continuing from deleted element.
 	 */
 	list_for_each_entry_continue_rcu((*elemp), head, list) {
+	// 如果hook_thresh大于hook点的权值，忽略该节点
+	// hook链表是按权值排序的，权值越小，表示优先级越高，在链表中越靠前
+	// 所以hook_thresh作用就是就是只遍历比该权值低的优先级低的节点，高优先级
+	// 的节点就不过滤了，这样就可以有选择地减少一些处理操作
+	// NF_HOOK和NF_HOOK_COND宏中定义的thresh都是INT_MIN，也就是最高优先级,
+	// 所以就要遍历hook链表中的所有节点。
 		if (hook_thresh > (*elemp)->priority)
 			continue;
 
