@@ -1696,6 +1696,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	//比如在lan口上收到数据包通过wan口转发出去
 	//但是响应包在过wan口时，如果没有配置ip地址会被丢弃
 	//in_device 结构在inetdev_init中分配
+	//ifa_list可能为空，也就是说没有设置IP地址
+	//in_device 大多数情况都不为空
 	if (!in_dev)
 		goto out;
 
