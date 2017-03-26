@@ -266,8 +266,11 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	vlan = vlan_dev_priv(new_dev);
 	vlan->vlan_proto = htons(ETH_P_8021Q);
 	vlan->vlan_id = vlan_id;
+	//指向所属于的dev
 	vlan->real_dev = real_dev;
 	vlan->dent = NULL;
+	//默认设置VLAN_FLAG_REORDER_HDR
+	//在发送数据帧时强制加上vlan头
 	vlan->flags = VLAN_FLAG_REORDER_HDR;
 
 	new_dev->rtnl_link_ops = &vlan_link_ops;

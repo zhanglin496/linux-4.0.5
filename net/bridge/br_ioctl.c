@@ -91,7 +91,8 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
-
+//bridge addif br0 eth0
+//ifindex 对应eth0 也就是属于br0的端口
 	dev = __dev_get_by_index(net, ifindex);
 	if (dev == NULL)
 		return -EINVAL;

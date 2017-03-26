@@ -20,7 +20,8 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	skb = *skbp = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return false;
-
+	
+	//指向虚拟的vlan_dev
 	skb->dev = vlan_dev;
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {
 		/* Our lower layer thinks this is not local, let's make sure.
@@ -30,6 +31,8 @@ bool vlan_do_receive(struct sk_buff **skbp)
 			skb->pkt_type = PACKET_HOST;
 	}
 
+	//如果没有设置VLAN_FLAG_REORDER_HDR
+	//强行加上vlan头
 	if (!(vlan_dev_priv(vlan_dev)->flags & VLAN_FLAG_REORDER_HDR)) {
 		unsigned int offset = skb->data - skb_mac_header(skb);
 
@@ -39,6 +42,8 @@ bool vlan_do_receive(struct sk_buff **skbp)
 		 * original position later
 		 */
 		skb_push(skb, offset);
+		//没有改变skb->porotol的值，只要skb->porotol不等于ETH_P_8021Q,
+		//就不会再次调用skb_vlan_untag
 		skb = *skbp = vlan_insert_tag(skb, skb->vlan_proto,
 					      skb->vlan_tci);
 		if (!skb)
@@ -48,6 +53,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	}
 
 	skb->priority = vlan_get_ingress_priority(vlan_dev, skb->vlan_tci);
+	//清楚vlan tag信息
 	skb->vlan_tci = 0;
 
 	rx_stats = this_cpu_ptr(vlan_dev_priv(vlan_dev)->vlan_pcpu_stats);

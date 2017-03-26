@@ -300,6 +300,9 @@ static int find_portno(struct net_bridge *br)
 		return -ENOMEM;
 
 	set_bit(0, inuse);	/* zero is reserved */
+	//记录该虚拟网桥br0下所有已经占用的端口号
+	//目前BR_MAX_PORTS为1024
+	//也就是说最大只能桥接1024个设备
 	list_for_each_entry(p, &br->port_list, list) {
 		set_bit(p->port_no, inuse);
 	}
@@ -323,9 +326,10 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
 		return ERR_PTR(-ENOMEM);
-
+	//记录该端口属于哪个桥
 	p->br = br;
 	dev_hold(dev);
+	//记录该端口属于哪个dev
 	p->dev = dev;
 	p->path_cost = port_cost(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
@@ -449,17 +453,22 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		return -EINVAL;
 
 	/* No bridging of bridges */
+	//不能桥接都是桥的设备
 	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit)
 		return -ELOOP;
 
 	/* Device is already being bridged */
+	//设备已经桥接到当前设备下
 	if (br_port_exists(dev))
 		return -EBUSY;
 
 	/* No bridging devices that dislike that (e.g. wireless) */
+	//该设备不允许被桥接
 	if (dev->priv_flags & IFF_DONT_BRIDGE)
 		return -EOPNOTSUPP;
 
+	//分配一个新的桥接端口
+	//struct net_bridge_port
 	p = new_nbp(br, dev);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
@@ -487,6 +496,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto err4;
 
+	//标记该设备已经被桥接了
 	dev->priv_flags |= IFF_BRIDGE_PORT;
 
 	err = netdev_master_upper_dev_link(dev, br->dev);
@@ -495,6 +505,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	dev_disable_lro(dev);
 
+	//注册到net_bridge下
 	list_add_rcu(&p->list, &br->port_list);
 
 	nbp_update_port_count(br);
@@ -503,7 +514,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	if (br->dev->needed_headroom < dev->needed_headroom)
 		br->dev->needed_headroom = dev->needed_headroom;
-
+	//插入转发表中
 	if (br_fdb_insert(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 

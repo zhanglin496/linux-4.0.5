@@ -502,6 +502,7 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		/* it is okay to have multiple ports with same
 		 * address, just use the first one.
 		 */
+		 //如果MAC地址相等，不用添加
 		if (fdb->is_local)
 			return 0;
 		br_warn(br, "adding interface %s with same address "
@@ -513,7 +514,8 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 	fdb = fdb_create(head, source, addr, vid);
 	if (!fdb)
 		return -ENOMEM;
-
+	//标记为本地地址和静态地址
+	//静态地址表示不是通过动态学习生成的
 	fdb->is_local = fdb->is_static = 1;
 	fdb_add_hw_addr(br, addr);
 	fdb_notify(br, fdb, RTM_NEWNEIGH);
@@ -551,6 +553,8 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 	fdb = fdb_find_rcu(head, addr, vid);
 	if (likely(fdb)) {
 		/* attempt to update an entry for a local interface */
+		//源MAC地址和端口的MAC地址相等，说明有问题
+		//要么是环路或者MAC地址冲突
 		if (unlikely(fdb->is_local)) {
 			if (net_ratelimit())
 				br_warn(br, "received packet on %s with "
@@ -558,6 +562,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 					source->dev->name);
 		} else {
 			/* fastpath: update of existing entry */
+			//port地址不相等 指向新的port
 			if (unlikely(source != fdb->dst)) {
 				fdb->dst = source;
 				fdb_modified = true;

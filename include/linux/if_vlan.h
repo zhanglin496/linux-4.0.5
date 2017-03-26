@@ -40,6 +40,21 @@ struct vlan_hdr {
 	__be16	h_vlan_encapsulated_proto;
 };
 
+//Figure 2-1 以太网帧格式
+|-----------------------------------------------------------------------------|
+| DMAC(6bytes) | SMAC(6bytes) | Ether-Type(2bytes) | DATA |
+|-----------------------------------------------------------------------------|
+
+//Figure 2-2 带VLAN TAG的以太网帧格式
+|-------------------------------------------------------------------------------------------------|
+| DMAC(6bytes) | SMAC(6bytes) | Ether-Type(0x8100) | VLAN(4bytes) | DATA |
+|-------------------------------------------------------------------------------------------------|
+ 
+//Figure 2-3 VLAN TAG的格式,总计4字节
+|---------------------------------------------------------------------------------|
+| PRI(3bits) | CFI(1bit) | TAG(12bits) | Ether-Type(2bytes) | DATA |
+|---------------------------------------------------------------------------------|
+
 /**
  *	struct vlan_ethhdr - vlan ethernet header (ethhdr + vlan_hdr)
  *	@h_dest: destination ethernet address
@@ -51,6 +66,7 @@ struct vlan_hdr {
 struct vlan_ethhdr {
 	unsigned char	h_dest[ETH_ALEN];
 	unsigned char	h_source[ETH_ALEN];
+	//等于ETH_P_8021Q
 	__be16		h_vlan_proto;
 	__be16		h_vlan_TCI;
 	__be16		h_vlan_encapsulated_proto;

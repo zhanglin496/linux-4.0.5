@@ -4281,8 +4281,10 @@ static struct sk_buff *skb_reorder_vlan_header(struct sk_buff *skb)
 		kfree_skb(skb);
 		return NULL;
 	}
-
+	//具体的协议已经保存在	skb->vlan_proto中
+	//调整头部，去除vlan信息和vlan协议标识
 	memmove(skb->data - ETH_HLEN, skb->data - VLAN_ETH_HLEN, 2 * ETH_ALEN);
+	//后移动4个字节
 	skb->mac_header += VLAN_HLEN;
 	return skb;
 }
@@ -4301,14 +4303,18 @@ struct sk_buff *skb_vlan_untag(struct sk_buff *skb)
 	if (unlikely(!skb))
 		goto err_free;
 
+	//vlan头至少4个字节
 	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
 		goto err_free;
 
 	vhdr = (struct vlan_hdr *)skb->data;
 	vlan_tci = ntohs(vhdr->h_vlan_TCI);
+	//skb->vlan_tci 打标记VLAN_TAG_PRESENT	
 	__vlan_hwaccel_put_tag(skb, skb->protocol, vlan_tci);
 
+	//调整skb->data指向L3
 	skb_pull_rcsum(skb, VLAN_HLEN);
+	//更新skb->protocol字段指向下层协议
 	vlan_set_encap_proto(skb, vhdr);
 
 	skb = skb_reorder_vlan_header(skb);
