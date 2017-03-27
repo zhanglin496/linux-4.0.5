@@ -215,6 +215,7 @@ struct net_bridge
 {
 	spinlock_t			lock;
 	struct list_head		port_list;
+	//指向添加的虚拟桥接口，比如br0
 	struct net_device		*dev;
 
 	struct pcpu_sw_netstats		__percpu *stats;
