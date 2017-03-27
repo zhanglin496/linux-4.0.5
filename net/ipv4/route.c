@@ -436,6 +436,8 @@ void rt_cache_flush(struct net *net)
 	rt_genid_bump_ipv4(net);
 }
 
+//根据目的IP地址或者rt的网关地址查找邻居项
+//获取对应的二层mac地址
 static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 					   struct sk_buff *skb,
 					   const void *daddr)
@@ -1695,6 +1697,8 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	//比如在lan口上收到数据包通过wan口转发出去
 	//但是响应包在过wan口时，如果没有配置ip地址会被丢弃
 	//in_device 结构在inetdev_init中分配
+	//ifa_list可能为空，也就是说没有设置IP地址
+	//in_device 大多数情况都不为空
 	if (!in_dev)
 		goto out;
 

@@ -65,8 +65,9 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
 #else
 #define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
 #endif
-
+//64
 #define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
+//64 - 1=63
 #define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
 
 #define RADIX_TREE_TAG_LONGS	\

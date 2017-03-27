@@ -388,6 +388,7 @@ static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
 	do {
 		seq = read_seqbegin(&hh->hh_lock);
 		hh_alen = HH_DATA_ALIGN(ETH_HLEN);
+		//更改数据包的目的MAC地址
 		memcpy(skb->data - hh_alen, hh->hh_data, ETH_ALEN + hh_alen - ETH_HLEN);
 	} while (read_seqretry(&hh->hh_lock, seq));
 	return 0;

@@ -134,6 +134,12 @@ unsigned int nf_iterate(struct list_head *head,
 	 * function because of risk of continuing from deleted element.
 	 */
 	list_for_each_entry_continue_rcu((*elemp), head, list) {
+	// Èç¹ûhook_thresh´óÓÚhookµãµÄÈ¨Öµ£¬ºöÂÔ¸Ã½Úµã
+	// hookÁ´±íÊÇ°´È¨ÖµÅÅĞòµÄ£¬È¨ÖµÔ½Ğ¡£¬±íÊ¾ÓÅÏÈ¼¶Ô½¸ß£¬ÔÚÁ´±íÖĞÔ½¿¿Ç°
+	// ËùÒÔhook_thresh×÷ÓÃ¾ÍÊÇ¾ÍÊÇÖ»±éÀú±È¸ÃÈ¨ÖµµÍµÄÓÅÏÈ¼¶µÍµÄ½Úµã£¬¸ßÓÅÏÈ¼¶
+	// µÄ½Úµã¾Í²»¹ıÂËÁË£¬ÕâÑù¾Í¿ÉÒÔÓĞÑ¡ÔñµØ¼õÉÙÒ»Ğ©´¦Àí²Ù×÷
+	// NF_HOOKºÍNF_HOOK_CONDºêÖĞ¶¨ÒåµÄthresh¶¼ÊÇINT_MIN£¬Ò²¾ÍÊÇ×î¸ßÓÅÏÈ¼¶,
+	// ËùÒÔ¾ÍÒª±éÀúhookÁ´±íÖĞµÄËùÓĞ½Úµã¡£
 		if (hook_thresh > (*elemp)->priority)
 			continue;
 
@@ -202,13 +208,13 @@ next_hook:
 }
 EXPORT_SYMBOL(nf_hook_slow);
 
-//ä¿è¯åœ¨skb dataåé¢å¿…å®šæœ‰writable_lenå¯å†™å­—èŠ‚ï¼Œ
-//writable_lenåœ¨çº¿æ€§æ•°æ®åŒºä¸­
-//è°ƒç”¨è¯¥å‡½æ•°çš„é»˜è®¤å‰ææ˜¯è¯¥skbä¸æ˜¯å…±äº«çš„,ä¹Ÿå°±æ˜¯è¯´skb->userçš„è®¡æ•°å¿…é¡»æ˜¯1
-//è¿™é‡Œå¯å†™çš„æ„æ€æ˜¯
-// 1ã€ä¿è¯writable_lenå­—èŠ‚åœ¨çº¿æ€§åŒºåŸŸä¸­
-// 2ã€skbçº¿æ€§æ•°æ®åŒºä¸æ˜¯å…±äº«çš„ï¼Œå¯ä»¥ä¿®æ”¹
-// 3ã€ä¼ å…¥çš„skb->users å¼•ç”¨è®¡æ•°å¿…é¡»æ˜¯1
+//±£Ö¤ÔÚskb dataºóÃæ±Ø¶¨ÓĞwritable_len¿ÉĞ´×Ö½Ú£¬
+//writable_lenÔÚÏßĞÔÊı¾İÇøÖĞ
+//µ÷ÓÃ¸Ãº¯ÊıµÄÄ¬ÈÏÇ°ÌáÊÇ¸Ãskb²»ÊÇ¹²ÏíµÄ,Ò²¾ÍÊÇËµskb->userµÄ¼ÆÊı±ØĞëÊÇ1
+//ÕâÀï¿ÉĞ´µÄÒâË¼ÊÇ
+// 1¡¢±£Ö¤writable_len×Ö½ÚÔÚÏßĞÔÇøÓòÖĞ
+// 2¡¢skbÏßĞÔÊı¾İÇø²»ÊÇ¹²ÏíµÄ£¬¿ÉÒÔĞŞ¸Ä
+// 3¡¢´«ÈëµÄskb->users ÒıÓÃ¼ÆÊı±ØĞëÊÇ1
 int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 {
 	if (writable_len > skb->len)
@@ -216,20 +222,20 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 
 	/* Not exclusive use of packet?  Must copy. */
 	if (!skb_cloned(skb)) {
-		//écloneçš„æ•°æ®åŒ…ï¼Œå¦‚æœçº¿æ€§åŒºçš„é•¿åº¦è¶³å¤Ÿ
-		//æ•°æ®åŒ…å¯ä»¥ç›´æ¥ä¿®æ”¹
+		//·ÇcloneµÄÊı¾İ°ü£¬Èç¹ûÏßĞÔÇøµÄ³¤¶È×ã¹»
+		//Êı¾İ°ü¿ÉÒÔÖ±½ÓĞŞ¸Ä
 		if (writable_len <= skb_headlen(skb))
 			return 1;
 	} else if (skb_clone_writable(skb, writable_len)) //è¿™é‡Œæ²¡çœ‹æ‡‚
 		return 1;
 
-	//è®¡ç®—å®é™…è¦åœ¨tailåé¢åŠ å¤šå°‘ç©ºé—´
+	//¼ÆËãÊµ¼ÊÒªÔÚtailºóÃæ¼Ó¶àÉÙ¿Õ¼ä
 	if (writable_len <= skb_headlen(skb))
 		writable_len = 0;
 	else
 		writable_len -= skb_headlen(skb);
-	//å¯èƒ½ä¼šæ›´æ”¹skbä¸­çš„æŒ‡é’ˆï¼Œä¿è¯åœ¨çº¿æ€§æ•°æ®åŒºskb->tailåé¢æœ‰è¶³å¤Ÿçš„ç©ºé—´å¯å†™ï¼Œ
-	//å½“ç„¶åŸå§‹skbå¿…é¡»å­˜åœ¨writable_lenä¸ªå­—èŠ‚å¯ä»¥æ‹·è´
+	//¿ÉÄÜ»á¸ü¸ÄskbÖĞµÄÖ¸Õë£¬±£Ö¤ÔÚÏßĞÔÊı¾İÇøskb->tailºóÃæÓĞ×ã¹»µÄ¿Õ¼ä¿ÉĞ´£¬
+	//µ±È»Ô­Ê¼skb±ØĞë´æÔÚwritable_len¸ö×Ö½Ú¿ÉÒÔ¿½±´
 	return !!__pskb_pull_tail(skb, writable_len);
 }
 EXPORT_SYMBOL(skb_make_writable);

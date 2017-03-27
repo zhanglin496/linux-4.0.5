@@ -354,7 +354,7 @@ static struct device_type br_type = {
 void br_dev_setup(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
-
+	//随机生成MAC地址
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
 
@@ -370,7 +370,7 @@ void br_dev_setup(struct net_device *dev)
 	dev->hw_features = COMMON_FEATURES | NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_STAG_TX;
 	dev->vlan_features = COMMON_FEATURES;
-
+	//记录所属的net_device
 	br->dev = dev;
 	spin_lock_init(&br->lock);
 	INIT_LIST_HEAD(&br->port_list);

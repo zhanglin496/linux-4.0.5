@@ -204,6 +204,13 @@ static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *
 		rtnl_dereference(dev->rx_handler_data) : NULL;
 }
 
+//       br0    
+// |      |     | 
+// eth0  eth1  eth2
+//同一个br0 桥设备下可以桥接多个设备,br0是一个虚拟的网卡
+//所以数据接收都是先到达真实的物理设备eth0
+//这多个设备数据可以在二层转发
+//
 struct net_bridge
 {
 	spinlock_t			lock;
@@ -212,6 +219,7 @@ struct net_bridge
 
 	struct pcpu_sw_netstats		__percpu *stats;
 	spinlock_t			hash_lock;
+	//学习到的mac 和端口的映射表
 	struct hlist_head		hash[BR_HASH_SIZE];
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	struct rtable 			fake_rtable;

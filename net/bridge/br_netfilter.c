@@ -369,6 +369,7 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 		nf_bridge->mask ^= BRNF_PKT_TYPE;
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
+	//ip 层的netfilter修改了数据包的目的IP地址
 	if (dnat_took_place(skb)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -400,6 +401,7 @@ free_skb:
 		} else {
 			if (skb_dst(skb)->dev == dev) {
 bridged_dnat:
+				//重新设置为底层的物理端口
 				skb->dev = nf_bridge->physindev;
 				nf_bridge_update_protocol(skb);
 				nf_bridge_push_encap_header(skb);
@@ -456,7 +458,9 @@ static struct net_device *setup_pre_routing(struct sk_buff *skb)
 	}
 
 	nf_bridge->mask |= BRNF_NF_BRIDGE_PREROUTING;
+	//记录底层实际的物理设备
 	nf_bridge->physindev = skb->dev;
+	//设置skb->dev 为br0
 	skb->dev = brnf_get_logical_dev(skb, skb->dev);
 	if (skb->protocol == htons(ETH_P_8021Q))
 		nf_bridge->mask |= BRNF_8021Q;
@@ -601,6 +605,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 		return br_nf_pre_routing_ipv6(ops, skb, in, out, okfn);
 	}
 
+	//是否调用IP层 NETFILTER
 	if (!brnf_call_iptables && !br->nf_call_iptables)
 		return NF_ACCEPT;
 
@@ -613,10 +618,12 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
+	//重新分配skb->nf_bridge
 	if (!nf_bridge_alloc(skb))
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
+	//保存数据包的原始目的IP地址
 	store_orig_dstaddr(skb);
 	skb->protocol = htons(ETH_P_IP);
 

@@ -3651,7 +3651,7 @@ another_round:
 	__this_cpu_inc(softnet_data.processed);
 	//处理vlan数据包,去掉tag
 	//相对旧版内核的处理方式，不需要再一次调用netif_receive_skb
-	//
+	//去掉tag后，变成一个正常的以太网数据包
 	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
 	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
 		skb = skb_vlan_untag(skb);

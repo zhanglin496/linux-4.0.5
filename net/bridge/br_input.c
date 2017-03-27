@@ -144,11 +144,14 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	if (p->state == BR_STATE_LEARNING)
 		goto drop;
 
+	//指向br0 net_bridge
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 
 	/* The packet skb2 goes to the local host (NULL to skip). */
 	skb2 = NULL;
 
+	//如果br0设置了混杂模式
+	//始终需要向上投递到IP层
 	if (br->dev->flags & IFF_PROMISC)
 		skb2 = skb;
 

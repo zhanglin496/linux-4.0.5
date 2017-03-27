@@ -652,6 +652,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		goto out;
 	//这里可能会出现丢包问题，尤其是在NAT，IP地址和端口耗尽的情况下
 	//tuple会出现冲突问题
+	//或者可能同一个流的初始数据包在不同的CPU上达到，导致问题
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
 	   not in the hash.  If there is, we lost race. */
