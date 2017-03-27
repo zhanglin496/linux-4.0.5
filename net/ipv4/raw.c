@@ -541,6 +541,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	ipc.tx_flags = 0;
 	ipc.ttl = 0;
 	ipc.tos = -1;
+	//指定了出口设备
 	ipc.oif = sk->sk_bound_dev_if;
 
 	if (msg->msg_controllen) {

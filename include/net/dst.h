@@ -415,9 +415,13 @@ static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 	}
 
 	hh = &n->hh;
+	//如果邻居项现在可用，构造二层首部然后调用dev_queue_xmit
 	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
 		return neigh_hh_output(hh, skb);
 	else
+		//如果邻居项现在不可用，比如还未查到IP对应的MAC地址
+		//调用output缓存skb，等待邻居项解析成功再发送SKB
+		//比如arp解析完成
 		return n->output(n, skb);
 }
 

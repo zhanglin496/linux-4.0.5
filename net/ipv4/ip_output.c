@@ -194,6 +194,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 
 	rcu_read_lock_bh();
 	nexthop = (__force u32) rt_nexthop(rt, ip_hdr(skb)->daddr);
+	//根据IP地址和出口设备查找对应的邻居项
 	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);

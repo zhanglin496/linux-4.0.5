@@ -1165,6 +1165,9 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 
+//先在指定的dev中查找满主条件的地址
+//有可能in_dev 没有配置IP地址
+//那么就在全局已经注册的dev列表中选择一个合适的地址
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev)
@@ -1189,6 +1192,7 @@ no_in_dev:
 	   in this case. It is important that lo is the first interface
 	   in dev_base list.
 	 */
+	 //在所有的dev中选择一个合适IP地址
 	for_each_netdev_rcu(net, dev) {
 		in_dev = __in_dev_get_rcu(dev);
 		if (!in_dev)

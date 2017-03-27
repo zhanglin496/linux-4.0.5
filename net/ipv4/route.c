@@ -1580,6 +1580,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	//表示发送方和接收方是可以直接到达的
 	//不需要路由器参与转发，同时设置重定向标志
 	//在ip_forward中发送ICMP重定向报文
+	//只针对IP协议有效
 	if (out_dev == in_dev && err && IN_DEV_TX_REDIRECTS(out_dev) &&
 	    skb->protocol == htons(ETH_P_IP) &&
 	    (IN_DEV_SHARED_MEDIA(out_dev) ||
@@ -2193,6 +2194,9 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 		res.fi = NULL;
 		res.table = NULL;
 		if (fl4->flowi4_oif) {
+			//如果指定了出口设备
+			//即使路由查找失败或者没有配置IP地址
+			//也可以发送数据包
 			/* Apparently, routing tables are wrong. Assume,
 			   that the destination is on link.
 
