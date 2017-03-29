@@ -105,6 +105,7 @@ static void linkwatch_add_event(struct net_device *dev)
 
 	spin_lock_irqsave(&lweventlist_lock, flags);
 	if (list_empty(&dev->link_watch_list)) {
+		//
 		list_add_tail(&dev->link_watch_list, &lweventlist);
 		dev_hold(dev);
 	}

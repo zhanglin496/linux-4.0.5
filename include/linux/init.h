@@ -243,6 +243,7 @@ extern bool initcall_debug;
 struct obs_kernel_param {
 	const char *str;
 	int (*setup_func)(char *);
+	//处理早期选项，由early_param声明，优先于普通的__setup
 	int early;
 };
 
@@ -327,6 +328,10 @@ void __init parse_early_options(char *cmdline);
 #define module_init(initfn)					\
 	static inline initcall_t __inittest(void)		\
 	{ return initfn; }					\
+	//声明初始化函数，alias表明其别名为initfn
+	//这样用户可以自定义函数名称
+	//init_module函数在模块时生成的.mod.c 中的stuct module __this_module
+	//结构体init函数调用
 	int init_module(void) __attribute__((alias(#initfn)));
 
 /* This is only required if you want to be unloadable. */
@@ -334,7 +339,9 @@ void __init parse_early_options(char *cmdline);
 	static inline exitcall_t __exittest(void)		\
 	{ return exitfn; }					\
 	void cleanup_module(void) __attribute__((alias(#exitfn)));
-
+//静态编译到内核时，用于传递引导期间的内核参数
+//到内核代码中
+//内核支持内核模块时为空宏
 #define __setup_param(str, unique_id, fn)	/* nothing */
 #define __setup(str, func) 			/* nothing */
 #endif

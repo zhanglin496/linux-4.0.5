@@ -65,7 +65,8 @@ struct blocking_notifier_head {
 	struct rw_semaphore rwsem;
 	struct notifier_block __rcu *head;
 };
-
+//目前只有raw_notifier需要注册方自己处理回调函数的序列化
+//其他几种回调方式会自行加锁
 struct raw_notifier_head {
 	struct notifier_block __rcu *head;
 };

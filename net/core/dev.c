@@ -3397,6 +3397,8 @@ int netif_rx(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_rx);
 
+// 用于非中断环境
+//ni 表示non interrupt
 int netif_rx_ni(struct sk_buff *skb)
 {
 	int err;
@@ -3421,7 +3423,9 @@ static void net_tx_action(struct softirq_action *h)
 //閲婃斁宸茬粡瀹屾垚鍙戦�佺殑skb
 //鐢眃ev_kfree_skb_irq灏嗘暟鎹寘鍔犲叆鍒癱ompletion_queue闃熷垪
 //鍦ㄤ腑鏂腑璋冪敤璇ユ帴鍙ｉ噴鏀緎kb鏃讹紝鍙互闄嶄綆涓柇寤惰繜
-
+//dev_kfree_skb_irq中会把已经传输完成的skb
+//加入到completion_queue中，然后触发软中断在tx软中断中释放
+//这样做是为了降低中断延迟
 	if (sd->completion_queue) {
 		struct sk_buff *clist;
 
@@ -3699,6 +3703,8 @@ ncls:
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
 		}
+		//如果没有找到对应vlan标记的dev
+		//直接走剩余流程
 		if (vlan_do_receive(&skb))
 			goto another_round;
 		else if (unlikely(!skb))
@@ -4615,6 +4621,8 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 
 	WARN_ON_ONCE(work > weight);
 
+	//未使用完配额
+	//不需要重新调度
 	if (likely(work < weight))
 		goto out_unlock;
 
@@ -4643,7 +4651,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 			     n->dev ? n->dev->name : "backlog");
 		goto out_unlock;
 	}
-
+	//加入末尾，等待下次调度
 	list_add_tail(&n->poll_list, repoll);
 
 out_unlock:
@@ -6811,7 +6819,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->ptype_specific);
 	dev->priv_flags = IFF_XMIT_DST_RELEASE | IFF_XMIT_DST_RELEASE_PERM;
 	setup(dev);
-
+	//分配并初始化netdev_queue
+	//默认发送和接收都是1
 	dev->num_tx_queues = txqs;
 	dev->real_num_tx_queues = txqs;
 	if (netif_alloc_netdev_queues(dev))
@@ -7455,6 +7464,7 @@ static int __init net_dev_init(void)
 		skb_queue_head_init(&sd->input_pkt_queue);
 		skb_queue_head_init(&sd->process_queue);
 		INIT_LIST_HEAD(&sd->poll_list);
+		//指向output_queue
 		sd->output_queue_tailp = &sd->output_queue;
 #ifdef CONFIG_RPS
 		sd->csd.func = rps_trigger_softirq;
@@ -7482,7 +7492,7 @@ static int __init net_dev_init(void)
 
 	if (register_pernet_device(&default_device_ops))
 		goto out;
-
+	//注册网络软中断
 	open_softirq(NET_TX_SOFTIRQ, net_tx_action);
 	open_softirq(NET_RX_SOFTIRQ, net_rx_action);
 

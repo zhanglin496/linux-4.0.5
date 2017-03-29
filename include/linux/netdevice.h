@@ -2457,7 +2457,9 @@ struct softnet_data {
 	struct sd_flow_limit __rcu *flow_limit;
 #endif
 	struct Qdisc		*output_queue;
+	//net_dev_init 中初始化指向output_queue
 	struct Qdisc		**output_queue_tailp;
+	
 	struct sk_buff		*completion_queue;
 
 #ifdef CONFIG_RPS
