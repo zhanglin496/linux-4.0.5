@@ -87,6 +87,15 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 
 	*packets = 1;
 	*validate = true;
+	//通用分段卸载
+	//ethtool -k eth1
+	//Offload parameters for eth1:
+	//tcp-segmentation-offload: on <======TSO
+	//udp-fragmentation-offload: off<======UFO
+	//generic-segmentation-offload: on<======GSO
+	//generic-receive-offload: off<======GRO
+	//large-receive-offload: off<======LRO
+	//前3个是为了传输数据的，后2个是为了接收数据的。
 	if (unlikely(skb)) {
 		/* check the reason of requeuing without tx lock first */
 		txq = skb_get_tx_queue(txq->dev, skb);
@@ -179,7 +188,7 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 		if (unlikely(ret != NETDEV_TX_BUSY))
 			net_warn_ratelimited("BUG %s code %d qlen %d\n",
 					     dev->name, ret, q->q.qlen);
-
+		//传输失败，重新入队skb
 		ret = dev_requeue_skb(skb, q);
 	}
 

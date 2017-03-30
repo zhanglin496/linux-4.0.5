@@ -313,6 +313,15 @@ struct ubuf_info {
 struct skb_shared_info {
 	unsigned char	nr_frags;  // 分页段数目，即frags数组元素个数  
 	__u8		tx_flags;
+	//通用分段卸载
+	//ethtool -k eth1
+	//Offload parameters for eth1:
+	//tcp-segmentation-offload: on <======TSO
+	//udp-fragmentation-offload: off<======UFO
+	//generic-segmentation-offload: on<======GSO
+	//generic-receive-offload: off<======GRO
+	//large-receive-offload: off<======LRO
+	//前3个是为了传输数据的，后2个是为了接收数据的。
 	unsigned short	gso_size; //每个通用分段卸载的大小
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs; //通用分段卸载的数目

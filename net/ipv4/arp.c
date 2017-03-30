@@ -898,14 +898,15 @@ static int arp_process(struct sk_buff *skb)
 
 	/* Update our ARP tables */
 	//ä»¥æºIPåœ°å€å’ŒæŽ¥å£ä¸ºå…³é”®å­—
+	//ÁÚ¾ÓÏîÊÇºÍdevÏà¹ØÁª
 	n = __neigh_lookup(&arp_tbl, &sip, dev, 0);
-	//æ˜¯å¦æŽ¥å—å…è´¹arp
+	//ÊÇ·ñÔÊÐíÃâ·Ñarp
 	if (IN_DEV_ARP_ACCEPT(in_dev)) {
 		/* Unsolicited ARP is not accepted by default.
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)
 		 */
-		 //å…è´¹arp
+		 //Ãâ·Ñarp
 		is_garp = arp->ar_op == htons(ARPOP_REQUEST) && tip == sip &&
 			  inet_addr_type(net, sip) == RTN_UNICAST;
 

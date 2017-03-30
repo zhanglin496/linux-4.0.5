@@ -272,6 +272,7 @@ int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, __be16 
 		return -1;
 
 	eth->h_proto = type;
+	//使用出口设备的地址作为源MAC地址
 	memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 	memcpy(eth->h_dest, neigh->ha, ETH_ALEN);
 	hh->hh_len = ETH_HLEN;

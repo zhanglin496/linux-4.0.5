@@ -1209,6 +1209,7 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 				if (n2)
 					n1 = n2;
 			}
+			//调用发送函数，发送数据包
 			n1->output(n1, skb);
 			if (n2)
 				neigh_release(n2);
@@ -1314,13 +1315,15 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 		int err;
 		struct net_device *dev = neigh->dev;
 		unsigned int seq;
-
+		//缓存hh_cache
+		//下次直接拷贝L2
 		if (dev->header_ops->cache && !neigh->hh.hh_len)
 			neigh_hh_init(neigh, dst);
 
 		do {
 			__skb_pull(skb, skb_network_offset(skb));
 			seq = read_seqbegin(&neigh->ha_lock);
+			//未指定源MAC地址，使用出口设备的MAC地址
 			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					      neigh->ha, NULL, skb->len);
 		} while (read_seqretry(&neigh->ha_lock, seq));
@@ -1342,7 +1345,8 @@ out_kfree_skb:
 EXPORT_SYMBOL(neigh_resolve_output);
 
 /* As fast as possible without hh cache */
-
+//重建L2层数据头
+//调用dev_queue_xmit发送函数
 int neigh_connected_output(struct neighbour *neigh, struct sk_buff *skb)
 {
 	struct net_device *dev = neigh->dev;

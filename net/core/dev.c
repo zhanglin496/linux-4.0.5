@@ -3467,6 +3467,7 @@ static void net_tx_action(struct softirq_action *h)
 				smp_mb__before_atomic();
 				clear_bit(__QDISC_STATE_SCHED,
 					  &q->state);
+				//
 				qdisc_run(q);
 				spin_unlock(root_lock);
 			} else {
@@ -6394,7 +6395,11 @@ int register_netdevice(struct net_device *dev)
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 
 	linkwatch_init_dev(dev);
-
+	//初始化qdisc排队规则
+	//这里默认为noop_qdisc，是无法发送数据包
+	//当用ifconfig 开启设备时会
+	// 在dev_open 或者__dev_open中调用dev_activate中选取适当的排队规则
+	//对大多数虚拟设备默认的规则是noqueue_qdisc
 	dev_init_scheduler(dev);
 	dev_hold(dev);
 	list_netdevice(dev);
