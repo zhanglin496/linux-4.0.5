@@ -266,6 +266,7 @@ out:
 	spin_unlock_bh(&br->hash_lock);
 }
 
+//gc timer删除老化的fdb数据库，是一个全局定时器
 void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
