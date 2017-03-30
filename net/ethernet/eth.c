@@ -186,6 +186,9 @@ EXPORT_SYMBOL(eth_get_headlen);
  * assume 802.3 if the type field is short enough to be a length.
  * This is normal practice and works for any 'now in use' protocol.
  */
+
+//大多数以太网驱动会调用该函数
+//产生正确的skb->protocol 值
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned short _service_access_point;
@@ -218,7 +221,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (unlikely(netdev_uses_dsa(dev)))
 		return htons(ETH_P_XDSA);
-
+	//>= 1536
 	if (likely(ntohs(eth->h_proto) >= ETH_P_802_3_MIN))
 		return eth->h_proto;
 
@@ -228,10 +231,11 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 *      layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
 	 *      won't work for fault tolerant netware but does for the rest.
 	 */
+	 //ipx_rcv
 	sap = skb_header_pointer(skb, 0, sizeof(*sap), &_service_access_point);
 	if (sap && *sap == 0xFFFF)
 		return htons(ETH_P_802_3);
-
+	//llc_rcv
 	/*
 	 *      Real 802.2 LLC
 	 */

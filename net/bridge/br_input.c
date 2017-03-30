@@ -158,6 +158,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	dst = NULL;
 
 	if (is_broadcast_ether_addr(dest)) {
+		//该端口是否启用了arp代理
 		if (IS_ENABLED(CONFIG_INET) &&
 		    p->flags & BR_PROXYARP &&
 		    skb->protocol == htons(ETH_P_ARP))
@@ -197,6 +198,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 			dst->used = jiffies;
 			br_forward(dst->dst, skb, skb2);
 		} else
+		//泛洪arp广播等
 			br_flood_forward(br, skb, skb2, unicast);
 	}
 	//向上投递到本地桥接口，比如br0

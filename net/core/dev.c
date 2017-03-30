@@ -1783,6 +1783,8 @@ again:
 		/* Never send packets back to the socket
 		 * they originated from - MvS (miquels@drinkel.ow.org)
 		 */
+		 //sk 过滤，对于sk发送的数据包不再回传给sk
+		 //目前只有af_packet 在使用该af_packet_priv字段
 		if (skb_loop_sk(ptype, skb))
 			continue;
 
@@ -1817,7 +1819,7 @@ again:
 		skb2->pkt_type = PACKET_OUTGOING;
 		pt_prev = ptype;
 	}
-
+	//再次遍历dev上的ptype_all
 	if (ptype_list == &ptype_all) {
 		ptype_list = &dev->ptype_all;
 		goto again;
@@ -2614,7 +2616,8 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 {
 	unsigned int len;
 	int rc;
-
+	//dev->ptype_all 只接收绑定到指定接口的数据包
+	//ptype_all接收所有接口的数据包
 	if (!list_empty(&ptype_all) || !list_empty(&dev->ptype_all))
 		dev_queue_xmit_nit(skb, dev);
 
