@@ -481,6 +481,7 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->is_local = 0;
 		fdb->is_static = 0;
 		fdb->added_by_user = 0;
+		//由switch_dev使用
 		fdb->added_by_external_learn = 0;
 		fdb->updated = fdb->used = jiffies;
 		hlist_add_head_rcu(&fdb->hlist, head);
@@ -575,7 +576,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		}
 	} else {
 	//未找到fdb数据库，添加新的数据库
-	//可能会有多个数据库指向同一个net_bridge_port,但是一个net_bridge_port只会关联到一个固定的net_devcie
+	//可能会有多个net_bridge_fdb_entry数据库指向同一个net_bridge_port,但是一个net_bridge_port只会关联到一个固定的net_devcie
 	//因为每一个net_bridge_port可能会收到多个源mac地址不一样的数据包
 	//所以要建立多个net_bridge_fdb_entry数据库条目来记录数据包来自哪个net_bridge_port
 		spin_lock(&br->hash_lock);
