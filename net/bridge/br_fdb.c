@@ -562,7 +562,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 					source->dev->name);
 		} else {
 			/* fastpath: update of existing entry */
-			//port地址不相等 指向新的port
+			//port地址不相等，主机可能移动到其他的端口了， 指向新的port
 			if (unlikely(source != fdb->dst)) {
 				fdb->dst = source;
 				fdb_modified = true;
@@ -574,6 +574,10 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb_notify(br, fdb, RTM_NEWNEIGH);
 		}
 	} else {
+	//未找到fdb数据库，添加新的数据库
+	//一般会有多个端口指向同一个net_devcie
+	//因为每一个net_device可能会收到多个源mac地址不一样的数据包
+	//所以要建立多个net_bridge_fdb_entry数据库条目来记录数据包来自哪个net_device
 		spin_lock(&br->hash_lock);
 		if (likely(!fdb_find(head, addr, vid))) {
 			fdb = fdb_create(head, source, addr, vid);
