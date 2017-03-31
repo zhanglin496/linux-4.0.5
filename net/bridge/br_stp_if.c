@@ -35,6 +35,7 @@ static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
 /* called under bridge lock */
 void br_init_port(struct net_bridge_port *p)
 {
+	//根据端口优先级和端口号生成端口ID
 	p->port_id = br_make_port_id(p->priority, p->port_no);
 	br_become_designated_port(p);
 	br_set_state(p, BR_STATE_BLOCKING);
@@ -224,11 +225,11 @@ bool br_stp_recalculate_bridge_id(struct net_bridge *br)
 			(const unsigned char *)br_mac_zero_aligned;
 	const unsigned char *addr = br_mac_zero;
 	struct net_bridge_port *p;
-
+	//如果是用户配置的MAC地址，则不修改
 	/* user has chosen a value so keep it */
 	if (br->dev->addr_assign_type == NET_ADDR_SET)
 		return false;
-
+	//否则在桥接的端口中选择一个小的MAC地址
 	list_for_each_entry(p, &br->port_list, list) {
 		if (addr == br_mac_zero ||
 		    memcmp(p->dev->dev_addr, addr, ETH_ALEN) < 0)

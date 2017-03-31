@@ -1758,11 +1758,14 @@ static inline int pskb_may_pull(struct sk_buff *skb, unsigned int len)
 	//å‡è®¾å¤´éƒ¨é•¿åº¦è¶³å¤Ÿï¼Œä½†æ˜¯skb æ˜¯cloneçš„ï¼Œ
 	//å› æ­¤å…±äº«çš„æ•°æ®ç¼“å†²åŒºæ˜¯ä¸èƒ½ä¿®æ”¹
 	//æ‰€ä»¥ä¸ä¿è¯ä¸€å®šå¯å†™,å› ä¸ºæ²¡æœ‰åˆ¤æ–­skbæ˜¯å¦clone
-
+	//ºÍskb_make_writableµÄÇø±ğÊÇ£¬skb_make_writable±£Ö¤ÊÇ¿ÉĞ´µÄ
+	//µ«ÊÇpskb_may_pull²»±£Ö¤¿ÉĞ´£¬Ö»±£Ö¤skb ÓĞÖ¸¶¨µÄlen ×Ö½ÚÊı¾İ
+	//Í¬Ê±±£Ö¤Ö¸¶¨µÄlen×Ö½ÚÎ»ÓÚÏßĞÔÇøÖĞ
 	if (likely(len <= skb_headlen(skb)))
 		return 1;
 	if (unlikely(len > skb->len))
 		return 0;
+	//¿½±´×Ô¶¨µÄ×Ö½ÚÊıµ½ÏßĞÔÇøÖĞ
 	//å¦‚æœåˆ°è¾¾è¿™é‡Œï¼Œè¿”å›çš„skbä¸€å®šæ˜¯å¯å†™çš„
 	return __pskb_pull_tail(skb, len - skb_headlen(skb)) != NULL;
 }

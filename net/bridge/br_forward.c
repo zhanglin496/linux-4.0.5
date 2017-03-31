@@ -30,6 +30,11 @@ static int deliver_clone(const struct net_bridge_port *prev,
 static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
+	//有些情况下，源和目标都在一个方向，
+	//所以就是从哪里进来就从从哪里出去的模式
+	//BR_HAIRPIN_MODE 发夹弯模式就是用于这种目的
+	//当开启BR_HAIRPIN_MODE 时，不会比较入口设备和
+	//出口设备是否相同
 	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
 		br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
 		p->state == BR_STATE_FORWARDING;

@@ -144,7 +144,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	if (p->state == BR_STATE_LEARNING)
 		goto drop;
 
-	//指向br0 net_bridge
+	//指向br0 net_device
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 
 	/* The packet skb2 goes to the local host (NULL to skip). */
@@ -192,13 +192,15 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		/* Do not forward the packet since it's local. */
 		skb = NULL;
 	}
-
+	//入口帧和出口帧分别调用了不同的处理函数
 	if (skb) {
 		if (dst) {
 			dst->used = jiffies;
+			//入口帧调用br_forward, 出口帧在br_dev_xmit 中调用br_deliver
 			br_forward(dst->dst, skb, skb2);
 		} else
-		//泛洪arp广播等
+		//泛洪arp广播等,入口帧调用br_flood_forward,
+		//出口帧在br_dev_xmit 中调用br_flood_deliver
 			br_flood_forward(br, skb, skb2, unicast);
 	}
 	//向上投递到本地桥接口，比如br0
