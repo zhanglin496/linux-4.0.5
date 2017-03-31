@@ -1731,7 +1731,9 @@ static inline int deliver_skb(struct sk_buff *skb,
 {
 	if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
 		return -ENOMEM;
+	//递增引用计数，防止被提前释放
 	atomic_inc(&skb->users);
+	//func中会递减引用计数
 	return pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 }
 
@@ -3644,6 +3646,7 @@ static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 
 	orig_dev = skb->dev;
 
+	//正确设置相关指针
 	skb_reset_network_header(skb);
 	if (!skb_transport_header_was_set(skb))
 		skb_reset_transport_header(skb);
@@ -3676,19 +3679,23 @@ another_round:
 
 	if (pfmemalloc)
 		goto skip_taps;
-
+	//假设skb 的引用计数为1
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+		//第一次pt_prev为NULL
 		if (pt_prev)
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 		pt_prev = ptype;
 	}
-
+	//遍历绑定到该设备的接收列表
 	list_for_each_entry_rcu(ptype, &skb->dev->ptype_all, list) {
+		//如果pt_prev不为空，表示最后一个ptype 未被调用
 		if (pt_prev)
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 		pt_prev = ptype;
 	}
-
+	//这里pt_prev有两种情况
+	// 1. pt_prev 为NULL 或者
+	// 2. pt_prev 指向链表最后一个ptype
 skip_taps:
 #ifdef CONFIG_NET_CLS_ACT
 	skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
@@ -3766,6 +3773,8 @@ ncls:
 				       &skb->dev->ptype_specific);
 	}
 
+	//如果pt_prev不为空，直接调用func，节省一次调用kfree_skb
+	//func 负责递减引用计数来释放skb
 	if (pt_prev) {
 		if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
 			goto drop;
@@ -3773,6 +3782,8 @@ ncls:
 			ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 	} else {
 drop:
+		//假设没有函数处理该数据包
+		//所以必须单独调用一次kfree_skb
 		atomic_long_inc(&skb->dev->rx_dropped);
 		kfree_skb(skb);
 		/* Jamal, now you will not able to escape explaining
