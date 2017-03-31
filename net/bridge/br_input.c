@@ -299,8 +299,13 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 forward:
 	switch (p->state) {
 	case BR_STATE_FORWARDING:
+		//Brouting: decide which traffic to bridge between two interfaces
+		//and which traffic to route between the same two interfaces. 
+		//The two interfaces belong to a logical bridge device 
+		//but have their own IP address and can belong to a different subnet.
 		//ebtables_broute功能,详见ebt_broute函数
 		//此功能的目的是比如桥接的端口配置了L3(ip) 地址
+		//详见http://ebtables.netfilter.org/
 		rhook = rcu_dereference(br_should_route_hook);
 		if (rhook) {
 			//如果ebt_broute返回1，数据包不走桥接流程
@@ -308,7 +313,7 @@ forward:
 			//ebtables -t broute -A BROUTING -p ARP --arp-ip-src 192.168.44.129 -j DROP
 			if ((*rhook)(skb)) {
 				*pskb = skb;
-				//跳过桥接处理
+				//跳过桥接处理，让更高层协议处理
 				return RX_HANDLER_PASS;
 			}
 			//ebt_broute可能修改了目的MAC地址
