@@ -251,6 +251,12 @@ int ip_local_deliver(struct sk_buff *skb)
 	//å› æ­¤ä¸ä¼šå‘é€ackæ¥ç¡®è®¤æ•°æ®
 	//å¦‚æžœæœ‰æ•°æ®ä¸¢å¤±ï¼Œå‘é€æ–¹éœ€è¦é‡ä¼ æ•´ä¸ªæ•°æ®æŠ¥
 	//æ‰€ä»¥è¦å°½é‡é¿å…IPåˆ†ç‰‡
+	//ÖØ×éip·ÖÆ¬£¬ÔÚIP·ÖÆ¬±»ÖØ×éÍê³ÉÇ°
+	//tcp²ãÊÇ¿´²»µ½·ÖÆ¬±¨ÎÄµÄ£¬ËùÒÔ½ÓÊÕ¶Ë²»ÄÜ¼°Ê±È·ÈÏ½ÓÊÕµÄ±¨ÎÄ
+	//ÕâÒ²ÊÇÎªÊ²Ã´Òª±ÜÃâ·ÖÆ¬
+	//ÒòÎª·ÖÆ¬ÖØ×éÊ±¼ä¹ý³¤µÄ»°£¬»áµ¼ÖÂ·¢ËÍ¶ËÖØ´«±¨ÎÄ
+	//Í¬Ê±·¢ËÍ¶ËÖ»ÓÐ¿¿³¬Ê±»úÖÆÀ´ÖØ´«±¨ÎÄ
+	//»áµ¼ÖÂÍÌÍÂÁ¿»áÏÂ½µ
 	if (ip_is_fragment(ip_hdr(skb))) {
 		if (ip_defrag(skb, IP_DEFRAG_LOCAL_DELIVER))
 			return 0;

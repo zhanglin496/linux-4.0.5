@@ -690,6 +690,7 @@ EXPORT_SYMBOL(arp_create);
  */
 void arp_xmit(struct sk_buff *skb)
 {
+//调用arp netfilter out 钩子点
 	/* Send it off, maybe filter it using firewalling first.  */
 	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT, skb, NULL, skb->dev, dev_queue_xmit);
 }
@@ -980,7 +981,7 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto freeskb;
 
 	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
-
+//调用arp netfilter in 钩子点
 	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN, skb, dev, NULL, arp_process);
 
 consumeskb:
