@@ -888,7 +888,8 @@ static int arp_process(struct sk_buff *skb)
 				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED ||
 				    skb->pkt_type == PACKET_HOST ||
 				    NEIGH_VAR(in_dev->arp_parms, PROXY_DELAY) == 0) {
-				    //响应dev的L2地址
+				    //响应dev的L2地址,在多个NIC接口上会有一些问题
+				    //可以配置arp_ignore 来处理
 					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
 						 dev, tip, sha, dev->dev_addr,
 						 sha);
@@ -907,6 +908,10 @@ static int arp_process(struct sk_buff *skb)
 	//邻居项是和dev相关联
 	n = __neigh_lookup(&arp_tbl, &sip, dev, 0);
 	//是否允许免费arp
+	//或者允许被动接受ARPOP_REPLY 数据包
+	//也就是没有主动发起ARPOP_REQUEST 数据包的
+	//情况下收到ARPOP_REPLY 数据包
+	//该选项默认关闭
 	if (IN_DEV_ARP_ACCEPT(in_dev)) {
 		/* Unsolicited ARP is not accepted by default.
 		   It is possible, that this option should be enabled for some
