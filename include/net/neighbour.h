@@ -148,7 +148,9 @@ struct neighbour {
 	__u8			type;
 	__u8			dead;
 	seqlock_t		ha_lock;
+	//单个L2地址
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+	//hard header cache，缓存整个L2首部
 	struct hh_cache		hh;
 	int			(*output)(struct neighbour *, struct sk_buff *);
 	const struct neigh_ops	*ops;

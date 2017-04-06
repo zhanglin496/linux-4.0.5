@@ -2636,7 +2636,7 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *de
 {
 	struct sk_buff *skb = first;
 	int rc = NETDEV_TX_OK;
-
+	//循环发送数据包，和frag_list 有什么区别?
 	while (skb) {
 		struct sk_buff *next = skb->next;
 

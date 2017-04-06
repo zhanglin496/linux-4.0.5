@@ -165,7 +165,7 @@ err:
 	kfree(entry);
 	return status;
 }
-
+//向协议栈重新注入数据包
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	struct sk_buff *skb = entry->skb;
@@ -188,7 +188,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		if (!afinfo || afinfo->reroute(skb, entry) < 0)
 			verdict = NF_DROP;
 	}
-
+//再次遍历netfilter hook 函数
 	if (verdict == NF_ACCEPT) {
 	next_hook:
 		verdict = nf_iterate(&nf_hooks[entry->pf][entry->hook],

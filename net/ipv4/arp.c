@@ -239,7 +239,7 @@ static int arp_constructor(struct neighbour *neigh)
 	__neigh_parms_put(neigh->parms);
 	neigh->parms = neigh_parms_clone(parms);
 	rcu_read_unlock();
-
+	//不需要L3到L2 的映射
 	if (!dev->header_ops) {
 		neigh->nud_state = NUD_NOARP;
 		neigh->ops = &arp_direct_ops;
@@ -876,14 +876,19 @@ static int arp_process(struct sk_buff *skb)
 			    (arp_fwd_proxy(in_dev, dev, rt) ||
 			     arp_fwd_pvlan(in_dev, dev, rt, sip, tip) ||
 			     (rt->dst.dev != dev &&
+			     //检查目的IP地址是否需要被代理
+			     //一般由用户手动添加
 			      pneigh_lookup(&arp_tbl, net, &tip, dev, 0)))) {
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n)
 					neigh_release(n);
-
+				//LOCALLY_ENQUEUED 表示是由代理重洗入队的数据包
+				//所以必须马上处理，否侧会再次调用pneigh_enqueue，
+				//导致死循环
 				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED ||
 				    skb->pkt_type == PACKET_HOST ||
 				    NEIGH_VAR(in_dev->arp_parms, PROXY_DELAY) == 0) {
+				    //响应dev的L2地址
 					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
 						 dev, tip, sha, dev->dev_addr,
 						 sha);

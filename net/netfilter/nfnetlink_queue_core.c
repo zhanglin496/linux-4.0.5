@@ -718,6 +718,7 @@ nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e, int diff)
 	}
 	if (!skb_make_writable(e->skb, data_len))
 		return -ENOMEM;
+	//覆盖原始的数据区
 	skb_copy_to_linear_data(e->skb, data, data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
 	return 0;
@@ -988,7 +989,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 					    nlmsg_report(nlh));
 		}
 	}
-
+	//修改skb 数据
 	if (nfqa[NFQA_PAYLOAD]) {
 		u16 payload_len = nla_len(nfqa[NFQA_PAYLOAD]);
 		int diff = payload_len - entry->skb->len;
@@ -996,7 +997,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		if (nfqnl_mangle(nla_data(nfqa[NFQA_PAYLOAD]),
 				 payload_len, entry, diff) < 0)
 			verdict = NF_DROP;
-
+		//TCP 需要序列号调整
 		if (ct)
 			nfqnl_ct_seq_adjust(entry->skb, ct, ctinfo, diff);
 	}

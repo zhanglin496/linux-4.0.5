@@ -212,8 +212,8 @@ struct skb_frag_struct {
 	__u32 page_offset;
 	__u32 size;
 #else
-	__u16 page_offset; // 代表相对开始位置的页偏移量  
-	__u16 size; // page中数据长度  
+	__u16 page_offset; // 代表相对本页面开始位置的字节偏移量  
+	__u16 size; //  在p指向的page中本片段的数据长度 ，因为可能共用同一个page 
 #endif
 };
 

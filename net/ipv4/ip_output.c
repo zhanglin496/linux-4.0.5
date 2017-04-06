@@ -195,6 +195,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	rcu_read_lock_bh();
 	nexthop = (__force u32) rt_nexthop(rt, ip_hdr(skb)->daddr);
 	//根据IP地址和出口设备查找对应的邻居项
+	//每次都要查找，可以考虑缓存
 	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
@@ -1339,7 +1340,8 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	if ((skb = __skb_dequeue(queue)) == NULL)
 		goto out;
 	tail_skb = &(skb_shinfo(skb)->frag_list);
-
+	//把queue中的数据排入frag_list中
+	//注意这里不会处理frags 数据
 	/* move skb->data to ip header from ext header */
 	if (skb->data < skb_network_header(skb))
 		__skb_pull(skb, skb_network_offset(skb));

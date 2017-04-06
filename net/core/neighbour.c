@@ -1424,6 +1424,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 	}
 
 	NEIGH_CB(skb)->sched_next = sched_next;
+	//标记数据包已经排入队里处理
 	NEIGH_CB(skb)->flags |= LOCALLY_ENQUEUED;
 
 	spin_lock(&tbl->proxy_queue.lock);
