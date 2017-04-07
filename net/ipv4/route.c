@@ -1754,7 +1754,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	//路由查找成功，res.fi不为NULL
 	if (res.type == RTN_BROADCAST)
 		goto brd_input;
-
+	//反向路径源地址验证
 	if (res.type == RTN_LOCAL) {
 		err = fib_validate_source(skb, saddr, daddr, tos,
 					  0, dev, in_dev, &itag);

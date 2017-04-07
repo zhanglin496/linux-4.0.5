@@ -431,6 +431,7 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 		return 1;
 	//确定出口入口是否一致
 	//入口设备不等于出口设备
+	//arp 反向路径验证
 	if (rt->dst.dev != dev) {
 		NET_INC_STATS_BH(net, LINUX_MIB_ARPFILTER);
 		flag = 1;
@@ -512,24 +513,30 @@ static inline int arp_fwd_proxy(struct in_device *in_dev,
 {
 	struct in_device *out_dev;
 	int imi, omi = -1;
-
+//如果入口设备等于出口设备
+//则不代理
+//也就是路由查找的结果表明该数据包要从接收到的相同dev发送出去
+//也就是说在同一个lan中， 那么就不应该代理
 	if (rt->dst.dev == dev)
 		return 0;
-
+	//是否开启proxy_arp 
 	if (!IN_DEV_PROXY_ARP(in_dev))
 		return 0;
 	imi = IN_DEV_MEDIUM_ID(in_dev);
+	//关闭介质ID
 	if (imi == 0)
 		return 1;
+	// ARP 代理关闭
 	if (imi == -1)
 		return 0;
 
 	/* place to check for proxy_arp for routes */
-
+	//获取出口的设备的介质ID
 	out_dev = __in_dev_get_rcu(rt->dst.dev);
 	if (out_dev)
 		omi = IN_DEV_MEDIUM_ID(out_dev);
-
+	//介质ID不相等，同时出口介质ID 没有关闭arp代理
+	//那么可以代理该arp请求
 	return omi != imi && omi != -1;
 }
 
@@ -557,13 +564,14 @@ static inline int arp_fwd_pvlan(struct in_device *in_dev,
 				__be32 sip, __be32 tip)
 {
 	/* Private VLAN is only concerned about the same ethernet segment */
+	//必须是从相同的设备发送出去
 	if (rt->dst.dev != dev)
 		return 0;
 
 	/* Don't reply on self probes (often done by windowz boxes)*/
 	if (sip == tip)
 		return 0;
-
+	// 是否开启proxy_arp_pvlan
 	if (IN_DEV_PROXY_ARP_PVLAN(in_dev))
 		return 1;
 	else
@@ -812,6 +820,8 @@ static int arp_process(struct sk_buff *skb)
  *	Check for bad requests for 127.x.x.x and requests for multicast
  *	addresses.  If this is one such, delete it.
  */
+ //tip 是多播的情况是不需要动态映射到L2
+ //直接按照静态转换规则完成，所以直接丢弃多播报文
 	if (ipv4_is_multicast(tip) ||
 	    (!IN_DEV_ROUTE_LOCALNET(in_dev) && ipv4_is_loopback(tip)))
 		goto out;
@@ -841,6 +851,8 @@ static int arp_process(struct sk_buff *skb)
 
 	/* Special case: IPv4 duplicate address detection packet (RFC2131) */
 	if (sip == 0) {
+		//重复地址检测
+		//如果tip 和本机ip地址相同，表示有冲突
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
 		    inet_addr_type(net, tip) == RTN_LOCAL &&
 		    !arp_ignore(in_dev, sip, tip))
@@ -854,14 +866,16 @@ static int arp_process(struct sk_buff *skb)
 
 		rt = skb_rtable(skb);
 		addr_type = rt->rt_type;
-
+		//tip 是本机地址
 		if (addr_type == RTN_LOCAL) {
 			int dont_send;
 
 			dont_send = arp_ignore(in_dev, sip, tip);
 			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
+				//执行反向路径检查
 				dont_send = arp_filter(sip, tip, dev);
 			if (!dont_send) {
+				//不存在时创建一个新的邻居项
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n) {
 					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
@@ -873,16 +887,18 @@ static int arp_process(struct sk_buff *skb)
 			goto out;
 		} else if (IN_DEV_FORWARD(in_dev)) {
 			if (addr_type == RTN_UNICAST  &&
+				//基于设备的代理检查
 			    (arp_fwd_proxy(in_dev, dev, rt) ||
 			     arp_fwd_pvlan(in_dev, dev, rt, sip, tip) ||
 			     (rt->dst.dev != dev &&
+			     //基于目的IP地址的代理
 			     //检查目的IP地址是否需要被代理
 			     //一般由用户手动添加
 			      pneigh_lookup(&arp_tbl, net, &tip, dev, 0)))) {
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n)
 					neigh_release(n);
-				//LOCALLY_ENQUEUED 表示是由代理重洗入队的数据包
+				//LOCALLY_ENQUEUED 表示是由代理重新入队的数据包
 				//所以必须马上处理，否侧会再次调用pneigh_enqueue，
 				//导致死循环
 				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED ||
@@ -890,6 +906,9 @@ static int arp_process(struct sk_buff *skb)
 				    NEIGH_VAR(in_dev->arp_parms, PROXY_DELAY) == 0) {
 				    //响应dev的L2地址,在多个NIC接口上会有一些问题
 				    //可以配置arp_ignore 来处理
+				    //开启arp代理后，响应的L2地址都是本dev的L2地址
+				    //L3 映射到入口dev 的L2
+				    //相当于要代理所有的数据流量，要小心使用
 					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
 						 dev, tip, sha, dev->dev_addr,
 						 sha);
@@ -924,6 +943,7 @@ static int arp_process(struct sk_buff *skb)
 		if (n == NULL &&
 		    ((arp->ar_op == htons(ARPOP_REPLY)  &&
 		      inet_addr_type(net, sip) == RTN_UNICAST) || is_garp))
+		      //创建一个新的邻居项
 			n = __neigh_lookup(&arp_tbl, &sip, dev, 1);
 	}
 
@@ -956,7 +976,7 @@ out:
 	consume_skb(skb);
 	return 0;
 }
-
+//代理arp 延迟处理函数
 static void parp_redo(struct sk_buff *skb)
 {
 	arp_process(skb);
