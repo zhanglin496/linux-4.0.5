@@ -195,6 +195,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	const unsigned short *sap;
 	const struct ethhdr *eth;
 
+	//skb属于当前的dev
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
 	

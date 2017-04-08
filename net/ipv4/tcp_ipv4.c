@@ -186,7 +186,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	if (!inet_opt || !inet_opt->opt.srr)
 		daddr = fl4->daddr;
-
+	//如果没有指定原地址，比如客户端没调用bind
+	//那就使用路由选择的原地址
 	if (!inet->inet_saddr)
 		inet->inet_saddr = fl4->saddr;
 	inet->inet_rcv_saddr = inet->inet_saddr;

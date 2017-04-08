@@ -2054,7 +2054,8 @@ add:
 	INIT_LIST_HEAD(&rth->rt_uncached);
 
 	RT_CACHE_STAT_INC(out_slow_tot);
-
+	//如果是到本机的，指定为ip_local_deliver
+	//比如ping自己或者在本机上自己连自己
 	if (flags & RTCF_LOCAL)
 		rth->dst.input = ip_local_deliver;
 	if (flags & (RTCF_BROADCAST | RTCF_MULTICAST)) {
@@ -2104,7 +2105,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			 RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
 	rcu_read_lock();
-	//多数情况下原地址不为空
+	//如果客服端没有绑定原地址，那么在第一次连接时为空，多数情况下原地址不为空
 	if (fl4->saddr) {
 		rth = ERR_PTR(-EINVAL);
 		if (ipv4_is_multicast(fl4->saddr) ||
@@ -2156,6 +2157,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 
 
 	if (fl4->flowi4_oif) {
+		//如果指定了出口设备，出口设备必须存在
 		dev_out = dev_get_by_index_rcu(net, fl4->flowi4_oif);
 		rth = ERR_PTR(-ENODEV);
 		if (dev_out == NULL)
@@ -2184,7 +2186,9 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	}
 
 	if (!fl4->daddr) {
+		//如果目的地址为0,数据包通过loopback回环到本机
 		fl4->daddr = fl4->saddr;
+		//仍然为0,设置为回环地址
 		if (!fl4->daddr)
 			fl4->daddr = fl4->saddr = htonl(INADDR_LOOPBACK);
 		dev_out = net->loopback_dev;
@@ -2236,8 +2240,15 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			else
 				fl4->saddr = fl4->daddr;
 		}
+		//如果是自己给自己发生数据包，
+		//指定出口设备为回环设备，这样发出去的数据包会再次回环到本机
+		//这里利用了回环设备的特性
+		//具体实现就是指定 dst->input为 ip_local_deliver
+		//调用流程为 ip_output->dev_queue_xmit->loop_back_xmit ->netif_rx(重新注入协议中)
+		//->ip_rcv->ip_rcv_finish(skb->dst已经设置，所以会跳过路由查找)->ip_local_deliver
 		dev_out = net->loopback_dev;
 		fl4->flowi4_oif = dev_out->ifindex;
+		//标记是到本机的数据包
 		flags |= RTCF_LOCAL;
 		goto make_route;
 	}
@@ -2251,7 +2262,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	    res.table->tb_num_default > 1 &&
 	    res.type == RTN_UNICAST && !fl4->flowi4_oif)
 		fib_select_default(&res);
-
+	//源地址为0,选择一个源地址
 	if (!fl4->saddr)
 		fl4->saddr = FIB_RES_PREFSRC(net, res);
 
