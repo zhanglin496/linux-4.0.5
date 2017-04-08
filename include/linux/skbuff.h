@@ -1749,15 +1749,15 @@ static inline unsigned char *pskb_pull(struct sk_buff *skb, unsigned int len)
 {
 	return unlikely(len > skb->len) ? NULL : __pskb_pull(skb, len);
 }
-//ä¿è¯skbçº¿æ€§åŒºä¸­æœ‰lenå­—èŠ‚çš„æœ‰æ•ˆæ•°æ®
-//å¯èƒ½ä¼šæ›´æ”¹skbä¸­çš„æŒ‡é’ˆï¼Œæ‰€ä»¥è¦reloadç›¸å…³æŒ‡é’ˆ
-//è¿™é‡Œåªä¿è¯lenå­—èŠ‚çš„æ•°æ®å¯è¯»ï¼Œä¸ä¿è¯ä¸€å®šå¯å†™
+//±£Ö¤skbÏßĞÔÇøÖĞÓĞlen×Ö½ÚµÄÓĞĞ§Êı¾İ
+//¿ÉÄÜ»á¸ü¸ÄskbÖĞµÄÖ¸Õë£¬ËùÒÔÒªreloadÏà¹ØÖ¸Õë
+//ÕâÀïÖ»±£Ö¤len×Ö½ÚµÄÊı¾İ¿É¶Á£¬²»±£Ö¤Ò»¶¨¿ÉĞ´
 static inline int pskb_may_pull(struct sk_buff *skb, unsigned int len)
 {
-	//è¿™é‡Œå’Œskb_make_writableæœ‰å·®åˆ«
-	//å‡è®¾å¤´éƒ¨é•¿åº¦è¶³å¤Ÿï¼Œä½†æ˜¯skb æ˜¯cloneçš„ï¼Œ
-	//å› æ­¤å…±äº«çš„æ•°æ®ç¼“å†²åŒºæ˜¯ä¸èƒ½ä¿®æ”¹
-	//æ‰€ä»¥ä¸ä¿è¯ä¸€å®šå¯å†™,å› ä¸ºæ²¡æœ‰åˆ¤æ–­skbæ˜¯å¦clone
+	//ÕâÀïºÍskb_make_writableÓĞ²î±ğ
+ 	//¼ÙÉèÍ·²¿³¤¶È×ã¹»£¬µ«ÊÇskb ÊÇcloneµÄ£¬
+ 	//Òò´Ë¹²ÏíµÄÊı¾İ»º³åÇøÊÇ²»ÄÜĞŞ¸Ä
+ 	//ËùÒÔ²»±£Ö¤Ò»¶¨¿ÉĞ´,ÒòÎªÃ»ÓĞÅĞ¶ÏskbÊÇ·ñclone
 	//ºÍskb_make_writableµÄÇø±ğÊÇ£¬skb_make_writable±£Ö¤ÊÇ¿ÉĞ´µÄ
 	//µ«ÊÇpskb_may_pull²»±£Ö¤¿ÉĞ´£¬Ö»±£Ö¤skb ÓĞÖ¸¶¨µÄlen ×Ö½ÚÊı¾İ
 	//Í¬Ê±±£Ö¤Ö¸¶¨µÄlen×Ö½ÚÎ»ÓÚÏßĞÔÇøÖĞ
@@ -1765,8 +1765,8 @@ static inline int pskb_may_pull(struct sk_buff *skb, unsigned int len)
 		return 1;
 	if (unlikely(len > skb->len))
 		return 0;
-	//¿½±´×Ô¶¨µÄ×Ö½ÚÊıµ½ÏßĞÔÇøÖĞ
-	//å¦‚æœåˆ°è¾¾è¿™é‡Œï¼Œè¿”å›çš„skbä¸€å®šæ˜¯å¯å†™çš„
+	//¿½±´Ö¸¶¨µÄ×Ö½ÚÊıµ½ÏßĞÔÇøÖĞ
+	//Èç¹ûµ½´ïÕâÀï£¬·µ»ØµÄskbÒ»¶¨ÊÇ¿ÉĞ´µÄ
 	return __pskb_pull_tail(skb, len - skb_headlen(skb)) != NULL;
 }
 
