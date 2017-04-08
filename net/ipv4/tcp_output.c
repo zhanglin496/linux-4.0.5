@@ -3188,13 +3188,13 @@ int tcp_connect(struct sock *sk)
 
 	tcp_init_nondata_skb(buff, tp->write_seq++, TCPHDR_SYN);
 	tp->retrans_stamp = tcp_time_stamp;
-	//cloneåskbçš„ä½16ä½dataref ä¸º2
-	//è¿™é‡Œå¿…é¡»è°ƒç”¨skb_header_releaseå¢åŠ é«˜16ä½çš„å¼•ç”¨è®¡æ•°
-	//åŒæ—¶è®¾ç½®skb->nohdræ ‡å¿—ï¼Œåé¢åœ¨è°ƒç”¨skb_cloneæ—¶ï¼Œ
-	//ä¼šè®¾ç½®cloneçš„skb->hdr_len= skb_headroom(skb)
-	//å¦ä¾§skb_clone_writableå°†è¿”å›å‡ï¼Œ
-	//å°†å¯¼è‡´åé¢cloneçš„skb åœ¨åšNATä¿®æ”¹è°ƒç”¨skb_make_writableæ—¶éœ€è¦é‡æ–°åˆ†é…æ•°æ®åŒº
-	//é™ä½äº†æ•ˆç‡
+	//cloneºóskbµÄµÍ16Î»dataref Îª2
+	//ÕâÀï±ØĞëµ÷ÓÃskb_header_releaseÔö¼Ó¸ß16Î»µÄÒıÓÃ¼ÆÊı
+	//Í¬Ê±ÉèÖÃskb->nohdr±êÖ¾£¬ºóÃæÔÚµ÷ÓÃskb_cloneÊ±£¬
+	//»áÉèÖÃcloneµÄskb->hdr_len= skb_headroom(skb)
+	//·ñ²àskb_clone_writable½«·µ»Ø¼Ù£¬
+	//½«µ¼ÖÂºóÃæcloneµÄskb ÔÚ×öNATĞŞ¸Äµ÷ÓÃskb_make_writableÊ±ĞèÒªÖØĞÂ·ÖÅäÊı¾İÇø
+	//½µµÍÁËĞ§ÂÊ
 	tcp_connect_queue_skb(sk, buff);
 	tcp_ecn_send_syn(sk, buff);
 
