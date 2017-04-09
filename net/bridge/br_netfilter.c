@@ -425,8 +425,11 @@ bridged_dnat:
 	}
 
 	skb->dev = nf_bridge->physindev;
+	//恢复原始的协议封包类型
 	nf_bridge_update_protocol(skb);
+	//恢复原始的L3位置
 	nf_bridge_push_encap_header(skb);
+	//要跳过br_nf_pre_routing函数，继续执行余下的bridge钩子点
 	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
 
@@ -452,16 +455,19 @@ static struct net_device *setup_pre_routing(struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
 
+	//因为桥端口处于混杂模式，pkt_type可能指向其他MAC地址
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		skb->pkt_type = PACKET_HOST;
+		//记录修改过pkt_type
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
-
+	//表示该数据包经过了NF_BRIDGE_PREROUTING点
 	nf_bridge->mask |= BRNF_NF_BRIDGE_PREROUTING;
 	//记录底层实际的物理设备
 	nf_bridge->physindev = skb->dev;
 	//设置skb->dev 为br0
 	skb->dev = brnf_get_logical_dev(skb, skb->dev);
+	//记录原始的协议
 	if (skb->protocol == htons(ETH_P_8021Q))
 		nf_bridge->mask |= BRNF_8021Q;
 	else if (skb->protocol == htons(ETH_P_PPP_SES))
@@ -596,7 +602,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 	if (p == NULL)
 		return NF_DROP;
 	br = p->br;
-
+	//ipv6调用流程
 	if (IS_IPV6(skb) || IS_VLAN_IPV6(skb) || IS_PPPOE_IPV6(skb)) {
 		if (!brnf_call_ip6tables && !br->nf_call_ip6tables)
 			return NF_ACCEPT;
@@ -608,12 +614,12 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 	//是否调用IP层 NETFILTER
 	if (!brnf_call_iptables && !br->nf_call_iptables)
 		return NF_ACCEPT;
-
+	//是否是基于IP协议的数据包
 	if (!IS_IP(skb) && !IS_VLAN_IP(skb) && !IS_PPPOE_IP(skb))
 		return NF_ACCEPT;
-
+	//调整L3指向正确的位置
 	nf_bridge_pull_encap_header_rcsum(skb);
-
+	// IP协议健康检查
 	if (br_parse_ip_options(skb))
 		return NF_DROP;
 
@@ -625,6 +631,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 		return NF_DROP;
 	//保存数据包的原始目的IP地址
 	store_orig_dstaddr(skb);
+	//设置为IP协议，因为要调用IP层的netfilter
 	skb->protocol = htons(ETH_P_IP);
 
 	NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
@@ -702,6 +709,7 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 
 	/* Need exclusive nf_bridge_info since we might have multiple
 	 * different physoutdevs. */
+	 //若有必要，则重新分配nf_bridge_info
 	if (!nf_bridge_unshare(skb))
 		return NF_DROP;
 
@@ -740,7 +748,7 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 		skb->protocol = htons(ETH_P_IP);
 	else
 		skb->protocol = htons(ETH_P_IPV6);
-
+	//调用IP层NETFILTER FOROWARD点
 	NF_HOOK(pf, NF_INET_FORWARD, skb, brnf_get_logical_dev(skb, in), parent,
 		br_nf_forward_finish);
 
@@ -764,7 +772,7 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 
 	if (!brnf_call_arptables && !br->nf_call_arptables)
 		return NF_ACCEPT;
-
+	//是否是ARP报文
 	if (!IS_ARP(skb)) {
 		if (!IS_VLAN_ARP(skb))
 			return NF_ACCEPT;
@@ -777,6 +785,7 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 		return NF_ACCEPT;
 	}
 	*d = (struct net_device *)in;
+	//调用 NETFILTER arp 点
 	NF_HOOK(NFPROTO_ARP, NF_ARP_FORWARD, skb, (struct net_device *)in,
 		(struct net_device *)out, br_nf_forward_finish);
 
