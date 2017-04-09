@@ -421,6 +421,7 @@ bridged_dnat:
 			kfree_skb(skb);
 			return 0;
 		}
+		//设置为net_bridge的fake_rtable
 		skb_dst_set_noref(skb, &rt->dst);
 	}
 
@@ -654,6 +655,7 @@ static unsigned int br_nf_local_in(const struct nf_hook_ops *ops,
 				   const struct net_device *out,
 				   int (*okfn)(struct sk_buff *))
 {
+	//数据包将去往IP层，所以要丢弃伪造的路由信息
 	br_drop_fake_rtable(skb);
 	return NF_ACCEPT;
 }
@@ -859,7 +861,7 @@ static unsigned int br_nf_post_routing(const struct nf_hook_ops *ops,
 		skb->protocol = htons(ETH_P_IP);
 	else
 		skb->protocol = htons(ETH_P_IPV6);
-
+	//调用IP层NETFILTER NF_INET_POST_ROUTING点
 	NF_HOOK(pf, NF_INET_POST_ROUTING, skb, NULL, realoutdev,
 		br_nf_dev_queue_xmit);
 
