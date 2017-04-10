@@ -128,7 +128,7 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 
 	new->offset[id] = newoff;
 	new->len = newlen;
-	//æ¸…é›¶æ–°åˆ†é…çš„æ‰©å±•åŒº
+	//ÇåÁãÐÂ·ÖÅäµÄÀ©Õ¹Çø
 	memset((void *)new + newoff, 0, newlen - newoff);
 	return (void *)new + newoff;
 }
@@ -197,6 +197,8 @@ int nf_ct_extend_register(struct nf_ct_ext_type *type)
 	int ret = 0;
 
 	mutex_lock(&nf_ct_ext_type_mutex);
+	//Î´×öÔ½½ç¼ì²â£¬Èç¹ûÄÚºËÎ´¿ªÆôÄ£¿écrcÐ£Ñé 
+	//ÓÐÇ±ÔÚµÄÔ½½çÎÊÌâ
 	if (nf_ct_ext_types[type->id]) {
 		ret = -EBUSY;
 		goto out;
