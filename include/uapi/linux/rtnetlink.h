@@ -339,6 +339,10 @@ struct rtnexthop {
 
 #define RTNH_F_DEAD		1	/* Nexthop is dead (used by multipath)	*/
 #define RTNH_F_PERVASIVE	2	/* Do recursive gateway lookup	*/
+//当该标识被设置时，要求内核不检查下一跳地址是否相连
+//（即不检查下一跳地址通过流出设备是否可达）。
+//例如，当定义隧道虚拟路由设备时，onlink关键字用于设置和使用该标识
+// ip route add 1.1.1.1/32 via 2.2.2.2 dev eth0 onlink
 #define RTNH_F_ONLINK		4	/* Gateway is forced on link	*/
 
 /* Macros to handle hexthops */
