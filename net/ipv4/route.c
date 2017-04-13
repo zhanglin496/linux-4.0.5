@@ -2105,9 +2105,12 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			 RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
 	rcu_read_lock();
-	//如果客服端没有绑定原地址，那么在第一次连接时为空，多数情况下原地址不为空
+	//如果客服端没有绑定原地址，那么在第一次连接时应该为空，
+	//如果客户端绑定了一个源地址，或者不是第一个发起连接的数据包
 	if (fl4->saddr) {
+		//客户端指定了源地址，那么需要对源地址做健康检查
 		rth = ERR_PTR(-EINVAL);
+		//源地址不能是多播地址或者0网段地址
 		if (ipv4_is_multicast(fl4->saddr) ||
 		    ipv4_is_lbcast(fl4->saddr) ||
 		    ipv4_is_zeronet(fl4->saddr))
@@ -2147,7 +2150,9 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			fl4->flowi4_oif = dev_out->ifindex;
 			goto make_route;
 		}
-
+		//如果设置了FLOWI_FLAG_ANYSRC，不需要对源地址验证
+		//表示可以选择任意一个源地址
+		//包括伪造的源地址，可以发起攻击
 		if (!(fl4->flowi4_flags & FLOWI_FLAG_ANYSRC)) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
 			if (!__ip_dev_find(net, fl4->saddr, false))
@@ -2175,23 +2180,29 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 							      RT_SCOPE_LINK);
 			goto make_route;
 		}
+		//如果源地址为0, 同时目的地址也为0 ，比如ping 0.0.0.0 -I eth0
+		//在主机范围内选择一个合适的源地址
 		if (!fl4->saddr) {
 			if (ipv4_is_multicast(fl4->daddr))
 				fl4->saddr = inet_select_addr(dev_out, 0,
 							      fl4->flowi4_scope);
 			else if (!fl4->daddr)
+				//目的地址也为0 ，选择一个源地址
 				fl4->saddr = inet_select_addr(dev_out, 0,
 							      RT_SCOPE_HOST);
 		}
 	}
 
 	if (!fl4->daddr) {
-		//如果目的地址为0,数据包通过loopback回环到本机
+		//只要目的地址为0,数据包就通过loopback回环到本机
 		fl4->daddr = fl4->saddr;
-		//仍然为0,设置为回环地址
+		//仍然为0,设置为回环地址127.0.0.1，比如ping 0.0.0.0
+		//数据包就会设置源地址和目的地址都为127.0.0.1
 		if (!fl4->daddr)
 			fl4->daddr = fl4->saddr = htonl(INADDR_LOOPBACK);
+		//loopback_dev 是固定存在的，不会被注销
 		dev_out = net->loopback_dev;
+		//回环接口的索引固定为1
 		fl4->flowi4_oif = LOOPBACK_IFINDEX;
 		res.type = RTN_LOCAL;
 		flags |= RTCF_LOCAL;
@@ -2234,7 +2245,11 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	}
 
 	if (res.type == RTN_LOCAL) {
+		//如果没有指定源地址
 		if (!fl4->saddr) {
+			//首选源地址，通过ip src选项设置
+			//比如ip route add 2.2.2.2/32 dev eth0 scope link src 1.1.1.1
+			//表示通往2.2.2.2的数据包使用源地址1.1.1.1
 			if (res.fi->fib_prefsrc)
 				fl4->saddr = res.fi->fib_prefsrc;
 			else
@@ -2254,6 +2269,9 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	}
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
+//flowi4_oif 如果不为0，表明指定了出口设备
+//在fib_lookup中已经选择了合适的下一跳
+//不需要再次选择
 	if (res.fi->fib_nhs > 1 && fl4->flowi4_oif == 0)
 		fib_select_multipath(&res);
 	else
@@ -2262,7 +2280,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 	    res.table->tb_num_default > 1 &&
 	    res.type == RTN_UNICAST && !fl4->flowi4_oif)
 		fib_select_default(&res);
-	//源地址为0,选择一个源地址
+	//源地址仍然为0, 为调用者选择一个源地址
 	if (!fl4->saddr)
 		fl4->saddr = FIB_RES_PREFSRC(net, res);
 

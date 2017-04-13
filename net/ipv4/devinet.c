@@ -1159,27 +1159,56 @@ out:
 	return done;
 }
 
+//注意，可能选择一个全0 的地址
+//只选择主地址
+//配置的IP 地址如果没有指定scope，默认都是global
+//ip addr add 192.168.0.20/24 scope global dev ens33
+//会自动向主机local 路由表添加一条主机路由
+//
 __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 {
 	__be32 addr = 0;
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 
-//先在指定的dev中查找满主条件的地址
+//先在指定的dev中查找满足条件的地址
 //有可能in_dev 没有配置IP地址
 //那么就在全局已经注册的dev列表中选择一个合适的地址
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev)
 		goto no_in_dev;
-
+	//		这里对IP地址的scope进行判，其实用的枚举与route的scope相同
+	//enum rt_scope_t {
+	//	RT_SCOPE_UNIVERSE=0,
+		/* User defined values	*/
+	//	RT_SCOPE_SITE=200,
+	//	RT_SCOPE_LINK=253,
+	//	RT_SCOPE_HOST=254,
+	//	RT_SCOPE_NOWHERE=255
+	//}; 
+	//
+	////  ip地址Scope  
+//      保存在in_ifaddr->ifa_scope  
+//  ip地址Scope常见取值及其意义：  
+//      1.RT_SCOPE_HOST：该地址只用于主机自身的内部通信，如回环地址  
+//      2.RT_SCOPE_LINK：该地址只在一个局域网内有意义且只在局域网内使用时，如子网广播地址  
+//      3.RT_SCOPE_UNIVERSE：该地址可以在任何地方使用时  
+  
+	  //那么，scope的值越小，对于IP地址来说，其表示的可用范围也就越大。
+	  //（关于IP address的scope，参见 http://www.embeddedlinux.org.cn/linux_net/0596002556/understandlni-CHP-30-SECT-2.html#understandlni-CHP-30-SECT-2.1 ）
+	  //因此，当ifa->ifa_scope的值大于参数scope时，那么其就不符合要求。
+	//*/
 	for_primary_ifa(in_dev) {
 		if (ifa->ifa_scope > scope)
 			continue;
+		//如果dst不为空，看是否在同一个子网内
 		if (!dst || inet_ifa_match(dst, ifa)) {
 			addr = ifa->ifa_local;
 			break;
 		}
+		// 将第一个primary地址保存到addr中
+		//作为一个默认候选地址 
 		if (!addr)
 			addr = ifa->ifa_local;
 	} endfor_ifa(in_dev);
@@ -1193,10 +1222,16 @@ no_in_dev:
 	   in dev_base list.
 	 */
 	 //在所有的dev中选择一个合适IP地址
+	 //如果仍然没有选中，那就使用全0 的地址
 	for_each_netdev_rcu(net, dev) {
 		in_dev = __in_dev_get_rcu(dev);
 		if (!in_dev)
 			continue;
+		/* 
+		 只要符合scope的要求，就可以使用了
+		 这里特意排除了RT_SCOPE_LINK这种情况。这样的IP地址被用于与整个儿LAN通信，但是为什么前面不需要这个检查呢？
+		还有一个问题，为什么这里不进行目的地址dst是否匹配的判断了呢？
+		 */
 
 		for_primary_ifa(in_dev) {
 			if (ifa->ifa_scope != RT_SCOPE_LINK &&
