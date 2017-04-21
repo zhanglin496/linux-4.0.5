@@ -576,7 +576,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			//假设
 			//A--->B 发送syn，这里sender等于A ,td_maxwin会在tcp_new中赋值不为0
 			//B--->A 发送syn，这里sender等于B ,td_maxwin会在tcp_new中赋值为0
-			//因此若B--->A为设置ACK，则表示是同时打开
+			//因此若B--->A 未设置ACK，则表示是同时打开
 
 			if (!tcph->ack)
 				/* Simultaneous open */
@@ -1156,6 +1156,7 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 			ct->proto.tcp.seen[0].td_end +
 			ct->proto.tcp.seen[0].td_maxwin;
 
+		//假设允许sack
 		/* We assume SACK and liberal window checking to handle
 		 * window scaling */
 		ct->proto.tcp.seen[0].flags =

@@ -1946,11 +1946,15 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
+	//内核先预先分配足够大的skb
 	if (!(rx->skb = netdev_alloc_skb_ip_align(nic->netdev, RFD_BUF_LEN)))
 		return -ENOMEM;
 
 	/* Init, and map the RFD. */
 	skb_copy_to_linear_data(rx->skb, &nic->blank_rfd, sizeof(struct rfd));
+	//将skb的地址映射到dma地址
+	//这里还是会存在一次内存拷贝
+	//从NIC 的内存中拷贝数据到指定的内核地址
 	rx->dma_addr = pci_map_single(nic->pdev, rx->skb->data,
 		RFD_BUF_LEN, PCI_DMA_BIDIRECTIONAL);
 
@@ -2231,7 +2235,8 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 	/* We hit Receive No Resource (RNR); restart RU after cleaning */
 	if (stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
-
+	//中断里面只是触发软中断
+	//并不进行实际的数据包处理
 	if (likely(napi_schedule_prep(&nic->napi))) {
 		e100_disable_irq(nic);
 		__napi_schedule(&nic->napi);

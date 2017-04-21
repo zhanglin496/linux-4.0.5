@@ -1730,6 +1730,7 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 	int err;
 
 	UDP_SKB_CB(skb)->partial_cov = 0;
+	//默认校验和覆盖udp 头+ udp 负载
 	UDP_SKB_CB(skb)->cscov = skb->len;
 
 	if (proto == IPPROTO_UDPLITE) {

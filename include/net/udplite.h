@@ -35,6 +35,7 @@ static inline int udplite_sk_init(struct sock *sk)
  */
 static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 {
+//checksum coverage
 	u16 cscov;
 
         /* In UDPv4 a zero checksum means that the transmitter generated no
@@ -46,7 +47,10 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 	}
 
 	cscov = ntohs(uh->len);
-
+	
+	//因为udplite复用了长度字段
+	//那么udp 的实际长度只能根据ip头的总长度来推算
+	//整个数据包需要校验
 	if (cscov == 0)		 /* Indicates that full coverage is required. */
 		;
 	else if (cscov < 8  || cscov > skb->len) {
@@ -58,7 +62,9 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 		return 1;
 
 	} else if (cscov < skb->len) {
+		//标记只计算部分校验和
         	UDP_SKB_CB(skb)->partial_cov = 1;
+		//校验和覆盖范围
 		UDP_SKB_CB(skb)->cscov = cscov;
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = CHECKSUM_NONE;

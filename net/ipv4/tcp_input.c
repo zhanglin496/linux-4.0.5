@@ -5268,6 +5268,7 @@ slow_path:
 	if (len < (th->doff << 2) || tcp_checksum_complete_user(sk, skb))
 		goto csum_error;
 
+	//没有设置ack，直接丢弃?
 	if (!th->ack && !th->rst && !th->syn)
 		goto discard;
 

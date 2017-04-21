@@ -1566,7 +1566,7 @@ bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 	__skb_queue_tail(&tp->ucopy.prequeue, skb);
 	tp->ucopy.memory += skb->truesize;
 	//内存超限，直接调用sk_backlog_rcv
-	//清空prqueue队列
+	//清空prequeue队列
 	if (tp->ucopy.memory > sk->sk_rcvbuf) {
 		struct sk_buff *skb1;
 
