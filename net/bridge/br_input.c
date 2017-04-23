@@ -321,6 +321,7 @@ forward:
 		}
 		/* fall through */
 	case BR_STATE_LEARNING:
+		//如果mac地址等于桥接口的地址
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 

@@ -203,7 +203,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	//必须正确设置skb->data指针,以保证上层可以正确解析数据
 	skb_pull_inline(skb, ETH_HLEN);
 	eth = eth_hdr(skb);
-
+	
+	//skb->pkt_type在alloc_skb时默认为0，对应的值为PACKET_HOST
 	if (unlikely(is_multicast_ether_addr(eth->h_dest))) {
 		if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;

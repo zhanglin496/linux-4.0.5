@@ -3748,6 +3748,11 @@ ncls:
 	}
 
 	if (unlikely(skb_vlan_tag_present(skb))) {
+		//如果vlan id非0
+		//表明vlan_do_receive未能成功处理该vlan数据包
+		//比如不存在对应的vlan id
+		//所以要设置pkt_type为PACKET_OTHERHOST
+		//在调用ip_rcv时会检查该值并丢弃该数据包
 		if (skb_vlan_tag_get_id(skb))
 			skb->pkt_type = PACKET_OTHERHOST;
 		/* Note: we might in the future use prio bits
