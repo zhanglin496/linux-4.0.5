@@ -146,7 +146,7 @@ int register_vlan_dev(struct net_device *dev)
 	struct vlan_info *vlan_info;
 	struct vlan_group *grp;
 	int err;
-
+	//注册vid 到vlan_info 的vid_list中
 	err = vlan_vid_add(real_dev, vlan->vlan_proto, vlan_id);
 	if (err)
 		return err;
@@ -369,8 +369,11 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 
 	if ((event == NETDEV_UP) &&
 	    (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
+	    	//设备支持硬件vlan过滤
 		pr_info("adding VLAN 0 to HW filter on device %s\n",
 			dev->name);
+		//注册只接收vid为0的vlan帧
+		//每添加一个新的vid 使都会调用vlan_vid_add函数注册过滤列表
 		vlan_vid_add(dev, htons(ETH_P_8021Q), 0);
 	}
 

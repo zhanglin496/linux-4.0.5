@@ -3726,6 +3726,7 @@ ncls:
 	//调用注册的rx_handler
 	//通过netdev_rx_handler_register注册。macvlan，ipvlan，bridge，bond等虚拟
 	//设备都是通过此方式来实现的
+	//没有被成功处理的vlan 数据帧也会进入bridge 中
 	rx_handler = rcu_dereference(skb->dev->rx_handler);
 	if (rx_handler) {
 		if (pt_prev) {
