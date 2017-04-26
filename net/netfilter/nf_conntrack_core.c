@@ -368,10 +368,11 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 				    portid, report) < 0) {
 		/* destroy event was not delivered */
 		nf_ct_delete_from_lists(ct);
+		//发送事件失败，由工作队列延迟发送
 		nf_conntrack_ecache_delayed_work(nf_ct_net(ct));
 		return false;
 	}
-
+	//发送事件成功，如果有pending的发送事件，立即激活工作队列
 	nf_conntrack_ecache_work(nf_ct_net(ct));
 	set_bit(IPS_DYING_BIT, &ct->status);
  delete:
@@ -1259,6 +1260,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	//比如两个reply包同时到达这里
 	//只有一个包会触发nf_conntrack_event_cache
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
+		//通过netlink 多播conntrack事件
+		//每个conntrack都有struct nf_conntrack_ecache NF_CT_EXT_ECACHE扩展
+		//记录了需要多播的事件
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
 out:
 	if (tmpl) {

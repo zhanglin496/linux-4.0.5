@@ -24,6 +24,7 @@
 #define NF_VERDICT_FLAG_QUEUE_BYPASS	0x00008000
 
 /* queue number (NF_QUEUE) or errno (NF_DROP) */
+//高16	位表时队列号
 #define NF_VERDICT_QMASK 0xffff0000
 #define NF_VERDICT_QBITS 16
 

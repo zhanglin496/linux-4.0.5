@@ -655,7 +655,8 @@ void do_exit(long code)
 	struct task_struct *tsk = current;
 	int group_dead;
 	TASKS_RCU(int tasks_rcu_i);
-
+	
+	//内核通知链，通知进程退出事件
 	profile_task_exit(tsk);
 
 	WARN_ON(blk_needs_flush_plug(tsk));

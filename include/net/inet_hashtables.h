@@ -123,6 +123,7 @@ struct inet_hashinfo {
 	 *          TCP_ESTABLISHED <= sk->sk_state < TCP_CLOSE
 	 *
 	 */
+	 //连接已经建立成功的hash表
 	struct inet_ehash_bucket	*ehash;
 	spinlock_t			*ehash_locks;
 	unsigned int			ehash_mask;
@@ -131,6 +132,7 @@ struct inet_hashinfo {
 	/* Ok, let's try this, I give up, we do need a local binding
 	 * TCP hash as well as the others for fast bind/connect.
 	 */
+	//绑定套接字的hash链表
 	struct inet_bind_hashbucket	*bhash;
 
 	unsigned int			bhash_size;
@@ -148,6 +150,7 @@ struct inet_hashinfo {
 	 * table where wildcard'd TCP sockets can exist.  Hash function here
 	 * is just local port number.
 	 */
+	 //监听状态的hash表
 	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
 					____cacheline_aligned_in_smp;
 

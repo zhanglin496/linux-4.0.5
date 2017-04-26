@@ -36,7 +36,7 @@ static inline int should_deliver(const struct net_bridge_port *p,
 	//当开启BR_HAIRPIN_MODE 时，不会比较入口设备和
 	//出口设备是否相同
 	//未开启的情况下，如果进出设备相同则数据不会被转发
-	//命令为brctl  hairpin br0 ens33 on 或者
+	//命令为brctl  hairpin br0 eth0 on 或者
 	//echo 1 >/sys/class/net/br0/brif/eth1/hairpin_mode
 	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
 		br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&

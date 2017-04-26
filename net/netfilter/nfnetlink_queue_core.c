@@ -488,6 +488,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			goto nla_put_failure;
 
 		nla = (struct nlattr *)skb_put(skb, sizeof(*nla));
+		//拷贝数据包的负载内容
 		nla->nla_type = NFQA_PAYLOAD;
 		nla->nla_len = nla_attr_size(data_len);
 
@@ -989,7 +990,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 					    nlmsg_report(nlh));
 		}
 	}
-	//修改skb 数据
+	//需要修改skb 数据
 	if (nfqa[NFQA_PAYLOAD]) {
 		u16 payload_len = nla_len(nfqa[NFQA_PAYLOAD]);
 		int diff = payload_len - entry->skb->len;

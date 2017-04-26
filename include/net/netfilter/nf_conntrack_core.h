@@ -67,6 +67,7 @@ static inline int nf_conntrack_confirm(struct sk_buff *skb)
 		if (!nf_ct_is_confirmed(ct))
 			ret = __nf_conntrack_confirm(skb);
 		if (likely(ret == NF_ACCEPT))
+			//¶à²¥netlink conntrack ÊÂ¼þ
 			nf_ct_deliver_cached_events(ct);
 	}
 	return ret;

@@ -217,6 +217,11 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	}
 
 	if (!*vid) {
+		
+//	1.pvid 不是加在帧头的标记，而是端口的属性。
+//	2。pvid 是 用来标识端口接收到的未标记的帧。
+//	也就是说，当端口收到一个未标记的帧时，就把该帧打上vlan id，这个id值等于pvid的值，然后转发到VID和PVID相等的VLAN 中。
+//	3.帧从端口出去时，如果帧头中的VID和端口的PVID值相同，就把这个标识去掉，再送出去。
 		u16 pvid = br_get_pvid(v);
 
 		/* Frame had a tag with VID 0 or did not have a tag.
