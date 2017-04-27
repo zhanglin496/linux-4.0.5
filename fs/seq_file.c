@@ -59,6 +59,7 @@ int seq_open(struct file *file, const struct seq_operations *op)
 			return -ENOMEM;
 		file->private_data = p;
 	}
+	//清零
 	memset(p, 0, sizeof(*p));
 	mutex_init(&p->lock);
 	p->op = op;
@@ -220,6 +221,7 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 	}
 	/* we need at least one record in buffer */
 	pos = m->index;
+	//第一次调用时m->index为0
 	p = m->op->start(m, &pos);
 	while (1) {
 		err = PTR_ERR(p);
@@ -228,8 +230,10 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		err = m->op->show(m, p);
 		if (err < 0)
 			break;
+		//正常情况下err应返回0
 		if (unlikely(err))
 			m->count = 0;
+		//未输出任何数据????
 		if (unlikely(!m->count)) {
 			p = m->op->next(m, p, &pos);
 			m->index = pos;
@@ -237,9 +241,13 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		}
 		if (m->count < m->size)
 			goto Fill;
+		//如果m->count >= m->size
+		//表示空间不足，需要重新分配空间
 		m->op->stop(m, p);
 		kvfree(m->buf);
 		m->count = 0;
+		//未拷贝原来读取的内容
+		//这里需要重新再次读取
 		m->buf = seq_buf_alloc(m->size <<= 1);
 		if (!m->buf)
 			goto Enomem;
@@ -402,6 +410,7 @@ int seq_vprintf(struct seq_file *m, const char *f, va_list args)
 {
 	int len;
 
+	//还有剩余空间
 	if (m->count < m->size) {
 		len = vsnprintf(m->buf + m->count, m->size - m->count, f, args);
 		if (m->count + len < m->size) {
@@ -409,6 +418,7 @@ int seq_vprintf(struct seq_file *m, const char *f, va_list args)
 			return 0;
 		}
 	}
+	//标记剩余空间不足
 	seq_set_overflow(m);
 	return -1;
 }
@@ -545,6 +555,7 @@ static void *single_start(struct seq_file *p, loff_t *pos)
 	return NULL + (*pos == 0);
 }
 
+//直接返回空，结束输出
 static void *single_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	++*pos;
@@ -555,9 +566,13 @@ static void single_stop(struct seq_file *p, void *v)
 {
 }
 
+//适用于数据量比较小，可以一次性输出的情况
+//
 int single_open(struct file *file, int (*show)(struct seq_file *, void *),
 		void *data)
 {
+	//动态分配seq_operations
+	//注意file_operations release 函数要设置为single_release
 	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL);
 	int res = -ENOMEM;
 
@@ -594,6 +609,7 @@ int single_open_size(struct file *file, int (*show)(struct seq_file *, void *),
 }
 EXPORT_SYMBOL(single_open_size);
 
+//释放动态分配的seq_operations
 int single_release(struct inode *inode, struct file *file)
 {
 	const struct seq_operations *op = ((struct seq_file *)file->private_data)->op;

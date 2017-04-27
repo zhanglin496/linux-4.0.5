@@ -195,6 +195,7 @@ static loff_t proc_reg_llseek(struct file *file, loff_t offset, int whence)
 static ssize_t proc_reg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
+	//获取proc_dir_entry, 调用跟每个实例相关的file_operations
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
 	if (use_pde(pde)) {
