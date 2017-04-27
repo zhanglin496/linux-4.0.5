@@ -10,4 +10,15 @@
 #define tolower(x) (isupper(x) ? (x) + ('a' - 'A') : (x))
 
 
+int  myatoi(char *p)
+{
+	int num = 0;
+	while (isdigit(*p)) {
+		num = *p - '0' + (num * 10);
+		p++;
+	}
+	return num;
+}
+
+
 
