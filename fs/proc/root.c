@@ -154,7 +154,7 @@ static void proc_kill_sb(struct super_block *sb)
 	kill_anon_super(sb);
 	put_pid_ns(ns);
 }
-
+//初始化/proc 根目录
 static struct file_system_type proc_fs_type = {
 	.name		= "proc",
 	.mount		= proc_mount,
@@ -174,7 +174,8 @@ void __init proc_root_init(void)
 	proc_self_init();
 	proc_thread_self_init();
 	proc_symlink("mounts", NULL, "self/mounts");
-
+	
+	//初始化/proc/net 目录
 	proc_net_init();
 
 #ifdef CONFIG_SYSVIPC
@@ -189,6 +190,7 @@ void __init proc_root_init(void)
 #endif
 	proc_tty_init();
 	proc_mkdir("bus", NULL);
+	//初始化/proc/sys 目录
 	proc_sys_init();
 }
 

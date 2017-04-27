@@ -16,27 +16,39 @@ struct dentry;
 struct user_namespace;
 
 struct seq_file {
+	//内部缓存区
 	char *buf;
+	//表示分配的buf总大小
 	size_t size;
+	//记录当前未读完的起始位置偏移
+	//下一次读时，检查到count不为0
+	//则从from位置开始读
 	size_t from;
+	//表示buf中已存在的数据大小
 	size_t count;
 	size_t pad_until;
+	//记录上一次的pos位置
 	loff_t index;
 	loff_t read_pos;
 	u64 version;
+	//保护seq_file
 	struct mutex lock;
 	const struct seq_operations *op;
 	int poll_event;
 #ifdef CONFIG_USER_NS
 	struct user_namespace *user_ns;
 #endif
+	//用户可以自定义需要的私有数据
 	void *private;
 };
 
 struct seq_operations {
+	//返回值作为stop\show\next的第二个参数
 	void * (*start) (struct seq_file *m, loff_t *pos);
 	void (*stop) (struct seq_file *m, void *v);
+	//返回值作为show的第二个参数
 	void * (*next) (struct seq_file *m, void *v, loff_t *pos);
+	//填充数据
 	int (*show) (struct seq_file *m, void *v);
 };
 

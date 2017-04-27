@@ -157,6 +157,7 @@ Eoverflow:
  */
 ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 {
+	//seq_file 跟踪文件读取的记录
 	struct seq_file *m = file->private_data;
 	size_t copied = 0;
 	loff_t pos;
