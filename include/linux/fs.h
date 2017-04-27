@@ -825,6 +825,8 @@ struct file {
 #ifdef CONFIG_SECURITY
 	void			*f_security;
 #endif
+//用于记录私有数据
+//比如seq_file 功能记录了指向seq_file 的指针
 	/* needed for tty driver, and maybe others */
 	void			*private_data;
 
