@@ -710,7 +710,9 @@ static int do_dentry_open(struct file *f,
 	if (S_ISREG(inode->i_mode))
 		f->f_mode |= FMODE_ATOMIC_POS;
 
+	//拷贝inode的fops
 	f->f_op = fops_get(inode->i_fop);
+	//fops一定不能为空
 	if (unlikely(WARN_ON(!f->f_op))) {
 		error = -ENODEV;
 		goto cleanup_all;

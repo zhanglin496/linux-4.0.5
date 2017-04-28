@@ -33,6 +33,7 @@ struct seq_file {
 	u64 version;
 	//保护seq_file
 	struct mutex lock;
+	//对应的数据操作方法，必须实现
 	const struct seq_operations *op;
 	int poll_event;
 #ifdef CONFIG_USER_NS

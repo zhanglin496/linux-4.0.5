@@ -146,6 +146,8 @@ static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 	unsigned int		len;
 
 	de = *ret;
+	//如果de为空，指向根目录
+	//也就是/proc
 	if (!de)
 		de = &proc_root;
 
@@ -324,6 +326,7 @@ static const struct file_operations proc_dir_operations = {
 /*
  * proc directories can do almost nothing..
  */
+ //查找具体的文件，获取对应的file_operations
 static const struct inode_operations proc_dir_inode_operations = {
 	.lookup		= proc_lookup,
 	.getattr	= proc_getattr,
@@ -340,6 +343,7 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 
 	spin_lock(&proc_subdir_lock);
 	dp->parent = dir;
+	//插入到红黑树中
 	if (pde_subdir_insert(dir, dp) == false) {
 		WARN(1, "proc_dir_entry '%s/%s' already registered\n",
 		     dir->name, dp->name);
@@ -448,6 +452,7 @@ struct proc_dir_entry *proc_mkdir_mode(const char *name, umode_t mode,
 }
 EXPORT_SYMBOL(proc_mkdir_mode);
 
+//如果parent为NULL，表示直接在/proc 下创建目录
 struct proc_dir_entry *proc_mkdir(const char *name,
 		struct proc_dir_entry *parent)
 {
@@ -476,6 +481,7 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 	pde = __proc_create(&parent, name, mode, 1);
 	if (!pde)
 		goto out;
+	//调用者自定义方法集合
 	pde->proc_fops = proc_fops;
 	pde->data = data;
 	pde->proc_iops = &proc_file_inode_operations;

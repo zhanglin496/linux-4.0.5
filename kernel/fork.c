@@ -1380,6 +1380,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	retval = copy_semundo(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_audit;
+	//¿½±´ÎÄ¼şÃèÊö·û
 	retval = copy_files(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_semundo;

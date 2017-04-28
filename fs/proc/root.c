@@ -119,7 +119,7 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 		if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
 			return ERR_PTR(-EPERM);
 	}
-
+	//分配超级快
 	sb = sget(fs_type, proc_test_super, proc_set_super, flags, ns);
 	if (IS_ERR(sb))
 		return ERR_CAST(sb);
@@ -130,6 +130,8 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 	}
 
 	if (!sb->s_root) {
+		//填充超级块
+		//分配inode
 		err = proc_fill_super(sb);
 		if (err) {
 			deactivate_locked_super(sb);

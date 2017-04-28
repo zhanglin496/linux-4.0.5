@@ -417,6 +417,7 @@ const struct inode_operations proc_link_inode_operations = {
 
 struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 {
+//分配一个新的inode
 	struct inode *inode = new_inode_pseudo(sb);
 
 	if (inode) {
@@ -443,6 +444,7 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 						&proc_reg_file_ops_no_compat;
 				else
 #endif
+					//指向普通文件ops
 					inode->i_fop = &proc_reg_file_ops;
 			} else {
 				inode->i_fop = de->proc_fops;
@@ -466,6 +468,7 @@ int proc_fill_super(struct super_block *s)
 	s->s_time_gran = 1;
 	
 	pde_get(&proc_root);
+	//分配inode
 	root_inode = proc_get_inode(s, &proc_root);
 	if (!root_inode) {
 		pr_err("proc_fill_super: get root inode failed\n");
