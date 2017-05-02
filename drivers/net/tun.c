@@ -343,7 +343,7 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 	 * worth to optimize.*/
 	if (tun->numqueues == 1 || tfile->detached)
 		goto unlock;
-
+	//如果有多个队列，创建tun_flow_entry
 	e = tun_flow_find(head, rxhash);
 	if (likely(e)) {
 		/* TODO: keep queueing to old queue until it's empty? */
@@ -402,6 +402,7 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
 			txq = e->queue_index;
 		} else
 			/* use multiply and shift instead of expensive divide */
+			//计算结果为[0,numqueues)
 			txq = ((u64)txq * numqueues) >> 32;
 	} else if (likely(skb_rx_queue_recorded(skb))) {
 		txq = skb_get_rx_queue(skb);
@@ -549,6 +550,12 @@ static int tun_attach(struct tun_struct *tun, struct file *file, bool skip_filte
 	struct tun_file *tfile = file->private_data;
 	int err;
 
+	//tun_file 相当于用户空间的多个描述符
+	//tun_struct 属于net_device
+	//tun_struct记录了当前设备关联了多少tun_file
+	//也就是多队列
+	//可以将数据包加入不同的tun_file中的socket队列
+	//因此用户层可以使用多进程或多线程来提高吞吐量
 	err = security_tun_dev_attach(tfile->socket.sk, tun->security);
 	if (err < 0)
 		goto out;
@@ -821,6 +828,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	nf_reset(skb);
 
 	//将skb挂接到用户态打开的字符设备/dev/net/tun socket
+	//数据包交给用户态程序处理
 	/* Enqueue packet */
 	skb_queue_tail(&tfile->socket.sk->sk_receive_queue, skb);
 
@@ -949,12 +957,14 @@ static void tun_net_init(struct net_device *dev)
 
 		/* Zero header length */
 		dev->type = ARPHRD_NONE;
+		//TUN设备是点对点的，不需要L2寻址，因此不需要ARP
 		dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 		dev->tx_queue_len = TUN_READQ_SIZE;  /* We prefer our own queue length */
 		break;
 
 	case IFF_TAP:
 		dev->netdev_ops = &tap_netdev_ops;
+		//TAP 相当于是一个以太网设备
 		/* Ethernet TAP Device */
 		ether_setup(dev);
 		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
@@ -1044,7 +1054,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	int err;
 	u32 rxhash;
 	ssize_t n;
-
+	
+	//如果没设置IFF_NO_PI， 表示数据包附加了tun_pi 包头信息
 	if (!(tun->flags & IFF_NO_PI)) {
 		if (len < sizeof(pi))
 			return -EINVAL;
@@ -1075,6 +1086,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 	if ((tun->flags & TUN_TYPE_MASK) == IFF_TAP) {
 		align += NET_IP_ALIGN;
+		//TAP 模式需要完整的以太网头
 		if (unlikely(len < ETH_HLEN ||
 			     (gso.hdr_len && tun16_to_cpu(tun, gso.hdr_len) < ETH_HLEN)))
 			return -EINVAL;
@@ -1141,10 +1153,14 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
 		if (tun->flags & IFF_NO_PI) {
+			//IFF_NO_PI，第一个字节必须满足下面的条件
+			//就是查看struct iphdr->version  ip版本号字段的值
 			switch (skb->data[0] & 0xf0) {
+				//IPV4
 			case 0x40:
 				pi.proto = htons(ETH_P_IP);
 				break;
+				//IPV6
 			case 0x60:
 				pi.proto = htons(ETH_P_IPV6);
 				break;
@@ -1503,6 +1519,8 @@ static int tun_release(struct socket *sock)
 	return 0;
 }
 
+//目前只有vhost 在使用
+//用于kvm
 /* Ops structure to mimic raw sockets with tun */
 static const struct proto_ops tun_socket_ops = {
 	.sendmsg = tun_sendmsg,
@@ -1575,6 +1593,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
+		//如果指定了设备名称
+		//可以多次打开字符设备/dev/net/tun
+		//然后关联到指定的tun/tap设备
 		if (ifr->ifr_flags & IFF_TUN_EXCL)
 			return -EBUSY;
 		if ((ifr->ifr_flags & IFF_TUN) && dev->netdev_ops == &tun_netdev_ops)
@@ -1609,6 +1630,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	else {
 		char *name;
 		unsigned long flags = 0;
+		//IFF_MULTI_QUEUE 多个队列
 		int queues = ifr->ifr_flags & IFF_MULTI_QUEUE ?
 			     MAX_TAP_QUEUES : 1;
 
@@ -1629,7 +1651,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			name = "tap%d";
 		} else
 			return -EINVAL;
-
+		//如果用户指定了设备名称
 		if (*ifr->ifr_name)
 			name = ifr->ifr_name;
 
@@ -1661,6 +1683,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			goto err_free_dev;
 
 		tun_net_init(dev);
+		//初始化多队列数据项
 		tun_flow_init(tun);
 
 		dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST |
@@ -2167,6 +2190,9 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 					    &tun_proto);
 	if (!tfile)
 		return -ENOMEM;
+	//目前tun 指针为NULL
+	//需要用户程序调用TUNSETIFF 来创建或则绑定到指定
+	//tun/tap 虚拟接口
 	RCU_INIT_POINTER(tfile->tun, NULL);
 	tfile->net = get_net(current->nsproxy->net_ns);
 	tfile->flags = 0;
@@ -2228,7 +2254,9 @@ static void tun_chr_show_fdinfo(struct seq_file *m, struct file *f)
 static const struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
 	.llseek = no_llseek,
+	//这里实现实际是间接调用tun_chr_read_iter
 	.read  = new_sync_read,
+	//write 实现上是将数据写入tun 虚拟dev
 	.write = new_sync_write,
 	.read_iter  = tun_chr_read_iter,
 	.write_iter = tun_chr_write_iter,

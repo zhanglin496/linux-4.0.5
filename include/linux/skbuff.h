@@ -567,6 +567,10 @@ struct sk_buff {
 	unsigned int		len,
 				data_len;
 	__u16			mac_len,
+		//skb_clone_writable 检查时表示头部可写的大小
+		//从skb->data 开始计算
+		//如果要求的大小小于hdr_len
+		//就不需要重新分配空间
 				hdr_len;
 
 	/* Following fields are _not_ copied in __copy_skb_header()
@@ -2446,6 +2450,8 @@ static inline struct sk_buff *pskb_copy_for_clone(struct sk_buff *skb,
  *	Returns true if modifying the header part of the cloned buffer
  *	does not requires the data to be copied.
  */
+ //skb_header_cloned检查数据区引用计数是否为1
+ //hdr_len 表示头部从skb->data开始预留的可写空间
 static inline int skb_clone_writable(const struct sk_buff *skb, unsigned int len)
 {
 	return !skb_header_cloned(skb) &&

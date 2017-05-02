@@ -246,6 +246,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb->truesize = SKB_TRUESIZE(size);
 	skb->pfmemalloc = pfmemalloc;
 	atomic_set(&skb->users, 1);
+	//初始都指向data
 	skb->head = data;
 	skb->data = data;
 	skb_reset_tail_pointer(skb);

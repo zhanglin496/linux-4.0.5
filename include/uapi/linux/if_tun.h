@@ -52,8 +52,10 @@
 #define TUNGETVNETLE _IOR('T', 221, int)
 
 /* TUNSETIFF ifr flags */
+//TUN device (no Ethernet headers) 
 #define IFF_TUN		0x0001
 #define IFF_TAP		0x0002
+//IFF_NO_PI - Do not provide packet information  
 #define IFF_NO_PI	0x1000
 /* This flag has no real effect */
 #define IFF_ONE_QUEUE	0x2000
