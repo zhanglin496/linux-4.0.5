@@ -23,7 +23,7 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
 		return AF_UNSPEC;
 }
 
-/**
+/** //route netlink
  *	struct rtnl_link_ops - rtnetlink link operations
  *
  *	@list: Used internally

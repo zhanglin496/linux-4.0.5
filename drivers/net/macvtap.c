@@ -411,7 +411,9 @@ static int macvtap_newlink(struct net *src_net,
 	 * tap support all offloads also.
 	 */
 	vlan->tap_features = TUN_OFFLOADS;
-
+	//和macvlan的主要区别是接收的数据帧 
+	//直接发送给字符设备的套接字队列
+	//而不是发送给虚拟网卡
 	err = netdev_rx_handler_register(dev, macvtap_handle_frame, vlan);
 	if (err)
 		return err;

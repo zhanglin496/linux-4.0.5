@@ -105,6 +105,10 @@ static const struct ethtool_ops veth_ethtool_ops = {
 	.get_ethtool_stats	= veth_get_ethtool_stats,
 };
 
+//VETH 设备总是成对出现，
+//送到一端请求发送的数据总是从另一端以请求接受的形式出现。
+//通常用于改变数据方向或连接其它网络设备
+//从一个peer发出的数据将成为另一个peer的输入
 static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
@@ -112,6 +116,7 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	int length = skb->len;
 
 	rcu_read_lock();
+	//获取peer 端，peer端必须存在
 	rcv = rcu_dereference(priv->peer);
 	if (unlikely(!rcv)) {
 		kfree_skb(skb);
@@ -123,7 +128,10 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->ip_summed == CHECKSUM_NONE &&
 	    rcv->features & NETIF_F_RXCSUM)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-
+	//将数据包转发给对端
+	//设置skb 的dev 为peer ，将skb 回环到该接口
+	//同时调用netif_rx
+	//数据包重新注入协议栈
 	if (likely(dev_forward_skb(rcv, skb) == NET_RX_SUCCESS)) {
 		struct pcpu_vstats *stats = this_cpu_ptr(dev->vstats);
 
@@ -194,9 +202,15 @@ static void veth_set_multicast_list(struct net_device *dev)
 {
 }
 
+//veth 是一个peer对
+//VETH 设备总是成对出现，
+//送到一端请求发送的数据总是从另一端以请求接受的形式出现。
+//通常用于改变数据方向
+//从一个peer发出的数据将成为另一个peer的输入
 static int veth_open(struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
+	//获取peer
 	struct net_device *peer = rtnl_dereference(priv->peer);
 
 	if (!peer)
@@ -262,6 +276,14 @@ static void veth_poll_controller(struct net_device *dev)
 	 */
 }
 #endif	/* CONFIG_NET_POLL_CONTROLLER */
+
+//Linux container 中用到一个叫做 veth 的东西，
+//这是一种比较新的设备，专门为 container 所建。
+//veth 从名字上来看是 Virtual ETHernet 的缩写，
+//它的作用很简单，就是要把从一个网络用户空间
+//（network namespace ）发出的数据包转发到另一个用户空间。
+//veth 设备是成对的，一个是容器之中，另一个在容器之外，
+//即在真实机器上能看到的。
 
 static const struct net_device_ops veth_netdev_ops = {
 	.ndo_init            = veth_dev_init,
@@ -424,7 +446,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	/*
 	 * tie the deviced together
 	 */
-
+	//互相关联
 	priv = netdev_priv(dev);
 	rcu_assign_pointer(priv->peer, peer);
 
@@ -477,6 +499,8 @@ static struct net *veth_get_link_net(const struct net_device *dev)
 	return peer ? dev_net(peer) : dev_net(dev);
 }
 
+//应用层通过指定名称DRV_NAME 
+//调用ip 命令工具来配置
 static struct rtnl_link_ops veth_link_ops = {
 	.kind		= DRV_NAME,
 	.priv_size	= sizeof(struct veth_priv),

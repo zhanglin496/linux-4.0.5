@@ -148,7 +148,9 @@ static int ipvlan_open(struct net_device *dev)
 		dev->flags |= IFF_NOARP;
 	else
 		dev->flags &= ~IFF_NOARP;
-
+	//将IP地址列表加入hash表
+	//因为ipvlan_stop 可能删除了地址列表
+	//
 	if (ipvlan->ipv6cnt > 0 || ipvlan->ipv4cnt > 0) {
 		list_for_each_entry(addr, &ipvlan->addrs, anode)
 			ipvlan_ht_addr_add(ipvlan, addr);
@@ -464,7 +466,10 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	ipvlan->dev = dev;
 	ipvlan->port = port;
 	ipvlan->sfeatures = IPVLAN_FEATURES;
+	//IP地址列表
+	//在ipvlan_addr4_event 中加入
 	INIT_LIST_HEAD(&ipvlan->addrs);
+	//IP地址计数
 	ipvlan->ipv4cnt = 0;
 	ipvlan->ipv6cnt = 0;
 
@@ -692,11 +697,14 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	addr->master = ipvlan;
 	memcpy(&addr->ip4addr, ip4_addr, sizeof(struct in_addr));
 	addr->atype = IPVL_IPV4;
+	//IP 地址统计
 	list_add_tail(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv4cnt++;
 	/* If the interface is not up, the address will be added to the hash
 	 * list by ipvlan_open.
 	 */
+	 //如果接口未UP
+	 //ipvlan_open 会执行加入动作
 	if (netif_running(ipvlan->dev))
 		ipvlan_ht_addr_add(ipvlan, addr);
 	ipvlan_set_broadcast_mac_filter(ipvlan, true);

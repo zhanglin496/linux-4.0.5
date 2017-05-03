@@ -1074,7 +1074,8 @@ static int macvlan_port_create(struct net_device *dev)
 
 	skb_queue_head_init(&port->bc_queue);
 	INIT_WORK(&port->bc_work, macvlan_process_broadcast);
-
+	
+	//注册rx_handler ，截获数据包
 	err = netdev_rx_handler_register(dev, macvlan_handle_frame, port);
 	if (err)
 		kfree(port);
@@ -1217,6 +1218,7 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 	return 0;
 }
 
+//ip link add link eth0  name macvlan1 type macvlan|veth|
 int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[])
 {
@@ -1228,6 +1230,8 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
+	//tb[IFLA_LINK]
+	//宿主网卡，比如eth0
 
 	lowerdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (lowerdev == NULL)
@@ -1236,6 +1240,8 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	/* When creating macvlans or macvtaps on top of other macvlans - use
 	 * the real device as the lowerdev.
 	 */
+	 //宿主网卡已经是macvlan
+	 //那么更新lowerdev 为宿主dev
 	if (netif_is_macvlan(lowerdev))
 		lowerdev = macvlan_dev_real_dev(lowerdev);
 
@@ -1247,6 +1253,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	if (!tb[IFLA_ADDRESS])
 		eth_hw_addr_random(dev);
 
+	//宿主lowerdev 是否是macvlan port
 	if (!macvlan_port_exists(lowerdev)) {
 		err = macvlan_port_create(lowerdev);
 		if (err < 0)
@@ -1257,8 +1264,9 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	/* Only 1 macvlan device can be created in passthru mode */
 	if (port->passthru)
 		return -EINVAL;
-
+	//指向宿主dev
 	vlan->lowerdev = lowerdev;
+	//指向虚拟的dev
 	vlan->dev      = dev;
 	vlan->port     = port;
 	vlan->set_features = MACVLAN_FEATURES;
@@ -1286,7 +1294,8 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		if (err)
 			return err;
 	}
-
+	
+	//引用计数
 	port->count += 1;
 	err = register_netdevice(dev);
 	if (err < 0)
@@ -1475,6 +1484,11 @@ static struct net *macvlan_get_link_net(const struct net_device *dev)
 {
 	return dev_net(macvlan_dev_real_dev(dev));
 }
+//macvlan 虚拟的dev 可以配置不同的mac地址
+//有时我们可能需要一块物理网卡绑定多个 IP 以及多个 MAC 地址，
+//虽然绑定多个 IP 很容易，但是这些 IP 会共享物理网卡的 MAC 地址，
+//可能无法满足我们的设计需求，所以有了 MACVLAN 设备
+//macvlan 也是一个虚拟的以太网设备
 
 static struct rtnl_link_ops macvlan_link_ops = {
 	.kind		= "macvlan",

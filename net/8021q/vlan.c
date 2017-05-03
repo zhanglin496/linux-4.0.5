@@ -267,6 +267,7 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	vlan->vlan_proto = htons(ETH_P_8021Q);
 	vlan->vlan_id = vlan_id;
 	//指向所属于的dev
+	//real_dev 可以是真实的物理设备也可以是虚拟设备
 	vlan->real_dev = real_dev;
 	vlan->dent = NULL;
 	//默认设置VLAN_FLAG_REORDER_HDR
@@ -373,7 +374,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		pr_info("adding VLAN 0 to HW filter on device %s\n",
 			dev->name);
 		//注册只接收vid为0的vlan帧
-		//每添加一个新的vid 使都会调用vlan_vid_add函数注册过滤列表
+		//每添加一个新的vid   时都会调用vlan_vid_add函数注册过滤列表
 		vlan_vid_add(dev, htons(ETH_P_8021Q), 0);
 	}
 

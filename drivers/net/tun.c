@@ -2180,6 +2180,8 @@ out:
 	return ret;
 }
 
+//调用open ("/dev/net/tun", O_RDWR);时
+//调用该函数
 static int tun_chr_open(struct inode *inode, struct file * file)
 {
 	struct tun_file *tfile;
@@ -2210,6 +2212,7 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	tfile->sk.sk_write_space = tun_sock_write_space;
 	tfile->sk.sk_sndbuf = INT_MAX;
 
+	//和文件描述符关联
 	file->private_data = tfile;
 	set_bit(SOCK_EXTERNALLY_ALLOCATED, &tfile->socket.flags);
 	INIT_LIST_HEAD(&tfile->next);

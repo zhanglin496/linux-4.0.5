@@ -48,8 +48,9 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 
 	cscov = ntohs(uh->len);
 	
-	//因为udplite复用了长度字段
+	//因为udplite 校验和范围复用了长度字段
 	//那么udp 的实际长度只能根据ip头的总长度来推算
+	
 	//整个数据包需要校验
 	if (cscov == 0)		 /* Indicates that full coverage is required. */
 		;

@@ -1734,6 +1734,7 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 	UDP_SKB_CB(skb)->cscov = skb->len;
 
 	if (proto == IPPROTO_UDPLITE) {
+		//UDPLITE 协议校验和需要特殊处理
 		err = udplite_checksum_init(skb, uh);
 		if (err)
 			return err;
