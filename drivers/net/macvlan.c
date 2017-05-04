@@ -614,7 +614,8 @@ static int macvlan_open(struct net_device *dev)
 	}
 
 hash_add:
-	//macvlan  虚拟dev 的mac地址加入vlan_hash 表中
+	//macvlan  虚拟dev 的mac地址加入到vlan_hash 表中
+	//后面的转发需要依据该MAC地址表
 	macvlan_hash_add(vlan);
 	return 0;
 
