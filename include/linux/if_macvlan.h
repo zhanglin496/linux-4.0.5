@@ -60,6 +60,7 @@ struct macvlan_dev {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif
+	//macvlan_port 中vlan_source_hash mac地址数量
 	unsigned int		macaddr_count;
 };
 

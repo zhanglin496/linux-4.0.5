@@ -44,6 +44,7 @@ struct macvlan_port {
 	struct hlist_head	vlan_hash[MACVLAN_HASH_SIZE];
 	struct list_head	vlans;
 	struct rcu_head		rcu;
+	//广播数据包队列
 	struct sk_buff_head	bc_queue;
 	struct work_struct	bc_work;
 	bool 			passthru;
@@ -249,6 +250,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 				continue;
 
 			hash = mc_hash(vlan, eth->h_dest);
+			//是否允许多播位
 			if (!test_bit(hash, vlan->mc_filter))
 				continue;
 
@@ -285,6 +287,7 @@ static void macvlan_process_broadcast(struct work_struct *w)
 
 		if (!src)
 			/* frame comes from an external address */
+		//来自外部的多播数据包
 			macvlan_broadcast(skb, port, NULL,
 					  MACVLAN_MODE_PRIVATE |
 					  MACVLAN_MODE_VEPA    |
@@ -411,6 +414,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 	rx_handler_result_t handle_res;
 
 	port = macvlan_port_get_rcu(skb->dev);
+	//隔离广播/多播流量处理
 	if (is_multicast_ether_addr(eth->h_dest)) {
 		skb = ip_check_defrag(skb, IP_DEFRAG_MACVLAN);
 		if (!skb)
@@ -427,7 +431,14 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 			handle_res = RX_HANDLER_CONSUMED;
 			goto out;
 		}
-
+		//多播流量处理调用工作队列macvlan_process_broadcast
+		//根据src->mode 配置的模式来决定如何处理多播流量
+		//隔离了多播流量后，arp将会失效
+		//MACVLAN_MODE_PRIVATE 模式下，同一个宿主网卡下的
+		//多个MACVLAN虚拟网卡将无法通信，
+		//但是可以手工静态探测MAC地址
+		//绕过该限制
+		
 		MACVLAN_SKB_CB(skb)->src = src;
 		macvlan_broadcast_enqueue(port, skb);
 
@@ -442,7 +453,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 		vlan = macvlan_hash_lookup(port, eth->h_dest);
 	if (vlan == NULL)
 		return RX_HANDLER_PASS;
-
+	//对于单播流量，直接回环给虚拟的dev
 	dev = vlan->dev;
 	if (unlikely(!(dev->flags & IFF_UP))) {
 		kfree_skb(skb);
@@ -481,7 +492,7 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 			macvlan_broadcast(skb, port, dev, MACVLAN_MODE_BRIDGE);
 			goto xmit_world;
 		}
-
+		//回环到lowerdev宿主设备
 		dest = macvlan_hash_lookup(port, eth->h_dest);
 		if (dest && dest->mode == MACVLAN_MODE_BRIDGE) {
 			/* send to lowerdev first for its network taps */
@@ -490,7 +501,8 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NET_XMIT_SUCCESS;
 		}
 	}
-
+//非桥接模式
+//数据包通过宿主设备发出
 xmit_world:
 	skb->dev = vlan->lowerdev;
 	return dev_queue_xmit(skb);
@@ -602,6 +614,7 @@ static int macvlan_open(struct net_device *dev)
 	}
 
 hash_add:
+	//macvlan  虚拟dev 的mac地址加入vlan_hash 表中
 	macvlan_hash_add(vlan);
 	return 0;
 
@@ -1263,6 +1276,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	port = macvlan_port_get_rtnl(lowerdev);
 
 	/* Only 1 macvlan device can be created in passthru mode */
+	//若passthru为真，则只允许一个虚拟设备连接到宿主设备
 	if (port->passthru)
 		return -EINVAL;
 	//指向宿主dev

@@ -120,6 +120,7 @@ static inline bool is_multicast_ether_addr(const u8 *addr)
  *
  * Return true if the address is a local address.
  */
+ //第一个字节的第二位为1，0010
 static inline bool is_local_ether_addr(const u8 *addr)
 {
 	return 0x02 & addr[0];
