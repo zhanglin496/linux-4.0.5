@@ -12,8 +12,8 @@ int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct nf_conn_seqadj *seqadj;
 	struct nf_ct_seqadj *this_way;
-	//å·®å€¼ä¸º0ï¼Œå®žé™…ä¸Šè¡¨ç¤ºæ•°æ®åŒ…é•¿åº¦æœªå˜åŒ–ï¼Œ
-	//ä¹Ÿå°±è¯´æ˜Žä¸éœ€è¦åšåºåˆ—å·è°ƒæ•´
+	//²îÖµÎª0£¬Êµ¼ÊÉÏ±íÊ¾Êý¾Ý°ü³¤¶ÈÎ´±ä»¯£¬
+	//Ò²¾ÍËµÃ÷²»ÐèÒª×öÐòÁÐºÅµ÷Õû
 	if (off == 0)
 		return 0;
 
@@ -50,18 +50,18 @@ int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 	 * correction, record it: we don't handle more than one
 	 * adjustment in the window, but do deal with common case of a
 	 * retransmit */
-	 /*
-	  * å¦‚æžœthis_way->offset_before == this_way->offset_afterï¼Œè¡¨æ˜Žè¿˜æœªåˆå§‹åŒ–
-	  * å¦‚æžœseqå°äºŽç­‰äºŽcorrection_posï¼Œè¡¨ç¤ºå¯èƒ½æ˜¯é‡ä¼ çš„æ•°æ®åŒ…
-	 */
+	/*
+ 	  * Èç¹ûthis_way->offset_before == this_way->offset_after£¬±íÃ÷»¹Î´³õÊ¼»¯
+ 	  * Èç¹ûseqÐ¡ÓÚµÈÓÚcorrection_pos£¬±íÊ¾¿ÉÄÜÊÇÖØ´«µÄÊý¾Ý°ü
+ 	 */
 	if (this_way->offset_before == this_way->offset_after ||
 	    before(this_way->correction_pos, ntohl(seq))) {
-	    	//è®°å½•å½“å‰ä½ç½®åºåˆ—å·
+	    	//¼ÇÂ¼µ±Ç°Î»ÖÃÐòÁÐºÅ
 		this_way->correction_pos = ntohl(seq);
-		//ç›¸å¯¹äºŽcorrection_posçš„beforeåç§»
+		//Ïà¶ÔÓÚcorrection_posµÄbeforeÆ«ÒÆ
 		this_way->offset_before	 = this_way->offset_after;
-		//ç´¯è®¡ç›¸å¯¹äºŽcorrection_posçš„afteråç§»
-		//å› ä¸ºå¯èƒ½ä¼šä¿®æ”¹è¿žæŽ¥çš„å¤šä¸ªæ•°æ®åŒ…
+		//ÀÛ¼ÆÏà¶ÔÓÚcorrection_posµÄafterÆ«ÒÆ
+ 		//ÒòÎª¿ÉÄÜ»áÐÞ¸ÄÁ¬½ÓµÄ¶à¸öÊý¾Ý°ü
 		this_way->offset_after	+= off;
 	}
 	spin_unlock_bh(&ct->lock);
@@ -192,22 +192,21 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 
 	tcph = (void *)skb->data + protoff;
 	spin_lock_bh(&ct->lock);
-	//å¿…é¡»æ£€æŸ¥åºåˆ—å·æ˜¯å¦éœ€è¦è°ƒæ•´ï¼ŒTCPåŒ…è¾¾åˆ°çš„æ¬¡åºæ˜¯ä¸å¯æŽ§çš„
-	//å¦‚æžœæ˜¯åŽç»­çš„åŒ…å…ˆåˆ°è¾¾ï¼Œå¯èƒ½éœ€è¦æ›´æ”¹åºåˆ—å·çš„å€¼
-	//è°ƒæ•´seq è¦å–æœ¬æ–¹å‘çš„å·®å€¼ï¼Œå› ä¸ºæœ¬æ–¹å‘è®°å½•äº†ä¿®æ”¹åŽçš„å·®å€¼
-	//ä¹‹æ‰€ä»¥ä¸åŽ»åæ–¹å‘çš„å·®å€¼ï¼Œæ˜¯å› ä¸ºä¿®æ”¹æœ¬åå‘çš„æ•°æ®åŒ…é•¿åº¦ï¼Œåªä¼šå½±å“æœ¬æ–¹å‘seqçš„è®¡ç®—å’Œåæ–¹å‘ackçš„è®¡ç®—
-	//åŒæ—¶ä¿®æ”¹æ—¶çš„å·®å€¼æ˜¯è®°å½•åœ¨å½“å‰æ–¹å‘çš„æ‰©å±•ä¸­ï¼Œè€Œåæ–¹å‘å¯èƒ½ä¸ä¼šä¿®æ”¹æ•°æ®åŒ…ï¼Œä»Žè€Œè®°å½•çš„å·®å€¼ä¸º0
-	//å‡è®¾åªå¯¹æœ¬æ–¹å‘çš„æ•°æ®åŒ…é•¿åº¦å¢žåŠ äº†ä¸€æ¬¡ï¼Œåæ–¹å‘æ•°æ®åŒ…æœªåšè¿‡é•¿åº¦ä¿®æ”¹ï¼Œ
-	//è¿™æ ·æ¯æ¬¡æœ¬æ–¹å‘æ•°æ®åŒ…seqéƒ½éœ€è¦å¢žåŠ ï¼Œ
-	//ä½†æ˜¯æœ¬æ–¹å‘ackçš„å€¼å´ä¸ä¼šæ”¹å˜ï¼Œå› ä¸ºåæ–¹å‘è®°å½•çš„seqå·®å€¼æ˜¯0 
-	//åŒç†åæ–¹å‘çš„seqä¸ä¼šæ”¹å˜ï¼Œä½†æ˜¯ackå´ä¼šæ”¹å˜ï¼Œå› ä¸ºå¯¹å‘çš„seqæœ‰å˜æ›´ï¼Œä¼šå¯¼è‡´æœ¬æ–¹å‘çš„ackéœ€è¦å˜æ›´
+	//±ØÐë¼ì²éÐòÁÐºÅÊÇ·ñÐèÒªµ÷Õû£¬TCP°ü´ïµ½µÄ´ÎÐòÊÇ²»¿É¿ØµÄ
+	//Èç¹ûÊÇºóÐøµÄ°üÏÈµ½´ï£¬¿ÉÄÜÐèÒª¸ü¸ÄÐòÁÐºÅµÄÖµ			//Èç¹ûÊÇºóÐøµÄ°üÏÈµ½´ï£¬¿ÉÄÜÐèÒª¸ü¸ÄÐòÁÐºÅµÄÖµ
+	//µ÷Õûseq ÒªÈ¡±¾·½ÏòµÄ²îÖµ£¬ÒòÎª±¾·½Ïò¼ÇÂ¼ÁËÐÞ¸ÄºóµÄ²îÖµ
+	//Ö®ËùÒÔ²»È¥·´·½ÏòµÄ²îÖµ£¬ÊÇÒòÎªÐÞ¸Ä±¾·´ÏòµÄÊý¾Ý°ü³¤¶È£¬Ö»»áÓ°Ïì±¾·½ÏòseqµÄ¼ÆËãºÍ·´·½ÏòackµÄ¼ÆËã
+	//Í¬Ê±ÐÞ¸ÄÊ±µÄ²îÖµÊÇ¼ÇÂ¼ÔÚµ±Ç°·½ÏòµÄÀ©Õ¹ÖÐ£¬¶ø·´·½Ïò¿ÉÄÜ²»»áÐÞ¸ÄÊý¾Ý°ü£¬´Ó¶ø¼ÇÂ¼µÄ²îÖµÎª0
+	//¼ÙÉèÖ»¶Ô±¾·½ÏòµÄÊý¾Ý°ü³¤¶ÈÔö¼ÓÁËÒ»´Î£¬·´·½ÏòÊý¾Ý°üÎ´×ö¹ý³¤¶ÈÐÞ¸Ä£¬
+	//ÕâÑùÃ¿´Î±¾·½ÏòÊý¾Ý°üseq¶¼ÐèÒªÔö¼Ó£¬
+	//µ«ÊÇ±¾·½ÏòackµÄÖµÈ´²»»á¸Ä±ä£¬ÒòÎª·´·½Ïò¼ÇÂ¼µÄseq²îÖµÊÇ0 
+	//Í¬Àí·´·½ÏòµÄseq²»»á¸Ä±ä£¬µ«ÊÇackÈ´»á¸Ä±ä£¬ÒòÎª¶ÔÏòµÄseqÓÐ±ä¸ü£¬»áµ¼ÖÂ±¾·½ÏòµÄackÐèÒª±ä¸ü
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		seqoff = this_way->offset_after;
 	else
 		seqoff = this_way->offset_before;
-	//è°ƒæ•´ackçš„å€¼
-	//è°ƒæ•´ack è¦å–åæ–¹å‘çš„å·®å€¼ï¼Œå› ä¸ºackçš„å€¼æ˜¯é€šè¿‡åæ–¹å‘çš„seqåŠ ä¸Šè´Ÿè½½é•¿åº¦è®¡ç®—å¾—åˆ°çš„ï¼Œ
-	//æ‰€ä»¥è¦é€šè¿‡åæ–¹å‘è®°å½•çš„seqçš„å·®å€¼æ¥è¡¥å¿
+	//µ÷Õûack ÒªÈ¡·´·½ÏòµÄ²îÖµ£¬ÒòÎªackµÄÖµÊÇÍ¨¹ý·´·½ÏòµÄseq¼ÓÉÏ¸ºÔØ³¤¶È¼ÆËãµÃµ½µÄ£¬
+	//ËùÒÔÒªÍ¨¹ý·´·½Ïò¼ÇÂ¼µÄseqµÄ²îÖµÀ´²¹³¥
 	if (after(ntohl(tcph->ack_seq) - other_way->offset_before,
 		  other_way->correction_pos))
 		ackoff = other_way->offset_after;
@@ -215,8 +214,8 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 		ackoff = other_way->offset_before;
 
 	newseq = htonl(ntohl(tcph->seq) + seqoff);
-	//è¿™é‡Œæ˜¯å‡åŽ»ackoffï¼Œå¯¹åŽŸclientæ¥è¯´ï¼Œ
-	//å¦‚æžœå¢žåŠ äº†payloadé•¿åº¦ï¼Œå¯¹äºŽå“åº”åŒ…è¦å‡åŽ»ç›¸åº”çš„offset
+	//ÕâÀïÊÇ¼õÈ¥ackoff£¬¶ÔÔ­clientÀ´Ëµ£¬
+	//Èç¹ûÔö¼ÓÁËpayload³¤¶È£¬¶ÔÓÚÏìÓ¦°üÒª¼õÈ¥ÏàÓ¦µÄoffset
 	newack = htonl(ntohl(tcph->ack_seq) - ackoff);
 
 	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, 0);

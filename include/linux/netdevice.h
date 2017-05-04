@@ -1640,6 +1640,10 @@ struct net_device {
 #endif
 
 	unsigned long		gro_flush_timeout;
+//每个net_device 可以注册一个rx_handler处理函数
+//在__netif_receive_skb_core 调用来处理一些额外的工作
+//很多虚拟网卡bridge macvlan ipvlan macvtap 就使用了这个特性
+// 
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 

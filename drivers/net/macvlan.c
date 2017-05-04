@@ -460,6 +460,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 	skb->pkt_type = PACKET_HOST;
 
 	ret = NET_RX_SUCCESS;
+	//再次调用__netif_receive_skb_core
 	handle_res = RX_HANDLER_ANOTHER;
 out:
 	macvlan_count_rx(vlan, len, ret == NET_RX_SUCCESS, false);
@@ -1231,7 +1232,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
 	//tb[IFLA_LINK]
-	//宿主网卡，比如eth0
+	//根据名称找宿主网卡，比如eth0
 
 	lowerdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (lowerdev == NULL)
