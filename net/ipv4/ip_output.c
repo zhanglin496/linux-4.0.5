@@ -408,6 +408,7 @@ int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 					   sk->sk_bound_dev_if);
 		if (IS_ERR(rt))
 			goto no_route;
+		//»º´ædst cacheµ½sockÖÐ
 		sk_setup_caps(sk, &rt->dst);
 	}
 	skb_dst_set_noref(skb, &rt->dst);
