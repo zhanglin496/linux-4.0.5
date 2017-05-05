@@ -1588,7 +1588,9 @@ struct net_device {
 	unsigned short          dev_id;
 	unsigned short          dev_port;
 	spinlock_t		addr_list_lock;
+	//单播L2 地址
 	struct netdev_hw_addr_list	uc;
+	//多播L2 地址
 	struct netdev_hw_addr_list	mc;
 	struct netdev_hw_addr_list	dev_addrs;
 

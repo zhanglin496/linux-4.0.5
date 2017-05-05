@@ -879,6 +879,7 @@ static int arp_process(struct sk_buff *skb)
 				//不存在时创建一个新的邻居项
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n) {
+					//回复接收到arp报文的设备MAC地址
 					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
 						 dev, tip, sha, dev->dev_addr,
 						 sha);

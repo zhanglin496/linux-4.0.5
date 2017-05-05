@@ -426,6 +426,8 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 		    src->mode != MACVLAN_MODE_BRIDGE) {
 			/* forward to original port. */
 			vlan = src;
+			//切换skb dev 到src
+			//宿主网卡结束处理该数据包
 			ret = macvlan_broadcast_one(skb, vlan, eth, 0) ?:
 			      netif_rx(skb);
 			handle_res = RX_HANDLER_CONSUMED;
@@ -441,7 +443,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 		
 		MACVLAN_SKB_CB(skb)->src = src;
 		macvlan_broadcast_enqueue(port, skb);
-
+		//宿主机会收到一份copy
 		return RX_HANDLER_PASS;
 	}
 
@@ -488,11 +490,12 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 		const struct ethhdr *eth = (void *)skb->data;
 
 		/* send to other bridge ports directly */
+		//多播，向同一宿主下的虚拟网卡flood数据包
 		if (is_multicast_ether_addr(eth->h_dest)) {
 			macvlan_broadcast(skb, port, dev, MACVLAN_MODE_BRIDGE);
 			goto xmit_world;
 		}
-		//回环到lowerdev宿主设备
+		//若dest 也为桥模式，回环到lowerdev宿主设备
 		dest = macvlan_hash_lookup(port, eth->h_dest);
 		if (dest && dest->mode == MACVLAN_MODE_BRIDGE) {
 			/* send to lowerdev first for its network taps */
@@ -720,16 +723,18 @@ static void macvlan_set_mac_lists(struct net_device *dev)
 	struct macvlan_dev *vlan = netdev_priv(dev);
 
 	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+		//允许所有的L2 流量
 		bitmap_fill(vlan->mc_filter, MACVLAN_MC_FILTER_SZ);
 	} else {
 		struct netdev_hw_addr *ha;
 		DECLARE_BITMAP(filter, MACVLAN_MC_FILTER_SZ);
 
 		bitmap_zero(filter, MACVLAN_MC_FILTER_SZ);
+		//设置多播流量标记
 		netdev_for_each_mc_addr(ha, dev) {
 			__set_bit(mc_hash(vlan, ha->addr), filter);
 		}
-
+		//默认允许L2 广播流量
 		__set_bit(mc_hash(vlan, dev->broadcast), filter);
 
 		bitmap_copy(vlan->mc_filter, filter, MACVLAN_MC_FILTER_SZ);
