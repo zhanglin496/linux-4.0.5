@@ -449,10 +449,12 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	phy_dev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (!phy_dev)
 		return -ENODEV;
-
+	
+	//宿主设备可能是一个ipvlan设备
 	if (netif_is_ipvlan(phy_dev)) {
 		struct ipvl_dev *tmp = netdev_priv(phy_dev);
-
+		
+		//获取MASTER主设备
 		phy_dev = tmp->phy_dev;
 	} else if (!netif_is_ipvlan_port(phy_dev)) {
 		err = ipvlan_port_create(phy_dev);
