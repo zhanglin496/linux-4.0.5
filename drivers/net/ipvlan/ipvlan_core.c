@@ -416,6 +416,10 @@ static int ipvlan_process_outbound(struct sk_buff *skb,
 	int ret = NET_XMIT_DROP;
 
 	/* In this mode we dont care about multicast and broadcast traffic */
+	//如果是arp广播，将被丢弃
+	//因此在L3模式下，只允许同一个宿主设备下的IPVLAN设备之间的通信
+	//arp request 被丢弃
+	//l2 模式下只能在内部和外部静态配置arp表的情况下才能和外部正常通信
 	if (is_multicast_ether_addr(ethh->h_dest)) {
 		pr_warn_ratelimited("Dropped {multi|broad}cast of type= [%x]\n",
 				    ntohs(skb->protocol));
@@ -427,6 +431,7 @@ static int ipvlan_process_outbound(struct sk_buff *skb,
 	 * will have L2; which need to discarded and processed further
 	 * in the net-ns of the main-device.
 	 */
+	 //删除L2头部
 	if (skb_mac_header_was_set(skb)) {
 		skb_pull(skb, sizeof(*ethh));
 		skb->mac_header = (typeof(skb->mac_header))~0U;
@@ -438,6 +443,7 @@ static int ipvlan_process_outbound(struct sk_buff *skb,
 	else if (skb->protocol == htons(ETH_P_IP))
 		ret = ipvlan_process_v4_outbound(skb);
 	else {
+		//arp reply被丢弃
 		pr_warn_ratelimited("Dropped outbound packet type=%x\n",
 				    ntohs(skb->protocol));
 		kfree_skb(skb);
@@ -458,9 +464,11 @@ static int ipvlan_xmit_mode_l3(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 
 	addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
+	//如果找到addr，表示回环到同一个宿主的另一个ipvlan设备
 	if (addr)
-		return ipvlan_rcv_frame(addr, skb, true);
+		return ipvlan_rcv_frame(addr, skb, true);、
 
+	//否则数据通过宿主设备发出
 out:
 	skb->dev = ipvlan->phy_dev;
 	return ipvlan_process_outbound(skb, ipvlan);
@@ -474,10 +482,14 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 	void *lyr3h;
 	int addr_type;
 
+	//如果目的和源MAC地址相等
+	//因为ipvlan下目的MAC地址和宿主设备是相等的
+	//所以要检查目的和源MAC地址相等
 	if (ether_addr_equal(eth->h_dest, eth->h_source)) {
 		lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
 		if (lyr3h) {
 			addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
+			//回环到另一个ipvlan网卡
 			if (addr)
 				return ipvlan_rcv_frame(addr, skb, true);
 		}
@@ -499,7 +511,9 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 		ipvlan_multicast_frame(ipvlan->port, skb, ipvlan, true);
 		skb->ip_summed = ip_summed;
 	}
-
+	
+//直接通过宿主设备发出
+//和IPVLAN_MODE_L2的区别就是不会隔离广播流量
 	skb->dev = ipvlan->phy_dev;
 	return dev_queue_xmit(skb);
 }
@@ -562,7 +576,9 @@ static rx_handler_result_t ipvlan_handle_mode_l3(struct sk_buff **pskb,
 	lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
 	if (!lyr3h)
 		goto out;
-
+	//对于arp请求会接收，但是arp响应会被ipvlan_xmit_mode_l3丢弃
+	//因此任然无法和外部通信
+	//感觉ipvlan l2模式限制了只能在内部通信
 	addr = ipvlan_addr_lookup(port, lyr3h, addr_type, true);
 	if (addr)
 		ret = ipvlan_rcv_frame(addr, skb, false);

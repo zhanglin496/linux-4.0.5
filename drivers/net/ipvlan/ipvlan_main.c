@@ -49,6 +49,7 @@ static int ipvlan_port_create(struct net_device *dev)
 		return -ENOMEM;
 
 	port->dev = dev;
+	//默认L3模式
 	port->mode = IPVLAN_MODE_L3;
 	INIT_LIST_HEAD(&port->ipvlans);
 	for (idx = 0; idx < IPVLAN_HASH_SIZE; idx++)
@@ -57,7 +58,7 @@ static int ipvlan_port_create(struct net_device *dev)
 	err = netdev_rx_handler_register(dev, ipvlan_handle_frame, port);
 	if (err)
 		goto err;
-
+	//标记宿主设备为主设备
 	dev->priv_flags |= IFF_IPVLAN_MASTER;
 	return 0;
 
@@ -227,6 +228,7 @@ static void ipvlan_set_broadcast_mac_filter(struct ipvl_dev *ipvlan, bool set)
 		__clear_bit(hashbit, ipvlan->mac_filters);
 }
 
+//将L2 多播地址加入到mc_filter中
 static void ipvlan_set_multicast_mac_filter(struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
@@ -443,7 +445,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
-
+	//获取宿主设备
 	phy_dev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (!phy_dev)
 		return -ENODEV;
@@ -478,7 +480,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	 * packets.
 	 */
 	memcpy(dev->dev_addr, phy_dev->dev_addr, ETH_ALEN);
-
+	//标记ipvlan设备为从设备
 	dev->priv_flags |= IFF_IPVLAN_SLAVE;
 
 	port->count += 1;
@@ -697,16 +699,17 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	addr->master = ipvlan;
 	memcpy(&addr->ip4addr, ip4_addr, sizeof(struct in_addr));
 	addr->atype = IPVL_IPV4;
-	//IP 地址统计
+	//IP 地址统计，加入全局列表中
 	list_add_tail(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv4cnt++;
 	/* If the interface is not up, the address will be added to the hash
 	 * list by ipvlan_open.
 	 */
 	 //如果接口未UP
-	 //ipvlan_open 会执行加入动作
+	 //ipvlan_open 会执行加入动作，加入hash表中
 	if (netif_running(ipvlan->dev))
 		ipvlan_ht_addr_add(ipvlan, addr);
+	//将IPVLAN设备的L2 广播地址加入mac_filters过滤表中
 	ipvlan_set_broadcast_mac_filter(ipvlan, true);
 
 	return 0;
@@ -748,6 +751,7 @@ static int ipvlan_addr4_event(struct notifier_block *unused,
 	switch (event) {
 	case NETDEV_UP:
 		ip4_addr.s_addr = if4->ifa_address;
+		//将IPVLAN设备的IP地址加入到hash表中
 		if (ipvlan_add_addr4(ipvlan, &ip4_addr))
 			return NOTIFY_BAD;
 		break;
