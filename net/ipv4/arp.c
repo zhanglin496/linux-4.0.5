@@ -235,7 +235,7 @@ static int arp_constructor(struct neighbour *neigh)
 		rcu_read_unlock();
 		return -EINVAL;
 	}
-
+	//获取目标地址的类型
 	neigh->type = inet_addr_type(dev_net(dev), addr);
 
 	parms = in_dev->arp_parms;
@@ -292,6 +292,8 @@ static int arp_constructor(struct neighbour *neigh)
 #endif
 		}
 #endif
+		//如果是多播，直接根据映射规则
+		//映射成L2地址，不需要arp查询
 		if (neigh->type == RTN_MULTICAST) {
 			neigh->nud_state = NUD_NOARP;
 			arp_mc_map(addr, neigh->ha, dev, 1);
@@ -300,6 +302,8 @@ static int arp_constructor(struct neighbour *neigh)
 		} else if (dev->flags & (IFF_NOARP | IFF_LOOPBACK)) {
 			neigh->nud_state = NUD_NOARP;
 			memcpy(neigh->ha, dev->dev_addr, dev->addr_len);
+		//如果是广播，直接映射成广播地址
+		//比如IP 地址是255.255.255.255或者子网广播地址
 		} else if (neigh->type == RTN_BROADCAST ||
 			   (dev->flags & IFF_POINTOPOINT)) {
 			neigh->nud_state = NUD_NOARP;
