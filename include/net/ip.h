@@ -383,6 +383,7 @@ static inline void ip_eth_mc_map(__be32 naddr, char *buf)
 	buf[0]=0x01;
 	buf[1]=0x00;
 	buf[2]=0x5e;
+	//IP地址的低23位映射到MAC地址
 	buf[5]=addr&0xFF;
 	addr>>=8;
 	buf[4]=addr&0xFF;
