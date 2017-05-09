@@ -652,7 +652,8 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	family = genl_family_find_byid(nlh->nlmsg_type);
 	if (family == NULL)
 		return -ENOENT;
-
+	//如果支持并发，由用户自行管理并发操作
+	//无须加锁genl_lock
 	if (!family->parallel_ops)
 		genl_lock();
 
@@ -666,6 +667,7 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 static void genl_rcv(struct sk_buff *skb)
 {
+	//加读锁，可以并发
 	down_read(&cb_lock);
 	netlink_rcv_skb(skb, &genl_rcv_msg);
 	up_read(&cb_lock);
