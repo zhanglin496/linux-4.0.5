@@ -34,6 +34,7 @@ struct macvtap_queue;
 #define MACVLAN_MC_FILTER_BITS	8
 #define MACVLAN_MC_FILTER_SZ	(1 << MACVLAN_MC_FILTER_BITS)
 
+//每个macvlan虚拟设备的私有数据区
 struct macvlan_dev {
 	struct net_device	*dev;
 	struct list_head	list;

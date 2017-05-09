@@ -407,7 +407,7 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 
 	if (len > buflen)
 		len = buflen;
-
+	//mm->arg_start 包含进程完整的命令行参数
 	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
 
 	/*

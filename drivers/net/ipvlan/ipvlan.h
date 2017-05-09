@@ -60,11 +60,19 @@ struct ipvl_pcpu_stats {
 struct ipvl_port;
 
 struct ipvl_dev {
+	//指向虚拟网卡的net_device
 	struct net_device	*dev;
+	//连接到ipvl_port ipvlans链表中
 	struct list_head	pnode;
+	//指向共享的port
 	struct ipvl_port	*port;
+	//指向宿主网卡
 	struct net_device	*phy_dev;
+	//所拥有的IP地址集合
+	//之所以使用链表
+	//是因为一个网卡可以配置多个IP地址
 	struct list_head	addrs;
+	//IP 地址数量计数
 	int			ipv4cnt;
 	int			ipv6cnt;
 	struct ipvl_pcpu_stats	__percpu *pcpu_stats;
@@ -75,6 +83,7 @@ struct ipvl_dev {
 };
 
 struct ipvl_addr {
+	//指向虚拟网卡
 	struct ipvl_dev		*master; /* Back pointer to master */
 	union {
 		struct in6_addr	ip6;	 /* IPv6 address on logical interface */
@@ -83,14 +92,18 @@ struct ipvl_addr {
 #define ip6addr	ipu.ip6
 #define ip4addr ipu.ip4
 	struct hlist_node	hlnode;  /* Hash-table linkage */
+	//连接到struct ipvl_dev addr链表中
 	struct list_head	anode;   /* logical-interface linkage */
 	struct rcu_head		rcu;
 	ipvl_hdr_type		atype;
 };
 
 struct ipvl_port {
+	//指向宿主网卡
 	struct net_device	*dev;
+	//ipvl_addr hash 表
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
+	//连接同一宿主网卡下所有的虚拟网卡
 	struct list_head	ipvlans;
 	struct rcu_head		rcu;
 	int			count;

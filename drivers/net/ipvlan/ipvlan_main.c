@@ -144,7 +144,7 @@ static int ipvlan_open(struct net_device *dev)
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct net_device *phy_dev = ipvlan->phy_dev;
 	struct ipvl_addr *addr;
-
+	// l3 模式不支持arp
 	if (ipvlan->port->mode == IPVLAN_MODE_L3)
 		dev->flags |= IFF_NOARP;
 	else
@@ -701,7 +701,11 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	addr->master = ipvlan;
 	memcpy(&addr->ip4addr, ip4_addr, sizeof(struct in_addr));
 	addr->atype = IPVL_IPV4;
-	//IP 地址统计，加入全局列表中
+	//IP 地址统计，加入到当前虚拟网卡列表中
+	//主意对于同一个宿主网卡共享一个struct ipvl_port 
+	//同一个宿主网卡的所有虚拟网卡的IP地址都会加入到ipvl_port 的hash表中
+	//而ipvlan->addrs 是用于记录当前的虚拟网卡所拥有的IP地址集合
+	//该列表是ipvl_port 的hash表的子集
 	list_add_tail(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv4cnt++;
 	/* If the interface is not up, the address will be added to the hash
@@ -729,6 +733,8 @@ static void ipvlan_del_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	list_del(&addr->anode);
 	ipvlan->ipv4cnt--;
 	WARN_ON(ipvlan->ipv4cnt < 0);
+	//计数为0，表示删除了所有的IP地址
+	//清除L2 广播过滤位
 	if (!ipvlan->ipv4cnt)
 	    ipvlan_set_broadcast_mac_filter(ipvlan, false);
 	kfree_rcu(addr, rcu);

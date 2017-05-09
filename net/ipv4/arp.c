@@ -127,6 +127,7 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb);
 static void arp_error_report(struct neighbour *neigh, struct sk_buff *skb);
 static void parp_redo(struct sk_buff *skb);
 
+//通用的情况
 static const struct neigh_ops arp_generic_ops = {
 	.family =		AF_INET,
 	.solicit =		arp_solicit,
@@ -135,6 +136,7 @@ static const struct neigh_ops arp_generic_ops = {
 	.connected_output =	neigh_connected_output,
 };
 
+//支持header cache的情况
 static const struct neigh_ops arp_hh_ops = {
 	.family =		AF_INET,
 	.solicit =		arp_solicit,
@@ -143,6 +145,7 @@ static const struct neigh_ops arp_hh_ops = {
 	.connected_output =	neigh_resolve_output,
 };
 
+//不需要arp的情况，直接调用dev_queue_xmit
 static const struct neigh_ops arp_direct_ops = {
 	.family =		AF_INET,
 	.output =		neigh_direct_output,
@@ -292,6 +295,8 @@ static int arp_constructor(struct neighbour *neigh)
 		if (neigh->type == RTN_MULTICAST) {
 			neigh->nud_state = NUD_NOARP;
 			arp_mc_map(addr, neigh->ha, dev, 1);
+		//设备不支持arp，直接使用设备的MAC地址
+		//设置nud_state 为NUD_NOARP
 		} else if (dev->flags & (IFF_NOARP | IFF_LOOPBACK)) {
 			neigh->nud_state = NUD_NOARP;
 			memcpy(neigh->ha, dev->dev_addr, dev->addr_len);
@@ -717,7 +722,7 @@ void arp_send(int type, int ptype, __be32 dest_ip,
 	/*
 	 *	No arp on this interface.
 	 */
-
+	//不支持arp
 	if (dev->flags&IFF_NOARP)
 		return;
 

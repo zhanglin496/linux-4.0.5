@@ -33,6 +33,7 @@
  *
  */
 struct macvtap_queue {
+	//sk must be first	
 	struct sock sk;
 	struct socket sock;
 	struct socket_wq wq;
@@ -415,7 +416,7 @@ static int macvtap_newlink(struct net *src_net,
 	//和macvlan的主要区别是接收的数据帧 
 	// 在macvtap中由macvlan_handle_frame 处理后再调用macvtap_handle_frame
 	// 直接发送给字符设备的套接字队列
-	// 而macvlan 则macvlan_handle_frame 处理后由协议栈接管
+	// 而macvlan 则是macvlan_handle_frame 处理后由协议栈接管
 	err = netdev_rx_handler_register(dev, macvtap_handle_frame, vlan);
 	if (err)
 		return err;

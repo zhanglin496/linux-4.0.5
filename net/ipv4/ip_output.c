@@ -197,6 +197,9 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	//根据IP地址和出口设备查找对应的邻居项
 	//每次都要查找，可以考虑缓存
 	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
+	//即使设备不支持邻居协议
+	//比如不支持arp
+	//也必须创建邻居项
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
 	if (!IS_ERR(neigh)) {

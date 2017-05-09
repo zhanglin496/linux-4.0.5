@@ -416,6 +416,8 @@ static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 
 	hh = &n->hh;
 	//如果邻居项现在可用，构造二层首部然后调用dev_queue_xmit
+	//如果是NUD_CONNECTED，包括NUD_NOARP 状态，不需要发送arp报文
+	//直接输出报文
 	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
 		return neigh_hh_output(hh, skb);
 	else

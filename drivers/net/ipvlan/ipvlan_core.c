@@ -96,7 +96,7 @@ struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 				   const void *iaddr, bool is_v6)
 {
 	struct ipvl_addr *addr;
-
+	//遍历当前虚拟网卡下的IP地址集合
 	list_for_each_entry(addr, &ipvlan->addrs, anode) {
 		if ((is_v6 && addr->atype == IPVL_IPV6 &&
 		    ipv6_addr_equal(&addr->ip6addr, iaddr)) ||
@@ -341,6 +341,9 @@ static int ipvlan_process_v4_outbound(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct rtable *rt;
 	int err, ret = NET_XMIT_DROP;
+	
+	//指定数据包必须从宿主设备发出
+	//而不是从其他设备
 	struct flowi4 fl4 = {
 		.flowi4_oif = dev->iflink,
 		.flowi4_tos = RT_TOS(ip4h->tos),
@@ -417,9 +420,18 @@ static int ipvlan_process_outbound(struct sk_buff *skb,
 
 	/* In this mode we dont care about multicast and broadcast traffic */
 	//如果是arp广播，将被丢弃
+	//L3 模式下，接口设置了IFF_NOARP标志
+	//是不会发送arp广播报文
+	//但是有可能IP 报文多播的原因
+	//L2 可能会是一个L3 到L2 映射的多播地址
 	//因此在L3模式下，只允许同一个宿主设备下的IPVLAN设备之间的通信
 	//arp request 被丢弃
-	//l2 模式下只能在内部和外部静态配置arp表的情况下才能和外部正常通信
+	//l3 模式下数据包可以主动发送到外部，但是不会响应外部的arp请求
+	//arp_send 发送reply时检测到IFF_NOARP 根本不会发送响应包
+	//所以外部的数据包无法发送
+	//这种情况应用层可以考虑配置一个arp 响应程序
+	//并且响应数据包不能从ipvlan设备发出
+	//或者直接使用L2 模式
 	if (is_multicast_ether_addr(ethh->h_dest)) {
 		pr_warn_ratelimited("Dropped {multi|broad}cast of type= [%x]\n",
 				    ntohs(skb->protocol));
@@ -431,7 +443,7 @@ static int ipvlan_process_outbound(struct sk_buff *skb,
 	 * will have L2; which need to discarded and processed further
 	 * in the net-ns of the main-device.
 	 */
-	 //删除L2头部
+	 //删除原始的L2头部
 	if (skb_mac_header_was_set(skb)) {
 		skb_pull(skb, sizeof(*ethh));
 		skb->mac_header = (typeof(skb->mac_header))~0U;
@@ -443,7 +455,7 @@ static int ipvlan_process_outbound(struct sk_buff *skb,
 	else if (skb->protocol == htons(ETH_P_IP))
 		ret = ipvlan_process_v4_outbound(skb);
 	else {
-		//arp reply被丢弃
+		//arp reply被丢弃, l3模式下不响应arp 
 		pr_warn_ratelimited("Dropped outbound packet type=%x\n",
 				    ntohs(skb->protocol));
 		kfree_skb(skb);
@@ -466,7 +478,7 @@ static int ipvlan_xmit_mode_l3(struct sk_buff *skb, struct net_device *dev)
 	addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
 	//如果找到addr，表示回环到同一个宿主的另一个ipvlan设备
 	if (addr)
-		return ipvlan_rcv_frame(addr, skb, true);、
+		return ipvlan_rcv_frame(addr, skb, true);
 
 	//否则数据通过宿主设备发出
 out:
@@ -513,7 +525,7 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 	}
 	
 //直接通过宿主设备发出
-//和IPVLAN_MODE_L2的区别就是不会隔离广播流量
+//和IPVLAN_MODE_L3的区别就是不会隔离广播流量
 	skb->dev = ipvlan->phy_dev;
 	return dev_queue_xmit(skb);
 }
@@ -578,11 +590,11 @@ static rx_handler_result_t ipvlan_handle_mode_l3(struct sk_buff **pskb,
 		goto out;
 	//对于arp请求会接收，但是arp响应会被ipvlan_xmit_mode_l3丢弃
 	//因此任然无法和外部通信
-	//感觉ipvlan l2模式限制了只能在内部通信
+	//感觉ipvlan l3模式限制了只能在内部通信
 	addr = ipvlan_addr_lookup(port, lyr3h, addr_type, true);
 	if (addr)
 		ret = ipvlan_rcv_frame(addr, skb, false);
-
+	//如果不是到ipvlan设备的，由宿主设备处理
 out:
 	return ret;
 }
@@ -595,7 +607,7 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 	rx_handler_result_t ret = RX_HANDLER_PASS;
 	void *lyr3h;
 	int addr_type;
-
+	//处理L2 多播
 	if (is_multicast_ether_addr(eth->h_dest)) {
 		if (ipvlan_external_frame(skb, port))
 			ipvlan_multicast_frame(port, skb, NULL, false);

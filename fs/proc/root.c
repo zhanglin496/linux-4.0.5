@@ -229,6 +229,11 @@ static int proc_root_readdir(struct file *file, struct dir_context *ctx)
  * <pid> directories. Thus we don't use the generic
  * directory handling functions for that..
  */
+ // /proc/pid 目录是每次读取时动态生成的
+ // tgid_base_stuff 包含了动态创建子目录的显示方法
+ //用户可以自己添加新的目录项
+ //iterate 由应用层的readdir函数调用
+ // 因为/proc是一个目录，而不是一个文件
 static const struct file_operations proc_root_operations = {
 	.read		 = generic_read_dir,
 	.iterate	 = proc_root_readdir,
