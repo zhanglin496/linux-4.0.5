@@ -2202,6 +2202,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			fl4->daddr = fl4->saddr = htonl(INADDR_LOOPBACK);
 		//loopback_dev 是固定存在的，不会被注销
 		dev_out = net->loopback_dev;
+		//强制出口设备为loopback
 		//回环接口的索引固定为1
 		fl4->flowi4_oif = LOOPBACK_IFINDEX;
 		res.type = RTN_LOCAL;
