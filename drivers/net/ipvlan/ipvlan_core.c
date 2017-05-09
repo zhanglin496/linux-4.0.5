@@ -449,7 +449,7 @@ static int ipvlan_process_outbound(struct sk_buff *skb,
 		skb->mac_header = (typeof(skb->mac_header))~0U;
 		skb_reset_network_header(skb);
 	}
-
+	//重新路由
 	if (skb->protocol == htons(ETH_P_IPV6))
 		ret = ipvlan_process_v6_outbound(skb);
 	else if (skb->protocol == htons(ETH_P_IP))
