@@ -1727,6 +1727,13 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	/* Following code try to avoid calling IN_DEV_NET_ROUTE_LOCALNET(),
 	 * and call it once if daddr or/and saddr are loopback addresses
 	 */
+	 //	参见内核文档ip-sysctl.txt
+	 // 如果目的地址或者源地址是回环地址
+	 //检查设备是否开启了ROUTE_LOCALNET
+	 //开启该选项的情况下，地址不会被认为是火星地址
+	 //正常情况下不应该收到该地址的报文
+	 //默认关闭
+	// /proc/sys/net/ipv4/conf/ens33/route_localnet
 	if (ipv4_is_loopback(daddr)) {
 		if (!IN_DEV_NET_ROUTE_LOCALNET(in_dev, net))
 			goto martian_destination;
@@ -1752,6 +1759,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto no_route;
 	}
 	//路由查找成功，res.fi不为NULL
+	//路由类型为广播
 	if (res.type == RTN_BROADCAST)
 		goto brd_input;
 	//反向路径源地址验证
@@ -1760,9 +1768,10 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 					  0, dev, in_dev, &itag);
 		if (err < 0)
 			goto martian_source_keep_err;
+		//检查OK，创建路由
 		goto local_input;
 	}
-	//如果入口设备部不允许转发，则丢弃
+	//如果入口设备不允许转发，则丢弃
 	if (!IN_DEV_FORWARD(in_dev)) {
 		err = -EHOSTUNREACH;
 		goto no_route;
