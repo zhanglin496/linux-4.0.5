@@ -36,10 +36,12 @@ struct macvtap_queue;
 
 //每个macvlan虚拟设备的私有数据区
 struct macvlan_dev {
+	//指向虚拟的dev
 	struct net_device	*dev;
 	struct list_head	list;
 	struct hlist_node	hlist;
 	struct macvlan_port	*port;
+	//指向宿主dev
 	struct net_device	*lowerdev;
 	void			*fwd_priv;
 	struct vlan_pcpu_stats __percpu *pcpu_stats;
@@ -61,7 +63,8 @@ struct macvlan_dev {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif
-	//macvlan_port 中vlan_source_hash mac地址数量
+	//该ipvlan 虚拟设备在macvlan_port vlan_source_hash 表中拥有的 mac地址数量
+	//注意不是vlan_source_hash 表中MAC地址总量
 	unsigned int		macaddr_count;
 };
 

@@ -321,6 +321,9 @@ enum macvlan_mode {
 	MACVLAN_MODE_VEPA    = 2, /* talk to other ports through ext bridge */
 	MACVLAN_MODE_BRIDGE  = 4, /* talk to bridge ports directly */
 	MACVLAN_MODE_PASSTHRU = 8,/* take over the underlying device */
+	//It allows one to set a list of allowed mac address, which is used
+	//to match against source mac address from received frames on underlying
+	//interface.
 	MACVLAN_MODE_SOURCE  = 16,/* use source MAC address list to assign */
 };
 

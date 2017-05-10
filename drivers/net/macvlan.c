@@ -41,7 +41,9 @@
 
 struct macvlan_port {
 	struct net_device	*dev;
+	//虚拟ipvlan 的设备MAC 地址表
 	struct hlist_head	vlan_hash[MACVLAN_HASH_SIZE];
+	//连接同一宿主设备下的ipvlan 虚拟设备
 	struct list_head	vlans;
 	struct rcu_head		rcu;
 	//广播数据包队列
@@ -49,6 +51,7 @@ struct macvlan_port {
 	struct work_struct	bc_work;
 	bool 			passthru;
 	int			count;
+	//对应MACVLAN_MODE_SOURCE 模式下有效
 	struct hlist_head	vlan_source_hash[MACVLAN_HASH_SIZE];
 };
 
@@ -287,7 +290,7 @@ static void macvlan_process_broadcast(struct work_struct *w)
 
 		if (!src)
 			/* frame comes from an external address */
-		//来自外部的多播数据包
+		//如果src为null，表示是来自外部的多播数据包
 			macvlan_broadcast(skb, port, NULL,
 					  MACVLAN_MODE_PRIVATE |
 					  MACVLAN_MODE_VEPA    |
@@ -341,6 +344,7 @@ err:
 	atomic_long_inc(&skb->dev->rx_dropped);
 }
 
+//删除该ipvlan 下的所有MAC 源地址
 static void macvlan_flush_sources(struct macvlan_port *port,
 				  struct macvlan_dev *vlan)
 {
@@ -443,11 +447,12 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 		
 		MACVLAN_SKB_CB(skb)->src = src;
 		macvlan_broadcast_enqueue(port, skb);
-		//宿主机会收到一份copy
+		//宿主dev 会收到一份copy
 		return RX_HANDLER_PASS;
 	}
-
+	//向h_source 和vlan_source_hash中匹配的MAC地址属于的ipvlan 设备回环一份数据
 	macvlan_forward_source(skb, port, eth->h_source);
+	//passthru 模式下，最多只有一个虚拟ipvlan设备
 	if (port->passthru)
 		vlan = list_first_or_null_rcu(&port->vlans,
 					      struct macvlan_dev, list);
@@ -582,6 +587,7 @@ static int macvlan_open(struct net_device *dev)
 
 	if (vlan->port->passthru) {
 		if (!(vlan->flags & MACVLAN_FLAG_NOPROMISC)) {
+			//宿主设备设置为混杂模式
 			err = dev_set_promiscuity(lowerdev, 1);
 			if (err < 0)
 				goto out;
@@ -1205,6 +1211,7 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 			vlan->macaddr_count--;
 		}
 	} else if (mode == MACVLAN_MACADDR_FLUSH) {
+	//删除该ipvlan 下的所有MAC 源地址
 		macvlan_flush_sources(vlan->port, vlan);
 	} else if (mode == MACVLAN_MACADDR_SET) {
 		macvlan_flush_sources(vlan->port, vlan);
@@ -1220,7 +1227,7 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 
 		head = nla_data(data[IFLA_MACVLAN_MACADDR_DATA]);
 		len = nla_len(data[IFLA_MACVLAN_MACADDR_DATA]);
-
+		//添加多个MAC 源地址
 		nla_for_each_attr(nla, head, len, rem) {
 			if (nla_type(nla) != IFLA_MACVLAN_MACADDR ||
 			    nla_len(nla) != ETH_ALEN)
@@ -1304,6 +1311,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		if (port->count)
 			return -EINVAL;
 		port->passthru = true;
+		//使用宿主设备的MAC地址
 		eth_hw_addr_inherit(dev, lowerdev);
 	}
 
