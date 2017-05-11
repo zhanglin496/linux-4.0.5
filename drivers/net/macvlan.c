@@ -1527,6 +1527,7 @@ static struct rtnl_link_ops macvlan_link_ops = {
 	.get_link_net	= macvlan_get_link_net,
 };
 
+//rtnl_lock is locked
 static int macvlan_device_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
