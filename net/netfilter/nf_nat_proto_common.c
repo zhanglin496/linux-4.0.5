@@ -53,10 +53,10 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 	/* If no range specified... */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
 		/* If it's dst rewrite, can't change port */
-		//å¦‚æžœæ˜¯ç›®çš„ç«¯å£é€‰æ‹©
-		//è¿™é‡Œæ˜¯ç¦æ­¢çš„
-		//å› ä¸ºéšæœºé€‰æ‹©ç›®çš„ç«¯å£åŽ
-		//å¯¹æ–¹å¯èƒ½æ ¹æœ¬å°±æ”¶ä¸åˆ°æ•°æ®åŒ…
+		//Èç¹ûÊÇÄ¿µÄ¶Ë¿ÚÑ¡Ôñ
+		//ÕâÀïÊÇ½ûÖ¹µÄ
+		//ÒòÎªËæ»úÑ¡ÔñÄ¿µÄ¶Ë¿Úºó
+		//¶Ô·½¿ÉÄÜ¸ù±¾¾ÍÊÕ²»µ½Êý¾Ý°ü
 		if (maniptype == NF_NAT_MANIP_DST)
 			return;
 
@@ -73,10 +73,10 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 			min = 1024;
 			range_size = 65535 - 1024 + 1;
 		}
-	//ä½†æ˜¯è¿™é‡Œå¯ä»¥éšæœºé€‰æ‹©ç›®çš„ç«¯å£
-	//è¿™æ˜¯å› ä¸ºè¿™æ˜¯ç”¨æˆ·è‡ªå·±é€‰æ‹©çš„é…ç½®
-	//ç”¨æˆ·è‡ªå·±çŸ¥é“è‡ªå·±æƒ³å¹²ä»€ä¹ˆ
-	//æ‰€ä»¥å³ä¾¿å‡ºé”™ï¼Œä¹Ÿç”±ç”¨æˆ·è‡ªå·±è´Ÿè´£
+	//µ«ÊÇÕâÀï¿ÉÒÔËæ»úÑ¡ÔñÄ¿µÄ¶Ë¿Ú
+	//ÕâÊÇÒòÎªÕâÊÇÓÃ»§×Ô¼ºÑ¡ÔñµÄÅäÖÃ
+	//ÓÃ»§×Ô¼ºÖªµÀ×Ô¼ºÏë¸ÉÊ²Ã´
+	//ËùÒÔ¼´±ã³ö´í£¬Ò²ÓÉÓÃ»§×Ô¼º¸ºÔð
 	} else {
 		min = ntohs(range->min_proto.all);
 		range_size = ntohs(range->max_proto.all) - min + 1;
@@ -93,10 +93,10 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 	}
 
 	for (i = 0; ; ++off) {
-		//ä¿è¯portptråœ¨æŒ‡å®šçš„èŒƒå›´å†…[minï¼Œmin + range_size - 1]
+		//±£Ö¤portptrÔÚÖ¸¶¨µÄ·¶Î§ÄÚ[min£¬min + range_size - 1]
 		*portptr = htons(min + off % range_size);
-		//å°è¯•ä¸€å®šçš„æ¬¡æ•°ï¼Œå³ä¾¿ç«¯å£å†²çªäº†
-		//ä¹Ÿåªèƒ½å°½åŠ›è€Œä¸º
+		//³¢ÊÔÒ»¶¨µÄ´ÎÊý£¬¼´±ã¶Ë¿Ú³åÍ»ÁË
+		//Ò²Ö»ÄÜ¾¡Á¦¶øÎª
 		if (++i != range_size && nf_nat_used_tuple(tuple, ct))
 			continue;
 		if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL))
