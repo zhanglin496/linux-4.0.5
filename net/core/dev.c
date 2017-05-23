@@ -6653,7 +6653,7 @@ void netdev_run_todo(void)
 		dev->reg_state = NETREG_UNREGISTERED;
 
 		on_each_cpu(flush_backlog, dev, 1);
-
+		//等待dev 引用计数变为0
 		netdev_wait_allrefs(dev);
 
 		/* paranoia */
@@ -6663,7 +6663,7 @@ void netdev_run_todo(void)
 		WARN_ON(rcu_access_pointer(dev->ip_ptr));
 		WARN_ON(rcu_access_pointer(dev->ip6_ptr));
 		WARN_ON(dev->dn_ptr);
-
+		//调用析构函数，大多数驱动设置为free_netdev
 		if (dev->destructor)
 			dev->destructor(dev);
 

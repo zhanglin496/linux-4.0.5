@@ -1245,7 +1245,7 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 	return 0;
 }
 
-//ip link add link eth0  name macvlan1 type macvlan|veth|
+//ip link add link eth0  name macvlan1 type macvlan|veth|ipvlan|lowpan|macvtap
 int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 			   struct nlattr *tb[], struct nlattr *data[])
 {
