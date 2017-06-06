@@ -237,6 +237,10 @@ int poll_schedule_timeout(struct poll_wqueues *pwq, int state,
 	int rc = -EINTR;
 
 	set_current_state(state);
+	//pwq->triggered非 0
+	//表示已近被唤醒了
+	//不需要再次睡眠
+	//详见pollwake
 	if (!pwq->triggered)
 		rc = schedule_hrtimeout_range(expires, slack, HRTIMER_MODE_ABS);
 	__set_current_state(TASK_RUNNING);
@@ -431,12 +435,16 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 
 		inp = fds->in; outp = fds->out; exp = fds->ex;
 		rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
-
+		//select 的性能问题
+		//需要遍历所有的文件描述符
+		//比如在几十万个连接下
+		//每一次遍历都非常浪费时间
 		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
 			unsigned long in, out, ex, all_bits, bit = 1, mask, j;
 			unsigned long res_in = 0, res_out = 0, res_ex = 0;
 
 			in = *inp++; out = *outp++; ex = *exp++;
+			//所有关注的位集合
 			all_bits = in | out | ex;
 			if (all_bits == 0) {
 				i += BITS_PER_LONG;
@@ -447,8 +455,11 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 				struct fd f;
 				if (i >= n)
 					break;
+				//该位是否需要测试
+				//就是对应的文件描述符
 				if (!(bit & all_bits))
 					continue;
+				//对标记的文件描述符收集事件
 				f = fdget(i);
 				if (f.file) {
 					const struct file_operations *f_op;
@@ -457,11 +468,14 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 					if (f_op->poll) {
 						wait_key_set(wait, in, out,
 							     bit, busy_flag);
+						//不会阻塞，只是收集当前已经发生的事件
 						mask = (*f_op->poll)(f.file, wait);
 					}
 					fdput(f);
 					if ((mask & POLLIN_SET) && (in & bit)) {
+						//标记对应的文件描述符
 						res_in |= bit;
+						//计数，就绪的文件描述符数量
 						retval++;
 						wait->_qproc = NULL;
 					}
@@ -489,6 +503,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 
 				}
 			}
+			//拷贝已经发生的事件
 			if (res_in)
 				*rinp = res_in;
 			if (res_out)
@@ -498,6 +513,9 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			cond_resched();
 		}
 		wait->_qproc = NULL;
+		//retval 非0 ，表示检测到了要求的某种事件
+		//timed_out 非0，表示超时
+		//收到了信号
 		if (retval || timed_out || signal_pending(current))
 			break;
 		if (table.error) {
@@ -525,10 +543,15 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			expire = timespec_to_ktime(*end_time);
 			to = &expire;
 		}
-
+		//未检测到指定的事件
+		//根据设置执行睡眠操作
+		//返回0，表示超时
 		if (!poll_schedule_timeout(&table, TASK_INTERRUPTIBLE,
 					   to, slack))
 			timed_out = 1;
+		// 被唤醒，再次收集事件
+		// 由L4 调用sk->sk_data_ready 等方法来唤醒进程
+		// 详见sock_init_data 函数
 	}
 
 	poll_freewait(&table);
@@ -560,10 +583,12 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 		goto out_nofds;
 
 	/* max_fds can increase, so grab it once to avoid race */
+	//获取当前进程打开的最大文件描述符
 	rcu_read_lock();
 	fdt = files_fdtable(current->files);
 	max_fds = fdt->max_fds;
 	rcu_read_unlock();
+	//n 不应该大于max_fds
 	if (n > max_fds)
 		n = max_fds;
 
@@ -572,11 +597,15 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	 * since we used fdset we need to allocate memory in units of
 	 * long-words. 
 	 */
+	 //计数需要多少个字节来表示
 	size = FDS_BYTES(n);
 	bits = stack_fds;
+	//这里除以6，因为后面需要6 倍的空间来记录
+	//select 的问题1，需要分配大量的无用空间
 	if (size > sizeof(stack_fds) / 6) {
 		/* Not enough space in on-stack array; must use kmalloc */
 		ret = -ENOMEM;
+		//需要6 倍的空间来记录对应的描述符
 		bits = kmalloc(6 * size, GFP_KERNEL);
 		if (!bits)
 			goto out_nofds;
@@ -588,10 +617,13 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	fds.res_out = bits + 4*size;
 	fds.res_ex  = bits + 5*size;
 
+	//拷贝用户需要关注的fd 集合
+	//select 的问题2，需要拷贝很多不需要关注的数据
 	if ((ret = get_fd_set(n, inp, fds.in)) ||
 	    (ret = get_fd_set(n, outp, fds.out)) ||
 	    (ret = get_fd_set(n, exp, fds.ex)))
 		goto out;
+	//清0 对应数据
 	zero_fd_set(n, fds.res_in);
 	zero_fd_set(n, fds.res_out);
 	zero_fd_set(n, fds.res_ex);

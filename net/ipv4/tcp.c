@@ -450,7 +450,8 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	const struct tcp_sock *tp = tcp_sk(sk);
 
 	sock_rps_record_flow(sk);
-
+	
+	//当前进程加入sk_sleep 队列
 	sock_poll_wait(file, sk_sleep(sk), wait);
 	if (sk->sk_state == TCP_LISTEN)
 		return inet_csk_listen_poll(sk);
