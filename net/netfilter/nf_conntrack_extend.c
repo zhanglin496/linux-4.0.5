@@ -117,6 +117,11 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 
 			rcu_read_lock();
 			t = rcu_dereference(nf_ct_ext_types[i]);
+			//为什么需要移动函数，
+			//是因为可能有的实现外界有指向扩展区的指针
+			//但是扩展区的地址发生了变化，所以需要
+			//一种方法来做调整指向扩展区的指针到
+			//正确的地址
 			if (t && t->move)
 				t->move((void *)new + new->offset[i],
 					(void *)old + old->offset[i]);

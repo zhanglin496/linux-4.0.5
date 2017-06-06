@@ -625,6 +625,7 @@ struct inode {
 	struct file_lock_context	*i_flctx;
 	struct address_space	i_data;
 	struct list_head	i_devices;
+	//如果该节点表示的是字符设备或者块设备
 	union {
 		struct pipe_inode_info	*i_pipe;
 		struct block_device	*i_bdev;

@@ -1306,7 +1306,9 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 	retval = sock_create(family, type, protocol, &sock);
 	if (retval < 0)
 		goto out;
-
+	//套机字和其他文件有一些区别
+	//不是用open操作来打开
+	//而是专门使用了一套系统调用
 	retval = sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
 	if (retval < 0)
 		goto out_release;

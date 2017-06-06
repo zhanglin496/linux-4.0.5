@@ -92,7 +92,7 @@ struct ipvl_addr {
 #define ip6addr	ipu.ip6
 #define ip4addr ipu.ip4
 	struct hlist_node	hlnode;  /* Hash-table linkage */
-	//连接到struct ipvl_dev addr链表中
+	//连接到struct ipvl_dev addrs 链表中
 	struct list_head	anode;   /* logical-interface linkage */
 	struct rcu_head		rcu;
 	ipvl_hdr_type		atype;

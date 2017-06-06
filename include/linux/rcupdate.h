@@ -684,6 +684,11 @@ static inline void rcu_preempt_sleep_check(void)
  * when tearing down multi-linked structures after a grace period
  * has elapsed.
  */
+ //只保证读取最新的指针值
+ //读者不能去解引用该指针
+ //该API 不要求读者持有rcu_read_lock 锁
+ //主要用于对比读取的指针值，比如判断是否是空指针
+ //
 #define rcu_access_pointer(p) __rcu_access_pointer((p), __rcu)
 
 /**
@@ -742,7 +747,8 @@ static inline void rcu_preempt_sleep_check(void)
 #define rcu_dereference_sched_check(p, c) \
 	__rcu_dereference_check((p), rcu_read_lock_sched_held() || (c), \
 				__rcu)
-
+//不需要检查调用方是否满主调用api的假设条件
+//假设调用方始终满足调用条件
 #define rcu_dereference_raw(p) rcu_dereference_check(p, 1) /*@@@ needed? @@@*/
 
 /*
@@ -1092,6 +1098,8 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 		kfree_call_rcu(head, (void (*)(struct rcu_head *))(unsigned long)(offset)); \
 	} while (0)
 
+//使用kfree_rcu
+//模块卸载时不需要使用rcu_barrier函数
 /**
  * kfree_rcu() - kfree an object after a grace period.
  * @ptr:	pointer to kfree

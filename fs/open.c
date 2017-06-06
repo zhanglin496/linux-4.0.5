@@ -711,6 +711,9 @@ static int do_dentry_open(struct file *f,
 		f->f_mode |= FMODE_ATOMIC_POS;
 
 	//拷贝inode的fops
+	//每个inode 都必须要有一个默认的file_operations
+	//覆盖原来的f_op
+	//这一步非常关键
 	f->f_op = fops_get(inode->i_fop);
 	//fops一定不能为空
 	if (unlikely(WARN_ON(!f->f_op))) {
@@ -728,6 +731,9 @@ static int do_dentry_open(struct file *f,
 
 	if (!open)
 		open = f->f_op->open;
+	//调用open操作
+	//open 操作可能会再次改写f->f_op  
+	//比如有些驱动程序使用自己实现的文件操作函数集
 	if (open) {
 		error = open(inode, f);
 		if (error)

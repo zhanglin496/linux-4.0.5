@@ -306,6 +306,7 @@ tproxy_tg4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 				   skb->dev, NFT_LOOKUP_ESTABLISHED);
 
 	laddr = tproxy_laddr4(skb, laddr, iph->daddr);
+	//如果用户未指定端口，那就使用数据包的原始目的端口
 	if (!lport)
 		lport = hp->dest;
 
@@ -320,6 +321,13 @@ tproxy_tg4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 					   iph->saddr, laddr,
 					   hp->source, lport,
 					   skb->dev, NFT_LOOKUP_LISTENER);
+	//和iptables REDIRECT 的区别是
+	//透明代理不会修改数据包的目的地址和端口号
+	//这里只是提前关联skb到本地设置了透明代理的socket
+	//以跳过在tcp_v4_rcv中的socket查找
+	//因此要将数据导向本地接收进程
+	//还需要添加额外的路由规则
+	//同时应用层必须先设置套接字的IP_TRANSPARENT 选项
 
 	/* NOTE: assign_sock consumes our sk reference */
 	if (sk && tproxy_sk_is_transparent(sk)) {

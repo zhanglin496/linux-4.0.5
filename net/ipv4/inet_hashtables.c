@@ -302,10 +302,18 @@ begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
+		  /* 地址端口等均匹配 */
 		if (likely(INET_MATCH(sk, net, acookie,
 				      saddr, daddr, ports, dif))) {
 			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
 				goto out;
+		
+             	//这里为什么要两次检验：通过google搜索，
+             	//直到当时加上2次检验的原因是因为RCU的缘故。
+             	//想了半天，终于明白了。在第一次INET_MATCH时，
+             	//该sk还没有被hold。只有执行了atomic_inc_not_zero，
+             	//才相当于hold了这个sk。但是正常的RCU的操作，
+             	//应该是先hold，才能保证内容没有变化。所以需要二次判断。
 			if (unlikely(!INET_MATCH(sk, net, acookie,
 						 saddr, daddr, ports, dif))) {
 				sock_gen_put(sk);
