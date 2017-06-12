@@ -43,9 +43,23 @@
  * again:
  *  obj = lockless_lookup(key);
  *  if (obj) {
+ //假设obj被找到
+ //恰哈另一个路径释放了obj并重新分配并使用了相同的obj
+ //因为conntrack释放时是调用的kmem_cache_free 而不是call_rcu
+ //若另一个路径这时调用kmem_cache_alloc 可能会分配到同一个obj
  *    if (!try_get_ref(obj)) // might fail for free objects
  *      goto again;
  *
+ //obj 有可能不是原来的obj的内容
+ //所以要再次比较obj 的内容
+ //一般释放时调用call_rcu
+ //kmalloc 和kfree 为什么不会有这个问题?
+ //我的理解是调用kmalloc分配的内存释放时是调用call_rcu
+ //后再kfree，所以不可能重复使用obj
+ //因为这里调用了rcu 锁，所以obj在退出临界区时
+ //是不可能释放的，调用kmalloc不可能分配到同一个obj 
+ //所以就不会出现在临界区内obj的重新使用
+ //因此就不需要再一次比对key
  *    if (obj->key != key) { // not the object we expected
  *      put_ref(obj);
  *      goto again;
@@ -62,6 +76,9 @@
  * rcu_read_lock before reading the address, then rcu_read_unlock after
  * taking the spinlock within the structure expected at that address.
  */
+ //有两个用处
+ //一是释放时要调用call_rcu 等待宽限期结束
+ //
 #define SLAB_DESTROY_BY_RCU	0x00080000UL	/* Defer freeing slabs to RCU */
 #define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
 #define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */

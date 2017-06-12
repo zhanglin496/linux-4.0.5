@@ -159,9 +159,13 @@ static struct poll_table_entry *poll_get_entry(struct poll_wqueues *p)
 {
 	struct poll_table_page *table = p->table;
 
+	//优先使用内置的静态数组
 	if (p->inline_index < N_INLINE_POLL_ENTRIES)
 		return p->inline_entries + p->inline_index++;
 
+	//动态分配内存
+	//性能问题，每次调用select都要分配->释放->再分配->释放
+	
 	if (!table || POLL_TABLE_FULL(table)) {
 		struct poll_table_page *new_table;
 
@@ -220,6 +224,8 @@ static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
 				poll_table *p)
 {
 	struct poll_wqueues *pwq = container_of(p, struct poll_wqueues, pt);
+	//一个进程可以等待在多个文件描述符上
+	//所有要多个poll_table_entry 项
 	struct poll_table_entry *entry = poll_get_entry(pwq);
 	if (!entry)
 		return;
@@ -446,6 +452,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			in = *inp++; out = *outp++; ex = *exp++;
 			//所有关注的位集合
 			all_bits = in | out | ex;
+			//全0，无关注的事件
 			if (all_bits == 0) {
 				i += BITS_PER_LONG;
 				continue;
@@ -477,6 +484,14 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 						res_in |= bit;
 						//计数，就绪的文件描述符数量
 						retval++;
+						//这里为什么要设置_qproc为NULL
+						//是因为已近收集到了某个发生的事件
+						//不应该因为去等待未发生的事件去睡眠
+						//而是要返回通知到进程
+						//防止poll 将当前进程再加入到sock的等待队列中
+						//这是一个优化措施，可以避免链表操作
+						//和分配新的poll_table_page
+						//下同
 						wait->_qproc = NULL;
 					}
 					if ((mask & POLLOUT_SET) && (out & bit)) {
@@ -550,10 +565,11 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 					   to, slack))
 			timed_out = 1;
 		// 被唤醒，再次收集事件
+		// 性能问题，又要再一次遍历所有的描述符
 		// 由L4 调用sk->sk_data_ready 等方法来唤醒进程
 		// 详见sock_init_data 函数
 	}
-
+	//从等待队列移除
 	poll_freewait(&table);
 
 	return retval;
