@@ -619,6 +619,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	sub_frag_mem_limit(&qp->q, sum_truesize);
 //设置head->next为NULL
 //head即有可能带有frag_list类型数据也可能带有page数据
+//重组后的skb有可能是线性的也有可能是非线性的
 	head->next = NULL;
 	head->dev = dev;
 	head->tstamp = qp->q.stamp;
