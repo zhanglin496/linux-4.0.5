@@ -372,6 +372,9 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		goto err;
 
 	err = -ENOMEM;
+	//skb->data指针指向L4头部
+	//但是网络层的指针仍然指向L3，估计是要配合网卡支持NETIF_F_FRAGLIST特性
+	//后面再分析dev_queue_xmit的实现
 	if (pskb_pull(skb, ihl) == NULL)
 		goto err;
 
@@ -583,6 +586,9 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		add_frag_mem_limit(&qp->q, clone->truesize);
 	}
 
+	//使第一个报文的skb的data重新指向L3头部
+	//但是其他的skb的data仍然指向L4头部
+	//配合网卡支持NETIF_F_FRAGLIST特性
 	skb_push(head, head->data - skb_network_header(head));
 
 	sum_truesize = head->truesize;
