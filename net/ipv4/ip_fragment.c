@@ -587,7 +587,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	}
 
 	//使第一个报文的skb的data重新指向L3头部
-	//但是其他的skb的data仍然指向L4头部
+	//但是其他的skb的data仍然指向L4头部，如果网卡不支持NETIF_F_FRAGLIST，以保证驱动可以正确的
+	//线性化数据
 	//配合网卡支持NETIF_F_FRAGLIST特性
 	skb_push(head, head->data - skb_network_header(head));
 
