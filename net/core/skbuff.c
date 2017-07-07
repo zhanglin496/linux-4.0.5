@@ -1174,6 +1174,9 @@ EXPORT_SYMBOL(__pskb_copy_fclone);
  *	All the pointers pointing into skb header may change and must be
  *	reloaded after call to this function.
  */
+//分配指定大小的线性数据区
+//始终会重新分配
+
 //skb的引用计数必须是1
 //原因是要修改skb对象
 //这里不会重新分配skb对象
