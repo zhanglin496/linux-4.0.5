@@ -572,7 +572,7 @@ struct sk_buff {
 				data_len;
 	__u16			mac_len,
 		//skb_clone_writable 检查时表示头部可写的大小
-		//从skb->data 开始计算
+		//从skb->data 往skb->head 方向开始计算
 		//如果要求的大小小于hdr_len
 		//就不需要重新分配空间
 				hdr_len;
