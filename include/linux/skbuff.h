@@ -1146,6 +1146,7 @@ static inline int skb_unclone(struct sk_buff *skb, gfp_t pri)
  *	Returns true if modifying the header part of the buffer requires
  *	the data to be copied.
  */
+ //修改头部空间，是否需要拷贝
 static inline int skb_header_cloned(const struct sk_buff *skb)
 {
 	int dataref;
@@ -2455,8 +2456,30 @@ static inline struct sk_buff *pskb_copy_for_clone(struct sk_buff *skb,
  *	Returns true if modifying the header part of the cloned buffer
  *	does not requires the data to be copied.
  */
+ //该函数的典型应用场景是用于tcp 重传
+ //假设tcp 调用alloc_skb_fclone 分配了一对skb
+ //其中以skb 用于重传，然后在clone一个skb 为nskb
+ //这样 skb 和nskb 的cloned标志均为1，skb 用于重传，
+ //如果skb 调用了skb_header_release(skb)， 那么nskb->hdr_len = skb_headroom(skb) 
+ //否侧nskb->hdr_len = 0,
+ //当我们对nskb 填充好头部空间时，比如tcp 头部和ip 头部
+ //如果nat 需要修改头部内容，比如ip地址和端口
+ //会调用skb_make_writable，因为nskb cloned 为1，
+ //如果nskb 的hdr_len 为0,  那么就需要重新分配线性数据区
+ //实际上这里是可以写的,因为skb 并不会去修改数据区和头部去
+ //一旦skb将数据区构建好之后，就不会在对数据区做任何修改
+ //nskb只需要构建头部信息即可
+ //包括重传也是如此
+ 
+ //所以这种情况会调用skb_header_release(skb)，skb_clone_writable为1
+ //就不需要重新分配线性数据区，提高效率
+ // skb->hdr_len 记录原始最开始可写的头部空间大小
+ 
  //skb_header_cloned检查数据区引用计数是否为1
- //hdr_len 表示头部从skb->data开始预留的可写空间
+ //hdr_len 表示最开始头部从skb->head 到skb->data 开始入栈预留的可写空间
+ //该值不会改变
+ //也就是比skb->data 地址小的可写空间范围(x, skb->data)
+ //
 static inline int skb_clone_writable(const struct sk_buff *skb, unsigned int len)
 {
 	return !skb_header_cloned(skb) &&

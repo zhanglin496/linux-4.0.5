@@ -250,6 +250,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb->head = data;
 	skb->data = data;
 	skb_reset_tail_pointer(skb);
+	//end指向线性区的末尾
 	skb->end = skb->tail + size;
 	skb->mac_header = (typeof(skb->mac_header))~0U;
 	skb->transport_header = (typeof(skb->transport_header))~0U;
