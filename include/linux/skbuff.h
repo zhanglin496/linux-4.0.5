@@ -1591,6 +1591,7 @@ static inline bool skb_is_nonlinear(const struct sk_buff *skb)
 	return skb->data_len;
 }
 
+//skb 线性数据区的有效长度
 static inline unsigned int skb_headlen(const struct sk_buff *skb)
 {
 	return skb->len - skb->data_len;
@@ -1774,7 +1775,7 @@ static inline int pskb_may_pull(struct sk_buff *skb, unsigned int len)
 	if (unlikely(len > skb->len))
 		return 0;
 	//拷贝指定的字节数到线性区中
-	//如果到达这里，返回的skb一定是可写的
+	//如果到达这里，返回的skb 在线性数据区一定是可写的
 	return __pskb_pull_tail(skb, len - skb_headlen(skb)) != NULL;
 }
 

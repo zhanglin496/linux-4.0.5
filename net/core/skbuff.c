@@ -1180,6 +1180,8 @@ EXPORT_SYMBOL(__pskb_copy_fclone);
 //至少有nhead 的头部空间和ntail的尾部空间
 //注意这里不会拷贝非线性区的数据到重新分配的skb 线性数据区中
 //而是拷贝了skb_shared_info 和原始的线性数据区
+//成功分配后的线性数据区保证一定是可写的，
+//不保证非线性数据区可写
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		     gfp_t gfp_mask)
 {
@@ -1235,12 +1237,13 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		//增加frag_list 应用计数
 		if (skb_has_frag_list(skb))
 			skb_clone_fraglist(skb);
-	
+		//因为skb 处于clone状态，要先递减shinfo->dataref 计数，为0 才能释放数据区
 		//递减非线性数据区引用计数，同时释放skb->head原有的线性数据区域
 		//非线性数据区域不会释放，因为增加了引用计数
 		skb_release_data(skb);
 	} else {
-		//释放分配的线性区，注意非线性区的数据未释放
+		//skb 为clone
+		//可以直接释放分配的线性区，注意非线性区的数据未释放
 		skb_free_head(skb);
 	}
 	off = (data + nhead) - skb->head;
@@ -1613,6 +1616,9 @@ EXPORT_SYMBOL(___pskb_trim);
 //增加数据到skb的尾部，注意delta不能为负值
 //注意该函数只能用于包含有分页和分段的skb
 //对于只有线性数据的skb 不能使用该函数
+//delta 表示的是要从非线性数据区中拷贝到线性数据区中的
+//字节数
+//因此类似__pskb_pull_tail(skb, skb->len) 的调用是错误的
 unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 {
 	/* If skb has not enough free space at tail, get new one
@@ -1620,6 +1626,8 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	 * room at tail, reallocate without expansion only if skb is cloned.
 	 */
 	 //计算要写的数据是否超出end了
+	 //若有足够的尾部空间
+	 //如果未超出，那么可以避免重新分配线性数据区
 	int i, k, eat = (skb->tail + delta) - skb->end;
 
 	//如果已经超出，则必须重新分配线性数据区所需要的buffer

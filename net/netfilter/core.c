@@ -231,6 +231,10 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 		return 1;
 
 	//计算实际要在tail后面加多少空间
+	//这里需要检查writable_len <= skb_headlen的情况，原因是skb 可能出于clone状态
+	//所以不能写，只有重新分配线性数据区，
+	//但是原始的skb 线性数据区是足够的，所以不需要增加数据区的大小
+	//so writable_len = 0
 	if (writable_len <= skb_headlen(skb))
 		writable_len = 0;
 	else
