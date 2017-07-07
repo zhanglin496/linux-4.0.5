@@ -2456,6 +2456,8 @@ static inline struct sk_buff *pskb_copy_for_clone(struct sk_buff *skb,
  *	Returns true if modifying the header part of the cloned buffer
  *	does not requires the data to be copied.
  */
+ //判断skb 即使是clone的, 头部也可以写的情况
+ 
  //该函数的典型应用场景是用于tcp 重传
  //假设tcp 调用alloc_skb_fclone 分配了一对skb
  //其中以skb 用于重传，然后在clone一个skb 为nskb
