@@ -33,6 +33,7 @@ enum nf_ct_ext_id {
 	NF_CT_EXT_NUM,
 };
 
+
 #define NF_CT_EXT_HELPER_TYPE struct nf_conn_help
 #define NF_CT_EXT_NAT_TYPE struct nf_conn_nat
 #define NF_CT_EXT_SEQADJ_TYPE struct nf_conn_seqadj

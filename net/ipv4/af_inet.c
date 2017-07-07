@@ -429,6 +429,8 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	int err;
 
 	/* If the socket has its own bind function then use it. (RAW) */
+	//SOCK_RAW使用
+	//tcp 和udp 未使用
 	if (sk->sk_prot->bind) {
 		err = sk->sk_prot->bind(sk, uaddr, addr_len);
 		goto out;
@@ -457,6 +459,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	 *  is temporarily down)
 	 */
 	err = -EADDRNOTAVAIL;
+	//sysctl_ip_nonlocal_bind 允许bind一个非本机配置的IP地址
 	if (!net->ipv4.sysctl_ip_nonlocal_bind &&
 	    !(inet->freebind || inet->transparent) &&
 	    addr->sin_addr.s_addr != htonl(INADDR_ANY) &&
@@ -467,6 +470,9 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	snum = ntohs(addr->sin_port);
 	err = -EACCES;
+	//1024以下端口需要有root权限
+	//snum 为0 表示由内核选择一个可用的端口
+	//一般客户端会使用0，服务端一般使用固定的端口号
 	if (snum && snum < PROT_SOCK &&
 	    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE))
 		goto out;
@@ -486,10 +492,12 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out_release_sock;
 
 	inet->inet_rcv_saddr = inet->inet_saddr = addr->sin_addr.s_addr;
+	//多播和广播使用0 IP 地址
 	if (chk_addr_ret == RTN_MULTICAST || chk_addr_ret == RTN_BROADCAST)
 		inet->inet_saddr = 0;  /* Use device */
 
 	/* Make sure we are allowed to bind here. */
+	//检查端口是否可以绑定
 	if (sk->sk_prot->get_port(sk, snum)) {
 		inet->inet_saddr = inet->inet_rcv_saddr = 0;
 		err = -EADDRINUSE;
@@ -1649,6 +1657,8 @@ static const struct net_offload ipip_offload = {
 	},
 };
 
+//注册对通用分段卸载的支持TSO
+//
 static int __init ipv4_offload_init(void)
 {
 	/*

@@ -209,6 +209,7 @@ next_hook:
 EXPORT_SYMBOL(nf_hook_slow);
 
 //±£Ö¤ÔÚskb dataºóÃæ±Ø¶¨ÓĞwritable_len¿ÉĞ´×Ö½Ú£¬
+//Ò²¾ÍÊÇ¿ÉÒÔĞŞ¸Ä
 //writable_lenÔÚÏßĞÔÊı¾İÇøÖĞ
 //µ÷ÓÃ¸Ãº¯ÊıµÄÄ¬ÈÏÇ°ÌáÊÇ¸Ãskb²»ÊÇ¹²ÏíµÄ,Ò²¾ÍÊÇËµskb->userµÄ¼ÆÊı±ØĞëÊÇ1
 //ÕâÀï¿ÉĞ´µÄÒâË¼ÊÇ
@@ -226,7 +227,7 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 		//Êı¾İ°ü¿ÉÒÔÖ±½ÓĞŞ¸Ä
 		if (writable_len <= skb_headlen(skb))
 			return 1;
-	} else if (skb_clone_writable(skb, writable_len)) //è¿™é‡Œæ²¡çœ‹æ‡‚
+	} else if (skb_clone_writable(skb, writable_len))  //è¿™é‡Œæ²¡çœ‹æ‡‚
 		return 1;
 
 	//¼ÆËãÊµ¼ÊÒªÔÚtailºóÃæ¼Ó¶àÉÙ¿Õ¼ä

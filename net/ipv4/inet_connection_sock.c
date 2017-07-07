@@ -97,19 +97,26 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 	int ret, attempts = 5;
 	struct net *net = sock_net(sk);
 	int smallest_size = -1, smallest_rover;
+	//用户id
 	kuid_t uid = sock_i_uid(sk);
 
 	local_bh_disable();
 	if (!snum) {
+		//如果snum 为0，由内核选择一个合适的端口号
 		int remaining, rover, low, high;
 
 again:
+	//获取用户配置的可以使用的端口号范围
+	///proc/sys/net/ipv4/ip_local_port_range
 		inet_get_local_port_range(net, &low, &high);
+	//计算端口号数量，注意端口号是连续的
 		remaining = (high - low) + 1;
+	//随机一个端口号
 		smallest_rover = rover = prandom_u32() % remaining + low;
 
 		smallest_size = -1;
 		do {
+			//如果是保留端口，则不能使用
 			if (inet_is_local_reserved_port(net, rover))
 				goto next_nolock;
 			head = &hashinfo->bhash[inet_bhashfn(net, rover,
@@ -142,6 +149,7 @@ again:
 		next:
 			spin_unlock(&head->lock);
 		next_nolock:
+			//递增端口号
 			if (++rover > high)
 				rover = low;
 		} while (--remaining > 0);
@@ -744,6 +752,7 @@ int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	//分配listen_sock
 	int rc = reqsk_queue_alloc(&icsk->icsk_accept_queue, nr_table_entries);
 
 	if (rc != 0)

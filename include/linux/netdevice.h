@@ -308,6 +308,7 @@ struct napi_struct {
 
 	unsigned long		state;
 	int			weight;
+	//gro_list 数据包的个数
 	unsigned int		gro_count;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
@@ -315,6 +316,7 @@ struct napi_struct {
 	int			poll_owner;
 #endif
 	struct net_device	*dev;
+	//gro积攒的数据包
 	struct sk_buff		*gro_list;
 	struct sk_buff		*skb;
 	struct hrtimer		timer;
@@ -1988,8 +1990,10 @@ struct packet_type {
 struct offload_callbacks {
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
 						netdev_features_t features);
+	//是将输入skb尽量合并到我们gro_list中
 	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
 						 struct sk_buff *skb);
+	//当我们需要提交gro合并的数据包到协议栈时被调用
 	int			(*gro_complete)(struct sk_buff *skb, int nhoff);
 };
 

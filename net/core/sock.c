@@ -710,9 +710,16 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		else
 			sock_valbool_flag(sk, SOCK_DBG, valbool);
 		break;
+	//这个套接字选项通知内核，如果端口忙，
+	//但TCP状态位于 TIME_WAIT ，可以重用端口。
+	//如果端口忙，而TCP状态位于其他状态，
+	//重用端口时依旧得到一个错误信息，
+	//指明"地址已经使用中"。
 	case SO_REUSEADDR:
 		sk->sk_reuse = (valbool ? SK_CAN_REUSE : SK_NO_REUSE);
 		break;
+	//此选项允许完全重复捆绑，
+	//但仅在想捆绑相同IP地址和端口的套接口都指定了此套接口选项才行
 	case SO_REUSEPORT:
 		sk->sk_reuseport = valbool;
 		break;

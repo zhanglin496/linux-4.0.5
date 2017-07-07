@@ -631,7 +631,7 @@ static void skb_release_data(struct sk_buff *skb)
 	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
 			      &shinfo->dataref))
 		return;
-	//释放非线性部分
+	//释放分页非线性部分
 	for (i = 0; i < shinfo->nr_frags; i++)
 		__skb_frag_unref(&shinfo->frags[i]);
 
@@ -646,7 +646,7 @@ static void skb_release_data(struct sk_buff *skb)
 		if (uarg->callback)
 			uarg->callback(uarg, true);
 	}
-
+	//释放frag_list 分片数据
 	if (shinfo->frag_list)
 		kfree_skb_list(shinfo->frag_list);
 		
@@ -1176,18 +1176,24 @@ EXPORT_SYMBOL(__pskb_copy_fclone);
 //skb的引用计数必须是1
 //原因是要修改skb对象
 //这里不会重新分配skb对象
+//重新分配线性数据区，保证重新分配的线性数据区
+//至少有nhead 的头部空间和ntail的尾部空间
+//注意这里不会拷贝非线性区的数据到重新分配的skb 线性数据区中
+//而是拷贝了skb_shared_info 和原始的线性数据区
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		     gfp_t gfp_mask)
 {
 	int i;
 	u8 *data;
 	//计数需要分配的大小
-	//分配大小为原有的线性数据区域加上headroon和tailroom
+	//分配大小为原有的线性数据区域加上指定需要的headroon和tailroom
 	int size = nhead + skb_end_offset(skb) + ntail;
 	long off;
 
+	//nhead 不能为负值，理论上ntail 也不应该为负值
+	//否则分配的size 不足会导致后面拷贝数据区时会越界
 	BUG_ON(nhead < 0);
-
+	//不能处于share 状态，因为要修改skb 指针
 	if (skb_shared(skb))
 		BUG();
 
@@ -1205,8 +1211,11 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	/* Copy only real data... and, alas, header. This should be
 	 * optimized for the cases when header is void.
 	 */
+	//拷贝线性数据区
 	memcpy(data + nhead, skb->head, skb_tail_pointer(skb) - skb->head);
 
+	//拷贝skb_shared_info
+	//skb_shared_info 记录了非线性数据区
 	memcpy((struct skb_shared_info *)(data + size),
 	       skb_shinfo(skb),
 	       offsetof(struct skb_shared_info, frags[skb_shinfo(skb)->nr_frags]));
@@ -1220,15 +1229,18 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		/* copy this zero copy skb frags */
 		if (skb_orphan_frags(skb, gfp_mask))
 			goto nofrags;
+		//增加page 应用计数
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
 			skb_frag_ref(skb, i);
-
+		//增加frag_list 应用计数
 		if (skb_has_frag_list(skb))
 			skb_clone_fraglist(skb);
-		//递减非线性数据区引用计数，同时释放skb->head原有的数据区域
+	
+		//递减非线性数据区引用计数，同时释放skb->head原有的线性数据区域
 		//非线性数据区域不会释放，因为增加了引用计数
 		skb_release_data(skb);
 	} else {
+		//释放分配的线性区，注意非线性区的数据未释放
 		skb_free_head(skb);
 	}
 	off = (data + nhead) - skb->head;
@@ -1599,6 +1611,8 @@ EXPORT_SYMBOL(___pskb_trim);
  * It is pretty complicated. Luckily, it is called only in exceptional cases.
  */
 //增加数据到skb的尾部，注意delta不能为负值
+//注意该函数只能用于包含有分页和分段的skb
+//对于只有线性数据的skb 不能使用该函数
 unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 {
 	/* If skb has not enough free space at tail, get new one
@@ -1616,6 +1630,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 				     GFP_ATOMIC))
 			return NULL;
 	}
+
 	//拷贝delta数据到tailroom中，保证要的写的数据都在
 	//线性数据区中
 	if (skb_copy_bits(skb, skb_headlen(skb), skb_tail_pointer(skb), delta))
@@ -1625,14 +1640,18 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	/* Optimization: no fragments, no reasons to preestimate
 	 * size of pulled pages. Superb.
 	 */
+	 //如果frag_list 为空，表示数据不会从frag_list 拷贝
 	if (!skb_has_frag_list(skb))
 		goto pull_pages;
 
 	/* Estimate size of pulled pages. */
 	eat = delta;
+	//计算frag_list 需要释放的数据大小
+	//skb_copy_bits 是先拷贝page 数据区再拷贝frag_list数据区
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
-
+		//size 大于eat，表示未从frag_list 拷贝过数据
+		//直接跳转到pull_pages
 		if (size >= eat)
 			goto pull_pages;
 		eat -= size;
@@ -1645,6 +1664,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	 * further bloating skb head and crucify ourselves here instead.
 	 * Pure masohism, indeed. 8)8)
 	 */
+	 //如果eat 不为空，表示有数据是从frag_list 拷贝的
 	if (eat) {
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 		struct sk_buff *clone = NULL;
@@ -1653,6 +1673,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 		do {
 			BUG_ON(!list);
 
+			//小于eat，释放整个skb
 			if (list->len <= eat) {
 				/* Eaten as whole. */
 				eat -= list->len;
@@ -1660,7 +1681,9 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 				insp = list;
 			} else {
 				/* Eaten partially. */
-
+				//list->len >  eat, 只需要释放部分数据，调整skb data指针
+				//和skb->len
+				//skb shared 状态，需要clone skb
 				if (skb_shared(list)) {
 					/* Sucks! We need to fork list. :-( */
 					clone = skb_clone(list, GFP_ATOMIC);
@@ -1673,20 +1696,27 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 					 * problems. */
 					insp = list;
 				}
+				//调整skb data指针
+				//和skb->len
+				//注意clone只会clone一次
+				//所以这里如果出现错误，直接释放clone即可
 				if (!pskb_pull(list, eat)) {
 					kfree_skb(clone);
 					return NULL;
 				}
+				//跳出循环，因为已经完成eat 所需的数据检查
 				break;
 			}
 		} while (eat);
 
 		/* Free pulled out fragments. */
+		//释放已经拷贝到线性区中的skb
 		while ((list = skb_shinfo(skb)->frag_list) != insp) {
 			skb_shinfo(skb)->frag_list = list->next;
 			kfree_skb(list);
 		}
 		/* And insert new clone at head. */
+		//clone的skb 位于链表头
 		if (clone) {
 			clone->next = list;
 			skb_shinfo(skb)->frag_list = clone;
@@ -1704,6 +1734,7 @@ pull_pages:
 			skb_frag_unref(skb, i);
 			eat -= size;
 		} else {
+			//移动page数据区
 			skb_shinfo(skb)->frags[k] = skb_shinfo(skb)->frags[i];
 			if (eat) {
 				skb_shinfo(skb)->frags[k].page_offset += eat;
@@ -1713,9 +1744,14 @@ pull_pages:
 			k++;
 		}
 	}
+
+	//剩余的page 数量
 	skb_shinfo(skb)->nr_frags = k;
 
+	//所需数据已经拷贝到skb 线性区中
+	//调整尾部指针
 	skb->tail     += delta;
+	//调整非线性数据的长度
 	skb->data_len -= delta;
 
 	return skb_tail_pointer(skb);
@@ -1760,6 +1796,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		to     += copy;
 	}
 	//从非线性数据区域中拷贝
+	//先拷贝分页数据区
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
@@ -1786,7 +1823,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		}
 		start = end;
 	}
-
+	//再拷贝frag_list 分片数据区
 	skb_walk_frags(skb, frag_iter) {
 		int end;
 

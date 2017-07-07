@@ -208,6 +208,7 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*rst*/    { sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL },
+//tcp 头未设置有效的标志
 /*none*/   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV }
 	},
 	{
@@ -821,6 +822,8 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 
 	/* Check TCP flags. */
 	tcpflags = (tcp_flag_byte(th) & ~(TCPHDR_ECE|TCPHDR_CWR|TCPHDR_PSH));
+	//如果不带任何标志
+	//则视为无效数据包
 	if (!tcp_valid_flags[tcpflags]) {
 		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
@@ -1136,6 +1139,7 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 			ct->proto.tcp.seen[0].td_end;
 
 		tcp_options(skb, dataoff, th, &ct->proto.tcp.seen[0]);
+		//非syn 包，若tcp_loose == 0， 则不创建conntrack
 	} else if (tn->tcp_loose == 0) {
 		/* Don't try to pick up connections. */
 		return false;

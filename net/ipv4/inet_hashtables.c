@@ -91,7 +91,10 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 
 	atomic_inc(&hashinfo->bsockets);
 
+	//记录bind的端口号
 	inet_sk(sk)->inet_num = snum;
+	//记录bind 了多少套接字
+	//这里应该是为了支持SO_REUSEPORT选项
 	sk_add_bind_node(sk, &tb->owners);
 	tb->num_owners++;
 	inet_csk(sk)->icsk_bind_hash = tb;
@@ -454,6 +457,7 @@ static void __inet_hash(struct sock *sk)
 	}
 
 	WARN_ON(!sk_unhashed(sk));
+	//端口号为hash值
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 
 	spin_lock(&ilb->lock);

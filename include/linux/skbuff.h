@@ -326,6 +326,9 @@ struct skb_shared_info {
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs; //通用分段卸载的数目
 	unsigned short  gso_type;
+
+	//好像ip分片重组用到了??
+	//NETIF_F_FRAGLIST
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;
 	u32		tskey;
@@ -340,6 +343,7 @@ struct skb_shared_info {
 	 * remains valid until skb destructor */
 	void *		destructor_arg;
 
+	//网卡支持NETIF_F_SG
 	/* must be last field, see pskb_expand_head() */
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
@@ -606,7 +610,7 @@ struct sk_buff {
 	__u8			pkt_type:3;
 	__u8			pfmemalloc:1;
 	// ignore df bit if it is set
-	//如果为1，表示忽略分片
+	//如果为1，表示忽略分片标志的设置
 	//如果iph->frag_off设置了DF标志位，
 	//ignore_df为1的情况下，将忽略该DF位
 	//否则如果数据包超过mtu，iph->frag_off设置了DF并且ignore_df为0

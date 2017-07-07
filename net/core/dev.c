@@ -2417,6 +2417,8 @@ struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 
 	__skb_pull(skb, vlan_depth);
 
+	//回调offload函数
+	//在ipv4_offload_init 中注册
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &offload_base, list) {
 		if (ptype->type == type && ptype->callbacks.gso_segment) {
@@ -4173,15 +4175,24 @@ struct packet_offload *gro_find_complete_by_type(__be16 type)
 }
 EXPORT_SYMBOL(gro_find_complete_by_type);
 
+//GRO的主要思想就是，
+//组合一些类似的数据包(基于一些数据域，后面会介绍到)
+//为一个大的数据包(一个skb)，然后feed给协议栈，
+//这里主要是利用Scatter-gather IO，
+//也就是skb的struct skb_shared_info域
+//(我前面的blog讲述ip分片的时候有详细介绍这个域)
+//来合并数据包。
 static gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 {
 	switch (ret) {
 	case GRO_NORMAL:
+	//将数据包送进协议栈
 		if (netif_receive_skb_internal(skb))
 			ret = GRO_DROP;
 		break;
 
 	case GRO_DROP:
+	//表示skb可以被free，因为gro已经将skb合并并保存起来。
 		kfree_skb(skb);
 		break;
 
@@ -4191,7 +4202,8 @@ static gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 		else
 			__kfree_skb(skb);
 		break;
-
+	
+	//这个表示当前数据已经被gro保存起来，但是并没有进行合并，因此skb还需要保存。
 	case GRO_HELD:
 	case GRO_MERGED:
 		break;

@@ -1838,12 +1838,13 @@ local_input:
 	//skb_dst_drop会检查skb->_skb_refdst是否设置了SKB_DST_NOREF
 	//如果设置了，表示当前数据包没有对dst递增引用计数，因此不会调用dst_release
 	//否则会调用dst_release来释放
+	//对于到本地的数据包，dev都是指向loopback
 	rth = rt_dst_alloc(net->loopback_dev,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false, do_cache);
 	if (!rth)
 		goto e_nobufs;
 //对于本地接收的数据包
-//不需要output接口，因为数据包已经到目的地
+//不需要output接口，因为数据包已经到达目的地
 	rth->dst.input= ip_local_deliver;
 	rth->dst.output= ip_rt_bug;
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -1855,6 +1856,9 @@ local_input:
 	rth->rt_genid = rt_genid_ipv4(net);
 	rth->rt_flags 	= flags|RTCF_LOCAL;
 	rth->rt_type	= res.type;
+	//linux对路由区分了输入和输出
+	//也就是区分了接收到的数据包
+	//和发出的数据包
 	rth->rt_is_input = 1;
 	rth->rt_iif	= 0;
 	rth->rt_pmtu	= 0;
