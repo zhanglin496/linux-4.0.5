@@ -2485,6 +2485,7 @@ static inline struct sk_buff *pskb_copy_for_clone(struct sk_buff *skb,
 static inline int skb_clone_writable(const struct sk_buff *skb, unsigned int len)
 {
 	return !skb_header_cloned(skb) &&
+		//检查空间是否足够
 	       skb_headroom(skb) + len <= skb->hdr_len;
 }
 
@@ -2514,6 +2515,8 @@ static inline int __skb_cow(struct sk_buff *skb, unsigned int headroom,
  *	The result is skb with writable area skb->head...skb->tail
  *	and at least @headroom of space at head.
  */
+ //保证 skb->head...skb->tail 是可写的
+ //同时有headroom 大小的头部空间
 static inline int skb_cow(struct sk_buff *skb, unsigned int headroom)
 {
 	return __skb_cow(skb, headroom, skb_cloned(skb));
@@ -2529,6 +2532,7 @@ static inline int skb_cow(struct sk_buff *skb, unsigned int headroom)
  *	you only need to push on some header and do not need to modify
  *	the data.
  */
+ //只需要修改头部的情况
 static inline int skb_cow_head(struct sk_buff *skb, unsigned int headroom)
 {
 	return __skb_cow(skb, headroom, skb_header_cloned(skb));
