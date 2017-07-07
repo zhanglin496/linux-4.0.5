@@ -1617,7 +1617,7 @@ EXPORT_SYMBOL(___pskb_trim);
 //注意该函数只能用于包含有分页和分段的skb
 //对于只有线性数据的skb 不能使用该函数
 //delta 表示的是要从非线性数据区中拷贝到线性数据区中的
-//字节数
+//字节数，可以为0，
 //因此类似__pskb_pull_tail(skb, skb->len) 的调用是错误的
 unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 {

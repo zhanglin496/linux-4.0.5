@@ -238,9 +238,13 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 	if (writable_len <= skb_headlen(skb))
 		writable_len = 0;
 	else
+		//减去线性数据区的长度
+		//原因是__pskb_pull_tail 的第二个参数表示的是需要从非线性数据区
+		//拷贝的字节数
 		writable_len -= skb_headlen(skb);
 	//可能会更改skb中的指针，保证在线性数据区skb->tail后面有足够的空间可写，
-	//当然原始skb必须存在writable_len个字节可以拷贝
+	//当然原始skb 的非线性数据区中必须存在writable_len个字节可以拷贝
+	//否则会导致内核oops
 	return !!__pskb_pull_tail(skb, writable_len);
 }
 EXPORT_SYMBOL(skb_make_writable);
