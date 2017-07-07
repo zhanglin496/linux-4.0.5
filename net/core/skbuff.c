@@ -1207,7 +1207,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 	if (skb_pfmemalloc(skb))
 		gfp_mask |= __GFP_MEMALLOC;
-	//重新分配数据区域
+	//重新分配线性数据区域
 	data = kmalloc_reserve(size + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
 			       gfp_mask, NUMA_NO_NODE, NULL);
 	if (!data)
