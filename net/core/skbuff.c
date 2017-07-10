@@ -1737,6 +1737,12 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	/* Success! Now we may commit changes to skb data. */
 
 pull_pages:
+//这里不需要知道frag_list	消耗了多少字节
+//因为有两种情况
+//如果从frag_list 拷贝了数据，那么必然page的数据区肯定要全部释放
+//所以eat = delta 是没有问题的
+//如果未从frag_list 拷贝数据，那么eat = delta 也没有问题
+//所以直接赋值为delta
 	eat = delta;
 	k = 0;
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
