@@ -981,6 +981,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	local_bh_disable();
 	if (net->ct.expect_count) {
 		spin_lock(&nf_conntrack_expect_lock);
+		//检查该连接是否命中期待连接
+		//由其他模块根据需求调用nf_ct_expect_insert 添加
 		exp = nf_ct_find_expectation(net, zone, tuple);
 		if (exp) {
 			//expect_hash表中命中，表明这是一个期待连接
@@ -991,8 +993,11 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 			//设置期待链接，通知防火墙
 			__set_bit(IPS_EXPECTED_BIT, &ct->status);
 			/* exp->master safe, refcnt bumped in nf_ct_find_expectation */
+			//nf_ct_find_expectation 已经增加了主连接的引用计数
+			//所以这里不需要再次增加
 			//这里子连接增加了主连接的引用计数
 			//意味着子连接未释放前主连接是不会释放的
+			//记录当前ct 是属于哪个主连接
 			ct->master = exp->master;
 			if (exp->helper) {
 				help = nf_ct_helper_ext_add(ct, exp->helper,

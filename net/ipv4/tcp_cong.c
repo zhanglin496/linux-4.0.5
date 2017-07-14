@@ -16,6 +16,7 @@
 #include <linux/jhash.h>
 #include <net/tcp.h>
 
+//管理注册的拥塞控制算法
 static DEFINE_SPINLOCK(tcp_cong_list_lock);
 static LIST_HEAD(tcp_cong_list);
 
@@ -73,7 +74,8 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 		pr_err("%s does not implement required ops\n", ca->name);
 		return -EINVAL;
 	}
-
+//根据名字hash 产生一个key
+//这里假设hash 后不会产生冲突，会产生一个唯一的key
 	ca->key = jhash(ca->name, sizeof(ca->name), strlen(ca->name));
 
 	spin_lock(&tcp_cong_list_lock);
@@ -154,6 +156,7 @@ void tcp_assign_congestion_control(struct sock *sk)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
+		//增加引用计数，防止模块被卸载
 		if (likely(try_module_get(ca->owner))) {
 			icsk->icsk_ca_ops = ca;
 			goto out;
@@ -193,6 +196,7 @@ static void tcp_reinit_congestion_control(struct sock *sk,
 }
 
 /* Manage refcounts on socket close. */
+//释放拥塞控制引用计数
 void tcp_cleanup_congestion_control(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -203,6 +207,7 @@ void tcp_cleanup_congestion_control(struct sock *sk)
 }
 
 /* Used by sysctl to change default congestion control */
+// /proc/sys/net/ipv4/tcp_congestion_control
 int tcp_set_default_congestion_control(const char *name)
 {
 	struct tcp_congestion_ops *ca;
@@ -222,6 +227,8 @@ int tcp_set_default_congestion_control(const char *name)
 
 	if (ca) {
 		ca->flags |= TCP_CONG_NON_RESTRICTED;	/* default is always allowed */
+		//移动到链表头部
+		//这样会被首先选中
 		list_move(&ca->list, &tcp_cong_list);
 		ret = 0;
 	}
@@ -238,6 +245,8 @@ static int __init tcp_congestion_default(void)
 late_initcall(tcp_congestion_default);
 
 /* Build string with list of available congestion control values */
+
+// /proc/sys/net/ipv4/tcp_available_congestion_control
 void tcp_get_available_congestion_control(char *buf, size_t maxlen)
 {
 	struct tcp_congestion_ops *ca;

@@ -213,6 +213,8 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	//查询帮助函数
 	if (net->ct.sysctl_auto_assign_helper && helper == NULL) {
 		helper = __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+		//自动匹配帮助函数即将废弃
+		//用户应该使用 CT target 的方式去绑定相应的模板
 		if (unlikely(!net->ct.auto_assign_helper_warned && helper)) {
 			pr_info("nf_conntrack: automatic helper "
 				"assignment is deprecated and it will "

@@ -309,6 +309,9 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 	case IP_CT_RELATED:
 	case IP_CT_RELATED_REPLY:
 		//会出现IP_CT_RELATED的情况
+		//对于期待连接，也会出现IP_CT_RELATED的情况
+
+		//ICMP 需要做特殊的处理
 		//比如对于UDP 有可能连接的发起方关闭了套接字
 		//如果对端再发数据，就会出现ICMP_DEST_UNREACH错误
 		//如果是ICMP协议，需要做特殊的NAT处理
@@ -339,7 +342,8 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 			//那么就不需要再执行下面的空绑定流程了
 			if (nf_nat_initialized(ct, HOOK2MANIP(ops->hooknum)))
 				break;
-			//空绑定
+			//如果数据包没有经过nat 处理，比如没有配置nat规则
+			//根据目前nat 的实现，必须做一次空绑定
 			ret = nf_nat_alloc_null_binding(ct, ops->hooknum);
 			if (ret != NF_ACCEPT)
 				return ret;

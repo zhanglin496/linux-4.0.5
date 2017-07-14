@@ -1112,6 +1112,9 @@ EXPORT_SYMBOL(skb_copy);
  *	The returned buffer has a reference count of 1.
  */
 
+//和skb_copy 的差异是
+//只单独拷贝一份线性数据区，
+//共享非线性数据区
 struct sk_buff *__pskb_copy_fclone(struct sk_buff *skb, int headroom,
 				   gfp_t gfp_mask, bool fclone)
 {

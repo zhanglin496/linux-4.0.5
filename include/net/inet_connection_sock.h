@@ -127,6 +127,7 @@ struct inet_connection_sock {
 		/* Information on the current probe. */
 		int		  probe_size;
 	} icsk_mtup;
+	//每个拥塞控制算法可以使用的私有数据区
 	u32			  icsk_ca_priv[16];
 	u32			  icsk_user_timeout;
 #define ICSK_CA_PRIV_SIZE	(16 * sizeof(u32))
