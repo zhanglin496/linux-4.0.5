@@ -694,6 +694,7 @@ static void skb_release_head_state(struct sk_buff *skb)
 #ifdef CONFIG_XFRM
 	secpath_put(skb->sp);
 #endif
+//调用skb 析构函数
 	if (skb->destructor) {
 		WARN_ON(in_irq());
 		skb->destructor(skb);
@@ -878,6 +879,7 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(data_len);
 	C(mac_len);
 	n->hdr_len = skb->nohdr ? skb_headroom(skb) : skb->hdr_len;
+	//设置clone 标志
 	n->cloned = 1;
 	n->nohdr = 0;
 	n->destructor = NULL;
@@ -890,6 +892,7 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	atomic_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
+	//设置clone 标志
 	skb->cloned = 1;
 
 	return n;

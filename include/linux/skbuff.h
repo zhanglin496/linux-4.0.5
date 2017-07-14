@@ -583,6 +583,7 @@ struct sk_buff {
 	kmemcheck_bitfield_begin(flags1);
 	__u16			queue_mapping;
 	__u8			cloned:1,
+		//no header 标志，和hdr_len 配合使用
 				nohdr:1,
 				fclone:2,
 				peeked:1,
