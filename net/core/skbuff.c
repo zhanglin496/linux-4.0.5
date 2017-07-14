@@ -889,8 +889,9 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(head_frag);
 	C(data);
 	C(truesize);
+	//n 的初始引用计数为1
 	atomic_set(&n->users, 1);
-
+	//增加数据区的引用计数
 	atomic_inc(&(skb_shinfo(skb)->dataref));
 	//设置clone 标志
 	skb->cloned = 1;
