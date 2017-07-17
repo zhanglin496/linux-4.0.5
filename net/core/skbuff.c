@@ -651,7 +651,7 @@ static void skb_release_data(struct sk_buff *skb)
 	if (shinfo->frag_list)
 		kfree_skb_list(shinfo->frag_list);
 		
-	//释放线性header部分
+	//释放线性数据区部分
 	skb_free_head(skb);
 }
 
@@ -726,7 +726,9 @@ static void skb_release_all(struct sk_buff *skb)
 
 void __kfree_skb(struct sk_buff *skb)
 {
+	//释放skb 数据区和执行其他一些析构函数
 	skb_release_all(skb);
+	//释放skb 自身占用的内存
 	kfree_skbmem(skb);
 }
 EXPORT_SYMBOL(__kfree_skb);

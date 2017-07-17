@@ -1118,12 +1118,17 @@ static inline struct sk_buff *skb_get(struct sk_buff *skb)
  *	one of multiple shared copies of the buffer. Cloned buffers are
  *	shared data so must not be written to under normal circumstances.
  */
-  //ä¹‹æ‰€ä»¥è¦åŒæ—¶åˆ¤æ–­å¼•ç”¨è®¡æ•°ï¼Œ
- //åŸå› æ˜¯å› ä¸ºskb_copyæ‹·è´ä¸€ä¸ªcloneçš„skbåï¼ŒåŸå§‹çš„skb clonedä»ç­‰äº1
- //æ‰€ä»¥ä»…ä»…åˆ¤æ–­clonedæ ‡å¿—ï¼Œå¯èƒ½è¯¯åˆ¤
- //å› ä¸ºcloneæ—¶ä¼šé€’å¢ç¼“å†²åŒºçš„å¼•ç”¨è®¡æ•°
- //æ‰€ä»¥å¦‚æœå¼•ç”¨è®¡æ•°ç­‰äº1ï¼Œåˆ™è¡¨ç¤ºåªæœ‰ä¸€ä¸ªskbåœ¨å¼•ç”¨ç¼“å†²åŒº
- //æ‰€ä»¥æ­¤æ—¶ä»»ç„¶ä¸ºéclone
+//Ö®ËùÒÔÒªÍ¬Ê±ÅĞ¶ÏÒıÓÃ¼ÆÊı£¬
+//±ÈÈçcloneÒ»¸öskbºó£¬Ô­Ê¼µÄskbºÍclone ºóµÄnskb µÄcloned ±êÖ¾¶¼Îª1
+//Èç¹ûºóÀ´nskb±»ÊÍ·Å£¬µ«ÊÇÔ­Ê¼µÄskb µÄcloned ±êÖ¾ÈÔÎª1
+//ËùÒÔÒª¼ÓÉÏÒıÓÃ¼ÆÊıµÄÅĞ¶Ï·ÀÖ¹ÎóÅĞ
+//ÕâÑù¾Í²»ĞèÒªÖØĞÂ·ÖÅäskb ÏßĞÔÊı¾İÇø£¬ÒÔÌá¸ßĞ§ÂÊ
+
+//Ô­ÒòÊÇÒòÎªskb_copy¿½±´Ò»¸öcloneµÄskbºó£¬Ô­Ê¼µÄskb clonedÈÔµÈÓÚ1
+//ËùÒÔ½ö½öÅĞ¶Ïcloned±êÖ¾£¬¿ÉÄÜÎóÅĞ
+//ÒòÎªcloneÊ±»áµİÔö»º³åÇøµÄÒıÓÃ¼ÆÊı
+//ËùÒÔÈç¹ûÒıÓÃ¼ÆÊıµÈÓÚ1£¬Ôò±íÊ¾Ö»ÓĞÒ»¸öskbÔÚÒıÓÃ»º³åÇø
+//ËùÒÔ´ËÊ±ÈÎÈ»Îª·Çclone
 static inline int skb_cloned(const struct sk_buff *skb)
 {
 	return skb->cloned &&
@@ -1770,7 +1775,7 @@ static inline int pskb_may_pull(struct sk_buff *skb, unsigned int len)
  	//Òò´Ë¹²ÏíµÄÊı¾İ»º³åÇøÊÇ²»ÄÜĞŞ¸Ä
  	//ËùÒÔ²»±£Ö¤Ò»¶¨¿ÉĞ´,ÒòÎªÃ»ÓĞÅĞ¶ÏskbÊÇ·ñclone
 	//ºÍskb_make_writableµÄÇø±ğÊÇ£¬skb_make_writable±£Ö¤ÊÇ¿ÉĞ´µÄ
-	//µ«ÊÇpskb_may_pull²»±£Ö¤¿ÉĞ´£¬Ö»±£Ö¤skb ÓĞÖ¸¶¨µÄlen ×Ö½ÚÊı¾İ
+	//µ«ÊÇpskb_may_pull²»±£Ö¤¿ÉĞ´£¬Ö»±£Ö¤skb ÏßĞÔÇøÖĞÓĞÖ¸¶¨µÄlen ×Ö½ÚÊı¾İ
 	//Í¬Ê±±£Ö¤Ö¸¶¨µÄlen×Ö½ÚÎ»ÓÚÏßĞÔÇøÖĞ
 	if (likely(len <= skb_headlen(skb)))
 		return 1;
