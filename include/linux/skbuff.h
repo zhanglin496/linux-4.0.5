@@ -1128,7 +1128,7 @@ static inline struct sk_buff *skb_get(struct sk_buff *skb)
 //所以仅仅判断cloned标志，可能误判
 //因为clone时会递增缓冲区的引用计数
 //所以如果引用计数等于1，则表示只有一个skb在引用缓冲区
-//所以此时任然为非clone
+//所以此时仍然为非clone
 static inline int skb_cloned(const struct sk_buff *skb)
 {
 	return skb->cloned &&
