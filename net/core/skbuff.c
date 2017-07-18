@@ -1766,6 +1766,8 @@ pull_pages:
 			if (eat) {
 				skb_shinfo(skb)->frags[k].page_offset += eat;
 				skb_frag_size_sub(&skb_shinfo(skb)->frags[k], eat);
+				if (!i)
+					goto end;
 				eat = 0;
 			}
 			k++;
@@ -1775,6 +1777,7 @@ pull_pages:
 	//剩余的page 数量
 	skb_shinfo(skb)->nr_frags = k;
 
+end:
 	//所需数据已经拷贝到skb 线性区中
 	//调整尾部指针
 	skb->tail     += delta;

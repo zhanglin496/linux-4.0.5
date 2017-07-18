@@ -27,6 +27,8 @@ bool vlan_do_receive(struct sk_buff **skbp)
 		/* Our lower layer thinks this is not local, let's make sure.
 		 * This allows the VLAN to have a different MAC than the
 		 * underlying device, and still route correctly. */
+		 //mac地址不等于接收设备的mac地址情况
+		 //检查mac地址是否等于虚拟设备的mac地址
 		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, vlan_dev->dev_addr))
 			skb->pkt_type = PACKET_HOST;
 	}
@@ -48,6 +50,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 					      skb->vlan_tci);
 		if (!skb)
 			return false;
+		//再跳过vlan头
 		skb_pull(skb, offset + VLAN_HLEN);
 		skb_reset_mac_len(skb);
 	}

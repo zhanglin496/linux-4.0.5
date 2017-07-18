@@ -211,6 +211,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 		else
 			skb->pkt_type = PACKET_MULTICAST;
 	}
+	//mac地址不等于接收设备的mac地址
 	else if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
 						   dev->dev_addr)))
 		skb->pkt_type = PACKET_OTHERHOST;

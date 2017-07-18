@@ -1562,7 +1562,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	    (sk->sk_state == TCP_ESTABLISHED))
 		sk_busy_loop(sk, nonblock);
 
-	//功能：“锁住sk”，并非真正的加锁，\
+	//功能：“锁住sk”，并非真正的加锁，
 	//而是执行sk->sk_lock.owned = 1	
 	//目的：这样软中断上下文能够通过owned ，
 	//判断该sk是否处于进程上下文。  
