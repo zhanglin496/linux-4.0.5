@@ -154,7 +154,7 @@ ipv6:
 		vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan), data, hlen, &_vlan);
 		if (!vlan)
 			return false;
-
+		//上一层封装协议
 		proto = vlan->h_vlan_encapsulated_proto;
 		nhoff += sizeof(*vlan);
 		goto again;
@@ -309,7 +309,7 @@ EXPORT_SYMBOL(flow_hash_from_keys);
 void __skb_get_hash(struct sk_buff *skb)
 {
 	struct flow_keys keys;
-
+	//根据skb 生成keys
 	if (!skb_flow_dissect(skb, &keys))
 		return;
 
@@ -317,7 +317,8 @@ void __skb_get_hash(struct sk_buff *skb)
 		skb->l4_hash = 1;
 
 	skb->sw_hash = 1;
-
+	//根据key 生成hash 值
+	//同一条数据流会产生相同的hash值
 	skb->hash = __flow_hash_from_keys(&keys);
 }
 EXPORT_SYMBOL(__skb_get_hash);

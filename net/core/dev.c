@@ -3127,6 +3127,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		goto done;
 
 	skb_reset_network_header(skb);
+	//获取该skb 的hash 值
 	hash = skb_get_hash(skb);
 	if (!hash)
 		goto done;
@@ -3841,6 +3842,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 
 #ifdef CONFIG_RPS
 	if (static_key_false(&rps_needed)) {
+		//映射一条流到一个cpu
 		struct rps_dev_flow voidflow, *rflow = &voidflow;
 		int cpu, ret;
 
@@ -3848,6 +3850,9 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 
 		cpu = get_rps_cpu(skb->dev, skb, &rflow);
 
+		//把skb 排入到指定cpu 的队列中
+		//保证同一条数据流都由同一个CPU 来处理
+		//以最大化利用cpu
 		if (cpu >= 0) {
 			ret = enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
 			rcu_read_unlock();

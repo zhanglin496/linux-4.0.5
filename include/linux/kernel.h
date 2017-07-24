@@ -797,6 +797,9 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  *
  */
 #define container_of(ptr, type, member) ({			\
+	//这里定义__mptr 临时变量的作用是为了让编译器检查
+	//指针的类型是否和ptr 给出的一致
+	//如果不一致，编译器会打印警告信息
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 

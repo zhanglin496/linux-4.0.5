@@ -50,6 +50,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	}
 
 	indev = skb->dev;
+	//指向桥接的虚拟接口
 	skb->dev = brdev;
 	skb = br_handle_vlan(br, pv, skb);
 	if (!skb)

@@ -42,7 +42,7 @@ static inline bool fd_is_open(int fd, const struct fdtable *fdt)
 /*
  * Open file table structure
  */
- //记录进程打开的文件描述符
+ //记录进程打开的所有文件描述符
 struct files_struct {
   /*
    * read mostly part

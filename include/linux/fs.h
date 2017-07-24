@@ -799,6 +799,8 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
 		index <  ra->start + ra->size);
 }
 
+//系统中每个打开的文件描述符都对应一个file
+//结构来表征
 struct file {
 	union {
 		struct llist_node	fu_llist;
@@ -806,6 +808,7 @@ struct file {
 	} f_u;
 	struct path		f_path;
 	struct inode		*f_inode;	/* cached value */
+	//对应文件描述符的操作集合
 	const struct file_operations	*f_op;
 
 	/*
