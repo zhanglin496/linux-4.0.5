@@ -308,6 +308,8 @@ static void inetdev_destroy(struct in_device *in_dev)
 	call_rcu(&in_dev->rcu_head, in_dev_rcu_put);
 }
 
+//根据指定网络设备的IP配置块，
+//检查两个给定的IP地址是否属于同一个子网
 int inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b)
 {
 	rcu_read_lock();
@@ -1262,6 +1264,7 @@ static __be32 confirm_addr_indev(struct in_device *in_dev, __be32 dst,
 				break;
 		}
 		if (!same) {
+			//dst 和local 是否在同一个子网内
 			same = (!local || inet_ifa_match(local, ifa)) &&
 				(!dst || inet_ifa_match(dst, ifa));
 			if (same && addr) {

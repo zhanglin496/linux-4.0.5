@@ -27,7 +27,10 @@ state_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	enum ip_conntrack_info ctinfo;
 	unsigned int statebit;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-
+	
+//	XT_STATE_INVALID 实际就是指没有关联conntrack 的情况
+// 比如在tcp_new 函数在loose 为1 的情况下不会创建新的conntrack
+//或者链接跟踪不支持该协议
 	if (!ct)
 		statebit = XT_STATE_INVALID;
 	else {

@@ -2287,6 +2287,12 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 //flowi4_oif 如果不为0，表明指定了出口设备
 //在fib_lookup中已经选择了合适的下一跳
 //不需要再次选择
+//同一个接口可以指定多个下一跳
+//但是目前内核只会选择第一个
+//fib_select_multipath 未实现对接口的匹配
+//所以对指定了接口的情况下，
+//不能再调用fib_select_multipath
+//否则可能导致选择的接口和指定的不匹配
 	if (res.fi->fib_nhs > 1 && fl4->flowi4_oif == 0)
 		fib_select_multipath(&res);
 	else

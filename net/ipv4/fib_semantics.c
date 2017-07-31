@@ -1284,6 +1284,7 @@ void fib_select_multipath(struct fib_result *res)
 {
 	struct fib_info *fi = res->fi;
 	int w;
+	u8 nh_sel = res->nh_sel;
 
 	spin_lock_bh(&fib_multipath_lock);
 	if (fi->fib_power <= 0) {

@@ -104,6 +104,8 @@ static unsigned int ipv4_helper(const struct nf_hook_ops *ops,
 	const struct nf_conntrack_helper *helper;
 
 	/* This is where we call the helper: as the packet goes out. */
+	//IP_CT_RELATED_REPLY 状态要过滤掉
+	//因为ICMP 错误报告包会出现这种情况
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
 		return NF_ACCEPT;

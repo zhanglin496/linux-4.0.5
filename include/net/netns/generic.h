@@ -23,7 +23,7 @@
  * After accomplishing all of the above, the private pointer can be
  * accessed with the net_generic() call.
  */
-
+//在struct net 中保存每个模块按需分配的私有数据区
 struct net_generic {
 	unsigned int len;
 	struct rcu_head rcu;

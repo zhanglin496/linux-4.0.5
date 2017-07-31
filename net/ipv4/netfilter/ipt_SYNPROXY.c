@@ -150,7 +150,7 @@ synproxy_send_server_syn(const struct synproxy_net *snet,
 	nth->urg_ptr	= 0;
 
 	synproxy_build_options(nth, opts);
-	//snet->tmpl为syn proxy 初始化时设置的nf_conn模板
+	//snet->tmpl为synproxy_net_init 初始化时设置的nf_conn模板
 	//synproxy_send_tcp调用ip_local_out ,再调用NF_INET_LOCAL_OUT钩子点
 	//在ipv4_conntrack_local中根据模板的配置再新建一个conntrack
 	//同时添加synproxy扩展，这样使后续的数据包
@@ -317,6 +317,7 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 	struct nf_conn_synproxy *synproxy;
 	struct synproxy_options opts = {};
 	const struct ip_ct_tcp *state;
+	struct iphdr *iph;
 	struct tcphdr *th, _th;
 	unsigned int thoff;
 
@@ -332,6 +333,14 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 
 	if (nf_is_loopback_packet(skb))
 		return NF_ACCEPT;
+//感觉有点问题
+//如果对方回了ICMP 错误包???
+//	iph = ip_hdr(skb);
+//	if (iph->protocol != IPPROTO_TCP)
+//		return NF_DROP;
+
+	if (ctinfo == IP_CT_RELATED_REPLY)
+		return NF_DROP;
 
 	thoff = ip_hdrlen(skb);
 	th = skb_header_pointer(skb, thoff, sizeof(_th), &_th);
