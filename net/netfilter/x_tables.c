@@ -230,6 +230,8 @@ struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
 	mutex_lock(&xt[af].mutex);
 	list_for_each_entry(t, &xt[af].target, list) {
 		if (strcmp(t->name, name) == 0) {
+			//比较版本号
+			//同一个target 可能会存在多个不同的版本
 			if (t->revision == revision) {
 				if (try_module_get(t->me)) {
 					mutex_unlock(&xt[af].mutex);

@@ -1226,11 +1226,15 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	/* Copy only real data... and, alas, header. This should be
 	 * optimized for the cases when header is void.
 	 */
-	//拷贝线性数据区
+	//拷贝原始的线性数据区
+	//注意这里不会移动非线性数据区到线性区中
+	//该函数只是预留了足够的线性区空间
+	//给调用者使用
 	memcpy(data + nhead, skb->head, skb_tail_pointer(skb) - skb->head);
 
 	//拷贝skb_shared_info
 	//skb_shared_info 记录了非线性数据区
+	//非线性区域保持不变
 	memcpy((struct skb_shared_info *)(data + size),
 	       skb_shinfo(skb),
 	       offsetof(struct skb_shared_info, frags[skb_shinfo(skb)->nr_frags]));
@@ -1658,6 +1662,9 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 		BUG();
 
 	//后面要调整非线性数据区，因为从非线性数据区中拷贝了一部分数据到线性数据区
+	//
+	//skb_copy_bits 只是拷贝了数据到指定的地址
+	//非线性数据区的大小需要 单独调整
 	/* Optimization: no fragments, no reasons to preestimate
 	 * size of pulled pages. Superb.
 	 */

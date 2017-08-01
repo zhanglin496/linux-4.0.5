@@ -317,8 +317,7 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 	struct nf_conn_synproxy *synproxy;
 	struct synproxy_options opts = {};
 	const struct ip_ct_tcp *state;
-	struct iphdr *iph;
-	struct tcphdr *th, _th;
+ 	struct tcphdr *th, _th;
 	unsigned int thoff;
 
 	ct = nf_ct_get(skb, &ctinfo);
@@ -335,12 +334,11 @@ static unsigned int ipv4_synproxy_hook(const struct nf_hook_ops *ops,
 		return NF_ACCEPT;
 //感觉有点问题
 //如果对方回了ICMP 错误包???
-//	iph = ip_hdr(skb);
-//	if (iph->protocol != IPPROTO_TCP)
-//		return NF_DROP;
+//	if (ip_hdr(skb)->protocol != IPPROTO_TCP)
+//		return NF_ACCEPT;
 
 	if (ctinfo == IP_CT_RELATED_REPLY)
-		return NF_DROP;
+		return NF_ACCEPT;
 
 	thoff = ip_hdrlen(skb);
 	th = skb_header_pointer(skb, thoff, sizeof(_th), &_th);
