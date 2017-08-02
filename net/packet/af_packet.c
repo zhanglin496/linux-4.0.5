@@ -2008,6 +2008,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		h.h2->tp_net = netoff;
 		h.h2->tp_sec = ts.tv_sec;
 		h.h2->tp_nsec = ts.tv_nsec;
+		//保存vlan信息
 		if (skb_vlan_tag_present(skb)) {
 			h.h2->tp_vlan_tci = skb_vlan_tag_get(skb);
 			h.h2->tp_vlan_tpid = ntohs(skb->vlan_proto);
@@ -2065,6 +2066,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	if (po->tp_version <= TPACKET_V2) {
 		__packet_set_status(po, h.raw, status);
+		//使用mmap,用户态和内核态共享一块地址区域
+		//避免数据拷贝，未将skb加入接收队里，
+		//因此不能直接调用read，否则会一直阻塞
+		//需要调用多路复用函数，比如select,poll等
 		sk->sk_data_ready(sk);
 	} else {
 		prb_clear_blk_fill_status(&po->rx_ring);

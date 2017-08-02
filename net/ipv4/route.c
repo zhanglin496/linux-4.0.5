@@ -1610,7 +1610,7 @@ static int __mkroute_input(struct sk_buff *skb,
 			rth = rcu_dereference(fnhe->fnhe_rth_input);
 		else
 			rth = rcu_dereference(FIB_RES_NH(*res).nh_rth_input);
-
+		//rth缓存是否有效
 		if (rt_cache_valid(rth)) {
 			skb_dst_set_noref(skb, &rth->dst);
 			goto out;
@@ -2041,6 +2041,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 			prth = raw_cpu_ptr(nh->nh_pcpu_rth_output);
 		}
 		rth = rcu_dereference(*prth);
+		//验证下一跳的rth缓存是否有效
 		if (rt_cache_valid(rth)) {
 			dst_hold(&rth->dst);
 			return rth;
