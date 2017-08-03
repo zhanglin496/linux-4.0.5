@@ -59,12 +59,22 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		//对方可能根本就收不到数据包
 		if (maniptype == NF_NAT_MANIP_DST)
 			return;
-
+		//这里为什么要区分512，1024
+		//按照netfilter的官方文档是因为把端口分成了三类
+		//
+		//When this implicit source mapping occurs, ports are divided into three classes:
+		
+		//Ports below 512
+		//Ports between 512 and 1023
+		//Ports 1024 and above.
+		//A port will never be implicitly mapped into a different class.
+		//不同类的端口不允许映射到其他类
 		if (ntohs(*portptr) < 1024) {
 			/* Loose convention: >> 512 is credential passing */
 			if (ntohs(*portptr) < 512) {
 				min = 1;
 				range_size = 511 - min + 1;
+				//这里(512, 600)之间的端口没有使用
 			} else {
 				min = 600;
 				range_size = 1023 - min + 1;

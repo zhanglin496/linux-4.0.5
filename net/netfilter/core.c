@@ -142,6 +142,7 @@ unsigned int nf_iterate(struct list_head *head,
 	// 所以就要遍历hook链表中的所有节点。
 		if (hook_thresh > (*elemp)->priority)
 			continue;
+	//大于等于hook_thresh 的节点
 
 		/* Optimization: we don't need to hold module
 		   reference here, since function can't sleep. --RR */

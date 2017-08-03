@@ -5,9 +5,9 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 
 enum nf_nat_manip_type {
-	//鍋歋NAT
+	//源地址SNAT
 	NF_NAT_MANIP_SRC,
-	//鍋欴NAT
+	//目的地址DNAT
 	NF_NAT_MANIP_DST
 };
 
