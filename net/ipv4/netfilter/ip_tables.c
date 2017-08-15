@@ -348,14 +348,14 @@ ipt_do_table(struct sk_buff *skb,
 		const struct xt_entry_match *ematch;
 
 		IP_NF_ASSERT(e);
-		//æ ‡å‡†åŒ¹é…
+		//±ê×¼Æ¥Åä
 		if (!ip_packet_match(ip, indev, outdev,
 		    &e->ip, acpar.fragoff)) {
  no_match:
 			e = ipt_next_entry(e);
 			continue;
 		}
-		//æ‰©å¼ åŒ¹é…
+		//À©Õ¹Æ¥Åä		
 		xt_ematch_foreach(ematch, e) {
 			acpar.match     = ematch->u.kernel.match;
 			acpar.matchinfo = ematch->data;
@@ -375,7 +375,7 @@ ipt_do_table(struct sk_buff *skb,
 				     table->name, private, e);
 #endif
 		/* Standard target? */
-		//æ ‡å‡†targetï¼Œæ¯”å¦‚NF_ACCEPT, NF_DROP
+		//±ê×¼target£¬±ÈÈçNF_ACCEPT, NF_DROP
 		if (!t->u.kernel.target->target) {
 			int v;
 
