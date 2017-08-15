@@ -127,7 +127,8 @@ static inline void list_add_tail_rcu(struct list_head *new,
  * grace period has elapsed.
  */
 //保留了原始的entry->next值，因为读者可能引用了
-//旧的指针值，
+//旧的指针值，如果不保留，读者会读取错误的指针值
+//而导致断链或者crash
 //因为没有保留entry->prev的值
 //所以就没有类似list_for_each_entry_reverse_rcu 的反向遍历函数
 static inline void list_del_rcu(struct list_head *entry)
