@@ -557,6 +557,10 @@ begin:
 		goto begin;
 
 	if (result) {
+		//因为是无锁操作
+		//所以有可能别的进程释放时已经将计数器递减到0
+		//所以要判断是否是非0，如果为0，表示别的进程
+		//在释放了，所以不能再引用
 		if (unlikely(!atomic_inc_not_zero_hint(&result->sk_refcnt, 2)))
 			result = NULL;
 		else if (unlikely(compute_score(result, net, saddr, hnum, sport,
