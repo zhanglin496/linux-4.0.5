@@ -1205,6 +1205,10 @@ static inline void __run_timers(struct tvec_base *base)
 			//即使在timer 函数中重新激活自己
 			//也可以保证timer被正确删除
 			base->running_timer = timer;
+			//删除该定时器
+			//linux上的实现是one-shot 类型的定时器
+			//对于周期性定时器，需要在回调函数中
+			//再次添加该定时器
 			detach_expired_timer(timer, base);
 
 			if (irqsafe) {
