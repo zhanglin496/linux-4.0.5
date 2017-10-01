@@ -38,7 +38,7 @@ static void secmark_save(const struct sk_buff *skb)
 	if (skb->secmark) {
 		struct nf_conn *ct;
 		enum ip_conntrack_info ctinfo;
-
+		//从skb中拷贝secmark 到conntrack中
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct && !ct->secmark) {
 			ct->secmark = skb->secmark;
@@ -56,7 +56,7 @@ static void secmark_restore(struct sk_buff *skb)
 	if (!skb->secmark) {
 		const struct nf_conn *ct;
 		enum ip_conntrack_info ctinfo;
-
+		//从conntrack中拷贝secmark到skb中
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct && ct->secmark)
 			skb->secmark = ct->secmark;

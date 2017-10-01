@@ -49,6 +49,7 @@ connmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 	switch (info->mode) {
 	case XT_CONNMARK_SET:
+		//给conntrack打mark
 		newmark = (ct->mark & ~info->ctmask) ^ info->ctmark;
 		if (ct->mark != newmark) {
 			ct->mark = newmark;
@@ -56,6 +57,7 @@ connmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		}
 		break;
 	case XT_CONNMARK_SAVE:
+		//将skb的mark保存到conntrack中
 		newmark = (ct->mark & ~info->ctmask) ^
 		          (skb->mark & info->nfmask);
 		if (ct->mark != newmark) {
@@ -64,6 +66,7 @@ connmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		}
 		break;
 	case XT_CONNMARK_RESTORE:
+		//从conntrack中恢复mark到skb中
 		newmark = (skb->mark & ~info->nfmask) ^
 		          (ct->mark & info->ctmask);
 		skb->mark = newmark;

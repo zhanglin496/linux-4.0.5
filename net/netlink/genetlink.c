@@ -163,7 +163,8 @@ static int genl_allocate_reserve_groups(int n_groups, int *first_id)
 	int id;
 	bool fits;
 
-	do {
+	do {
+		//mc_groups_longs * BITS_PER_LONG表示当前的位空间大小
 		if (start == 0)
 			id = find_first_zero_bit(mc_groups,
 						 mc_groups_longs *
@@ -174,18 +175,24 @@ static int genl_allocate_reserve_groups(int n_groups, int *first_id)
 						start);
 
 		fits = true;
+		//检查需要的组播位是否是连续的
+		//因为我们需要连续的可用位空间
+		//比如00000000 100 1111
+		//比如我们注册了3个多播组,需要三个连续的位空间
+		//0000111 100 1111
 		for (i = id;
 		     i < min_t(int, id + n_groups,
 			       mc_groups_longs * BITS_PER_LONG);
 		     i++) {
 			if (test_bit(i, mc_groups)) {
+				//如果不连续，记录开始的位置,再一次查找
 				start = i;
 				fits = false;
 				break;
 			}
 		}
-
-		if (id >= mc_groups_longs * BITS_PER_LONG) {
+		//没有剩余的空间位，需要重新分配，注意id是从0开始分配的
+		if (id + n_groups > mc_groups_longs * BITS_PER_LONG) {
 			unsigned long new_longs = mc_groups_longs +
 						  BITS_TO_LONGS(n_groups);
 			size_t nlen = new_longs * sizeof(unsigned long);
@@ -208,9 +215,10 @@ static int genl_allocate_reserve_groups(int n_groups, int *first_id)
 			mc_groups_longs = new_longs;
 		}
 	} while (!fits);
-
+	//设置分配的位
 	for (i = id; i < id + n_groups; i++)
 		set_bit(i, mc_groups);
+	//记录开始的位
 	*first_id = id;
 	return 0;
 }
@@ -227,6 +235,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 	if (!n_groups)
 		return 0;
 
+	//校验组播组的名称是否符合约定
 	for (i = 0; i < n_groups; i++) {
 		const struct genl_multicast_group *grp = &family->mcgrps[i];
 
@@ -255,7 +264,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 		if (err)
 			return err;
 	}
-
+	//记录开始的位
 	family->mcgrp_offset = first_id;
 
 	/* if still initializing, can't and don't need to to realloc bitmaps */
@@ -267,6 +276,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 
 		netlink_table_grab();
 		rcu_read_lock();
+		//更新对应的多播组
 		for_each_net_rcu(net) {
 			err = __netlink_change_ngroups(net->genl_sock,
 					mc_groups_longs * BITS_PER_LONG);
@@ -288,6 +298,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 	}
 
 	if (groups_allocated && err) {
+		//出错，清除对应的多播位，注册的多播位是连续的
 		for (i = 0; i < family->n_mcgrps; i++)
 			clear_bit(family->mcgrp_offset + i, mc_groups);
 	}
@@ -411,6 +422,8 @@ int __genl_register_family(struct genl_family *family)
 
 	/* send all events */
 	genl_ctrl_event(CTRL_CMD_NEWFAMILY, family, NULL, 0);
+	//根据动态生成的组ID,发送广播消息到用户空间
+	//
 	for (i = 0; i < family->n_mcgrps; i++)
 		genl_ctrl_event(CTRL_CMD_NEWMCAST_GRP, family,
 				&family->mcgrps[i], family->mcgrp_offset + i);
@@ -557,7 +570,9 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	hdrlen = GENL_HDRLEN + family->hdrsize;
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
-
+	
+	//根据cmd查找对应的ops操作集合
+	//ops就是一个结构体数组
 	ops = genl_get_cmd(hdr->cmd, family);
 	if (ops == NULL)
 		return -EOPNOTSUPP;
@@ -601,6 +616,12 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	if (ops->doit == NULL)
 		return -EOPNOTSUPP;
 
+	//如果支持并行操作
+	//分配一个attrbuf用于解析ops对应的tlv数据
+	//这个之所以要单独分配一个attrbuf
+	//是因为可能同时被调用
+	//parallel_ops为0，则是串行化的
+	//直接使用默认的attrbuf
 	if (family->maxattr && family->parallel_ops) {
 		attrbuf = kmalloc((family->maxattr+1) *
 					sizeof(struct nlattr *), GFP_KERNEL);
@@ -609,6 +630,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	} else
 		attrbuf = family->attrbuf;
 
+	//解析tvl数据，放入attrbuf指针数组中
 	if (attrbuf) {
 		err = nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
 				  ops->policy);
@@ -626,14 +648,17 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	genl_info_net_set(&info, net);
 	memset(&info.user_ptr, 0, sizeof(info.user_ptr));
 
+	//调用pre_doit函数
 	if (family->pre_doit) {
 		err = family->pre_doit(ops, skb, &info);
 		if (err)
 			goto out;
 	}
 
+	//调用ops的doit函数
 	err = ops->doit(skb, &info);
 
+	//调用post_doit函数
 	if (family->post_doit)
 		family->post_doit(ops, skb, &info);
 
@@ -649,6 +674,7 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct genl_family *family;
 	int err;
 
+	//在family_ht表中根据nlmsg_type查找注册的genl_family
 	family = genl_family_find_byid(nlh->nlmsg_type);
 	if (family == NULL)
 		return -ENOENT;
@@ -904,6 +930,7 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 		err = -ENOENT;
 	}
 
+	//根据名称查找对应的family，并向用户空间返回对应的id
 	if (info->attrs[CTRL_ATTR_FAMILY_NAME]) {
 		char *name;
 

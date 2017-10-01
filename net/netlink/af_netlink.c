@@ -1153,6 +1153,8 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 		return -EPROTONOSUPPORT;
 
 	netlink_lock_table();
+
+	//查看对应的netlink协议是否已经注册，如果没有注册，返回失败
 #ifdef CONFIG_MODULES
 	if (!nl_table[protocol].registered) {
 		netlink_unlock_table();
@@ -1458,6 +1460,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 		return -EINVAL;
 
 	/* Only superuser is allowed to listen multicasts */
+	//是否要监听多播组
 	if (groups) {
 		if (!netlink_allowed(sock, NL_CFG_F_NONROOT_RECV))
 			return -EPERM;
@@ -1494,13 +1497,21 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 		}
 	}
 
+	//没有监听多播，返回
+	//要检查nlk->groups，是因为可能需要退出多播
 	if (!groups && (nlk->groups == NULL || !(u32)nlk->groups[0]))
 		return 0;
 
 	netlink_table_grab();
+	//将sk加入多播组
+	//记录sk是否加入了某个多播组
+	//hweight32是求u32中1的个数
+	//nlk->subscriptions表示nlk->groups[0]中1的个数
 	netlink_update_subscriptions(sk, nlk->subscriptions +
 					 hweight32(groups) -
 					 hweight32(nlk->groups[0]));
+	//更新低位的4个字节为groups，因此nelink_bind方法最多允许加入32个多播组
+	//更多组的添加方法是用NETLINK_ADD_MEMBERSHIP套接字选项来实现
 	nlk->groups[0] = (nlk->groups[0] & ~0xffffffffUL) | groups;
 	netlink_update_listeners(sk);
 	netlink_table_ungrab();
