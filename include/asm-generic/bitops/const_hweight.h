@@ -4,6 +4,7 @@
 /*
  * Compile time versions of __arch_hweightN()
  */
+//求1的个数
 #define __const_hweight8(w)		\
 	((unsigned int)			\
 	 ((!!((w) & (1ULL << 0))) +	\
