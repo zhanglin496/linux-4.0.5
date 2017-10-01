@@ -275,6 +275,8 @@ void sock_gen_put(struct sock *sk)
 {
 	if (!atomic_dec_and_test(&sk->sk_refcnt))
 		return;
+	// 此往后，由于已经将ref减为0，
+	//别处的inc_not_zero将失败，因此可以放心释放socket了。
 
 	if (sk->sk_state == TCP_TIME_WAIT)
 		inet_twsk_free(inet_twsk(sk));

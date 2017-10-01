@@ -84,7 +84,7 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 	
 	//未确认状态时
 	//只可能有一个skb引用者，不会出现竞争
-	//若果conntrack已经被确认，则不能再添加新的扩展区
+	//如果conntrack已经被确认，则不能再添加新的扩展区
 	//因为标准内核在分配扩展区时并没有加锁
 	/* Conntrack must not be confirmed to avoid races on reallocation. */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
