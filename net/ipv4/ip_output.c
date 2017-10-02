@@ -547,17 +547,27 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 	 */
 	if (skb_has_frag_list(skb)) {
 		struct sk_buff *frag, *frag2;
+		//第一个分片的长度，包括分页的数据长度，不包括fraglist长度
 		int first_len = skb_pagelen(skb);
 
+		//验证数据包是否满足快速条件
+		//否则只能走slow_path拷贝数据包
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
 		    ip_is_fragment(iph) ||
 		    skb_cloned(skb))
 			goto slow_path;
-
+		//验证数据包是否满足快速条件
+		//否则只能走slow_path拷贝数据包
 		skb_walk_frags(skb, frag) {
 			/* Correct geometry. */
 			if (frag->len > mtu ||
+				//分片长度必须是8字节的整数倍，也就是上层调用
+				//必须按8字节倍数把数据包提前建立好
+				//根据IP分片的重组规则，第二个分片和以后的分片都
+				//不能包括L4头部，否则重组时会把L4头部当负载处理
+				//数据就会出错，
+				//frag->len不包括L3头部的大小
 			    ((frag->len & 7) && frag->next) ||
 			    skb_headroom(frag) < hlen)
 				goto slow_path_clean;
@@ -592,15 +602,19 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			if (frag) {
 				frag->ip_summed = CHECKSUM_NONE;
 				skb_reset_transport_header(frag);
+				//增加L3头部
 				__skb_push(frag, hlen);
 				skb_reset_network_header(frag);
+				//拷贝L3网络层头
 				memcpy(skb_network_header(frag), iph, hlen);
 				iph = ip_hdr(frag);
 				iph->tot_len = htons(frag->len);
 				ip_copy_metadata(frag, skb);
 				if (offset == 0)
 					ip_options_fragment(frag);
+				//减去L3头部长度，
 				offset += skb->len - hlen;
+				//偏移以8字节为单位，除以8
 				iph->frag_off = htons(offset>>3);
 				if (frag->next != NULL)
 					iph->frag_off |= htons(IP_MF);
@@ -625,6 +639,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			return 0;
 		}
 
+		//出错，释放剩余还未发送的skb
 		while (frag) {
 			skb = frag->next;
 			kfree_skb(frag);
@@ -643,6 +658,7 @@ slow_path_clean:
 		}
 	}
 
+//慢速路径，因为要重新分配skb和拷贝数据
 slow_path:
 	/* for offloaded checksums cleanup checksum before fragmentation */
 	if ((skb->ip_summed == CHECKSUM_PARTIAL) && skb_checksum_help(skb))
@@ -675,10 +691,11 @@ slow_path:
 			len = mtu;
 		/* IF: we are not sending up to and including the packet end
 		   then align the next start on an eight byte boundary */
+		//保证8字节边界对齐
 		if (len < left)	{
 			len &= ~7;
 		}
-
+		// 1. 要重新分配内存，慢速的原因1
 		/* Allocate buffer */
 		skb2 = alloc_skb(len + hlen + ll_rs, GFP_ATOMIC);
 		if (!skb2) {
@@ -707,6 +724,7 @@ slow_path:
 		/*
 		 *	Copy the packet header into the new buffer.
 		 */
+		// 2. 要拷贝内存，慢速的原因2
 
 		skb_copy_from_linear_data(skb, skb_network_header(skb2), hlen);
 
@@ -715,6 +733,7 @@ slow_path:
 		 */
 		if (skb_copy_bits(skb, ptr, skb_transport_header(skb2), len))
 			BUG();
+		//更新剩余的长度
 		left -= len;
 
 		/*
@@ -729,6 +748,7 @@ slow_path:
 		 * on the initial skb, so that all the following fragments
 		 * will inherit fixed options.
 		 */
+		//
 		if (offset == 0)
 			ip_options_fragment(skb);
 
@@ -754,6 +774,7 @@ slow_path:
 
 		IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGCREATES);
 	}
+	//释放原来的skb
 	consume_skb(skb);
 	IP_INC_STATS(dev_net(dev), IPSTATS_MIB_FRAGOKS);
 	return err;

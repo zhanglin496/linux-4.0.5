@@ -91,6 +91,11 @@ int ip_forward(struct sk_buff *skb)
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_FWD, skb))
 		goto drop;
 
+	//IP_ROUTER_ALERT选项
+	//给该套接字所有将要转发的包设置IP路由器警告（IP RouterAlert option）选项. 
+	//只对原始套接字（raw socket）有效,
+	//如果设置了router_alert选项
+	//ip_call_ra_chain把skb交给设置了IP_ROUTER_ALERT 选项的原始套接字
 	if (IPCB(skb)->opt.router_alert && ip_call_ra_chain(skb))
 		return NET_RX_SUCCESS;
 

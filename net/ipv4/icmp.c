@@ -1007,6 +1007,7 @@ int icmp_rcv(struct sk_buff *skb)
 		 *	RFC 1122: 3.2.2.8 An ICMP_TIMESTAMP MAY be silently
 		 *	  discarded if to broadcast/multicast.
 		 */
+		 //检查是否允许icmp广播和多播
 		if ((icmph->type == ICMP_ECHO ||
 		     icmph->type == ICMP_TIMESTAMP) &&
 		    net->ipv4.sysctl_icmp_echo_ignore_broadcasts) {
@@ -1155,7 +1156,8 @@ static int __net_init icmp_sk_init(struct net *net)
 
 	for_each_possible_cpu(i) {
 		struct sock *sk;
-
+		//每个cpu创建一个原始内核套接字
+		//用于发送icmp消息
 		err = inet_ctl_sock_create(&sk, PF_INET,
 					   SOCK_RAW, IPPROTO_ICMP, net);
 		if (err < 0)

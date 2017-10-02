@@ -1700,7 +1700,10 @@ static int __init inet_init(void)
 	rc = proto_register(&raw_prot, 1);
 	if (rc)
 		goto out_unregister_udp_proto;
-
+	//注册ping套接字
+	//用户空间可以直接调用socket创建ping套接字
+	//在较旧的内核是没有集成，
+	//只能使用原始套接字
 	rc = proto_register(&ping_prot, 1);
 	if (rc)
 		goto out_unregister_raw_proto;
