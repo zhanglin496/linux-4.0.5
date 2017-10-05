@@ -186,7 +186,7 @@ EXPORT_SYMBOL_GPL(ipv6_find_tlv);
  */
 //@offset: 表示找到相应的头部时，返回对应的偏移量，offset初始值一般设为0
 //@target: 需要查找的头部编号，-1表示遍历所有的扩展头部
-//@fragoff
+//@fragoff: 分片偏移
 //@flags: 标志
 int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		  int target, unsigned short *fragoff, int *flags)
