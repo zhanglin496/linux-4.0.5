@@ -342,9 +342,10 @@ static unsigned int ipv6_synproxy_hook(const struct nf_hook_ops *ops,
 		return NF_ACCEPT;
 
 	nexthdr = ipv6_hdr(skb)->nexthdr;
+	//跳过所有的扩展头部
 	thoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
 				 &frag_off);
-	if (thoff < 0)
+	if (thoff < 0 || nexthdr != IPPROTO_TCP)
 		return NF_ACCEPT;
 
 	th = skb_header_pointer(skb, thoff, sizeof(_th), &_th);

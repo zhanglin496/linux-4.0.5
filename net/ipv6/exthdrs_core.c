@@ -14,6 +14,7 @@ bool ipv6_ext_hdr(u8 nexthdr)
 	/*
 	 * find out if nexthdr is an extension header or a protocol
 	 */
+	 //已知的扩展头部，未知的怎么处理?
 	return   (nexthdr == NEXTHDR_HOP)	||
 		 (nexthdr == NEXTHDR_ROUTING)	||
 		 (nexthdr == NEXTHDR_FRAGMENT)	||
@@ -68,6 +69,7 @@ EXPORT_SYMBOL(ipv6_ext_hdr);
  * --ANK (980726)
  */
 
+//跳过所有的扩展头部，nexthdrp返回最后一个头部的nexthdr
 int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp,
 		     __be16 *frag_offp)
 {
@@ -182,6 +184,10 @@ EXPORT_SYMBOL_GPL(ipv6_find_tlv);
  * stop at the AH header. If IP6_FH_F_SKIP_RH flag was passed, then this
  * function will skip all those routing headers, where segements_left was 0.
  */
+//@offset: 表示找到相应的头部时，返回对应的偏移量，offset初始值一般设为0
+//@target: 需要查找的头部编号，-1表示遍历所有的扩展头部
+//@fragoff
+//@flags: 标志
 int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		  int target, unsigned short *fragoff, int *flags)
 {
