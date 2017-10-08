@@ -612,7 +612,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 				ip_copy_metadata(frag, skb);
 				if (offset == 0)
 					ip_options_fragment(frag);
-				//减去L3头部长度，
+				//偏移不包括L3头部的长度，所以要减去L3头部长度，
 				offset += skb->len - hlen;
 				//偏移以8字节为单位，除以8
 				iph->frag_off = htons(offset>>3);

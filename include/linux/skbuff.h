@@ -329,6 +329,8 @@ struct skb_shared_info {
 
 	//好像ip分片重组用到了??
 	//NETIF_F_FRAGLIST
+	//frag_list里的数据代表的是独立的缓冲区，也就是每个
+	//缓冲区都必须作为单独的IP片段而独立传输
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;
 	u32		tskey;
@@ -345,6 +347,7 @@ struct skb_shared_info {
 
 	//网卡支持NETIF_F_SG
 	//Scatter/gather IO
+	//frags代表的数据是主缓冲区中数据的扩展
 	/* must be last field, see pskb_expand_head() */
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
