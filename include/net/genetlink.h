@@ -298,6 +298,7 @@ static inline int genlmsg_multicast_netns(struct genl_family *family,
 {
 	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return -EINVAL;
+	//更新group加上偏移
 	group = family->mcgrp_offset + group;
 	return nlmsg_multicast(net->genl_sock, skb, portid, group, flags);
 }

@@ -166,10 +166,12 @@ static int genl_allocate_reserve_groups(int n_groups, int *first_id)
 	do {
 		//mc_groups_longs * BITS_PER_LONG表示当前的位空间大小
 		if (start == 0)
+			//返回第一个为0的位号，从0开始计算
 			id = find_first_zero_bit(mc_groups,
 						 mc_groups_longs *
 						 BITS_PER_LONG);
 		else
+			//从指定地址开始计算返回第一个为0的位号
 			id = find_next_zero_bit(mc_groups,
 						mc_groups_longs * BITS_PER_LONG,
 						start);
@@ -648,7 +650,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	genl_info_net_set(&info, net);
 	memset(&info.user_ptr, 0, sizeof(info.user_ptr));
 
-	//调用pre_doit函数
+	//调用pre_doit函数，比如加锁
 	if (family->pre_doit) {
 		err = family->pre_doit(ops, skb, &info);
 		if (err)
@@ -658,7 +660,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	//调用ops的doit函数
 	err = ops->doit(skb, &info);
 
-	//调用post_doit函数
+	//调用post_doit函数，比如解锁
 	if (family->post_doit)
 		family->post_doit(ops, skb, &info);
 
@@ -764,7 +766,7 @@ static int ctrl_fill_info(struct genl_family *family, u32 portid, u32 seq,
 	if (family->n_mcgrps) {
 		struct nlattr *nla_grps;
 		int i;
-
+		//向用户返回该family 注册的所有多播组
 		nla_grps = nla_nest_start(skb, CTRL_ATTR_MCAST_GROUPS);
 		if (nla_grps == NULL)
 			goto nla_put_failure;
@@ -778,7 +780,7 @@ static int ctrl_fill_info(struct genl_family *family, u32 portid, u32 seq,
 			nest = nla_nest_start(skb, i + 1);
 			if (nest == NULL)
 				goto nla_put_failure;
-
+			//id号和名称
 			if (nla_put_u32(skb, CTRL_ATTR_MCAST_GRP_ID,
 					family->mcgrp_offset + i) ||
 			    nla_put_string(skb, CTRL_ATTR_MCAST_GRP_NAME,

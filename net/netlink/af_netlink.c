@@ -1410,7 +1410,8 @@ static int netlink_realloc_groups(struct sock *sk)
 		err = -ENOENT;
 		goto out_unlock;
 	}
-
+	//检查是否需要重新分配位空间
+	//来记录多播组
 	if (nlk->ngroups >= groups)
 		goto out_unlock;
 
@@ -1451,6 +1452,9 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr = (struct sockaddr_nl *)addr;
 	int err;
+	//注意，这里groups 是掩码值
+	//比如应用层得到的多播组是16
+	//则设置的时候应该是1<<(16 - 1) 掩码
 	long unsigned int groups = nladdr->nl_groups;
 
 	if (addr_len < sizeof(struct sockaddr_nl))
@@ -1510,7 +1514,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 	netlink_update_subscriptions(sk, nlk->subscriptions +
 					 hweight32(groups) -
 					 hweight32(nlk->groups[0]));
-	//更新低位的4个字节为groups，因此nelink_bind方法最多允许加入32个多播组
+	//只更新低位的4个字节为groups，因此nelink_bind方法最多允许加入32个多播组
 	//更多组的添加方法是用NETLINK_ADD_MEMBERSHIP套接字选项来实现
 	nlk->groups[0] = (nlk->groups[0] & ~0xffffffffUL) | groups;
 	netlink_update_listeners(sk);
@@ -1926,6 +1930,8 @@ static void do_one_broadcast(struct sock *sk,
 		return;
 
 	if (nlk->portid == p->portid || p->group - 1 >= nlk->ngroups ||
+		//这里减去了1，所以应用层注册多播的时候
+		//需要1<<(mcid - 1), 也需要减去1
 	    !test_bit(p->group - 1, nlk->groups))
 		return;
 
@@ -2485,6 +2491,7 @@ __netlink_kernel_create(struct net *net, int unit, struct module *module,
 	sk = sock->sk;
 	sk_change_net(sk, net);
 
+	//默认groups的数量为32
 	if (!cfg || cfg->groups < 32)
 		groups = 32;
 	else
