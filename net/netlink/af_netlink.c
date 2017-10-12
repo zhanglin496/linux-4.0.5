@@ -342,7 +342,7 @@ static void **alloc_pg_vec(struct netlink_sock *nlk,
 		return NULL;
 
 	for (i = 0; i < block_nr; i++) {
-		//分配实际的数据块
+		//分配实际的数据块，以页为单位
 		pg_vec[i] = alloc_one_pg_vec_page(order);
 		if (pg_vec[i] == NULL)
 			goto err1;
@@ -407,6 +407,7 @@ static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
 		//每个块需要多少个page，注意mmap基本上
 		//都是以页为单位来分配的
 		order = get_order(req->nm_block_size);
+		//分配物理页面
 		pg_vec = alloc_pg_vec(nlk, req, order);
 		if (pg_vec == NULL)
 			return -ENOMEM;
@@ -495,6 +496,8 @@ static int netlink_mmap(struct file *file, struct socket *sock,
 	}
 	if (expected == 0)
 		goto out;
+	//内核进入这个函数时，就已经预先为此次映射分配好了调用进程在用户空间请求的虚拟地址范围
+	//vma->vm_end - vma->vm_start
 
 	size = vma->vm_end - vma->vm_start;
 	//请求映射的区域大小不匹配
@@ -512,8 +515,9 @@ static int netlink_mmap(struct file *file, struct socket *sock,
 			void *kaddr = ring->pg_vec[i];
 			unsigned int pg_num;
 			//每个block可能包含多个连续的页
-			//将每个页插入到用户的进程虚拟地址空间中
-			//这样用户才能访问
+			//将每个物理页面插入到用户的进程虚拟地址空间中并建立好页面映射
+			//这样用户才能通过虚拟地址访问对应的物理区域
+			//注意vm_insert_page和remap_pfn_range的区别
 			for (pg_num = 0; pg_num < ring->pg_vec_pages; pg_num++) {
 				page = pgvec_to_page(kaddr);
 				err = vm_insert_page(vma, start, page);
