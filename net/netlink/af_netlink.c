@@ -1516,6 +1516,8 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 					 hweight32(nlk->groups[0]));
 	//只更新低位的4个字节为groups，因此nelink_bind方法最多允许加入32个多播组
 	//更多组的添加方法是用NETLINK_ADD_MEMBERSHIP套接字选项来实现
+	//其中id 就是获取的多播编号，不是位掩码，和bind的方式不一样
+	//setsockopt(mc_fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &id, sizeof(id));
 	nlk->groups[0] = (nlk->groups[0] & ~0xffffffffUL) | groups;
 	netlink_update_listeners(sk);
 	netlink_table_ungrab();
