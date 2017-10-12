@@ -199,6 +199,8 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 					_off -= skb->len;
 					continue;
 				}
+				//设置peeked标志
+				//增加引用计数，这样不会被调用者释放
 				skb->peeked = 1;
 				atomic_inc(&skb->users);
 			} else

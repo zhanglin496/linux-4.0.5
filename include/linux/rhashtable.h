@@ -86,7 +86,9 @@ struct rhashtable_params {
 	size_t			key_offset;
 	size_t			head_offset;
 	u32			hash_rnd;
+	//限制hash表的最大值
 	size_t			max_shift;
+	//限制hash表的最小值
 	size_t			min_shift;
 	u32			nulls_base;
 	size_t			locks_mul;

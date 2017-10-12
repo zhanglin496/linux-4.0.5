@@ -336,12 +336,13 @@ static void **alloc_pg_vec(struct netlink_sock *nlk,
 	unsigned int block_nr = req->nm_block_nr;
 	unsigned int i;
 	void **pg_vec;
-
+	//分配一个指针数组记录所分配的块内存
 	pg_vec = kcalloc(block_nr, sizeof(void *), GFP_KERNEL);
 	if (pg_vec == NULL)
 		return NULL;
 
 	for (i = 0; i < block_nr; i++) {
+		//分配实际的数据块
 		pg_vec[i] = alloc_one_pg_vec_page(order);
 		if (pg_vec[i] == NULL)
 			goto err1;
@@ -367,6 +368,8 @@ static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
 	queue = tx_ring ? &sk->sk_write_queue : &sk->sk_receive_queue;
 
 	if (!closing) {
+		//已经调用过mmap了，netlink_mm_open中会增加该值
+		//因此不能再修改参数
 		if (atomic_read(&nlk->mapped))
 			return -EBUSY;
 		if (atomic_read(&ring->pending))
@@ -379,21 +382,30 @@ static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
 
 		if ((int)req->nm_block_size <= 0)
 			return -EINVAL;
+		//是否对齐到PAGE_SIZE
 		if (!PAGE_ALIGNED(req->nm_block_size))
 			return -EINVAL;
+		//合法性检查，至少NL_MMAP_HDRLEN
 		if (req->nm_frame_size < NL_MMAP_HDRLEN)
 			return -EINVAL;
+		//是否对齐到NL_MMAP_MSG_ALIGNMENT
 		if (!IS_ALIGNED(req->nm_frame_size, NL_MMAP_MSG_ALIGNMENT))
 			return -EINVAL;
-
+		//下面开始计算参数
+		//每个block 包含多少个frames
 		ring->frames_per_block = req->nm_block_size /
 					 req->nm_frame_size;
 		if (ring->frames_per_block == 0)
 			return -EINVAL;
+		//参数检查，
+		//(req->nm_block_size / req->nm_frame_size * req->nm_block_nr
+		//计算所有块的总大小，除以每个frame的大小
+		//是否等于总的frame 数量
 		if (ring->frames_per_block * req->nm_block_nr !=
 		    req->nm_frame_nr)
 			return -EINVAL;
-
+		//每个块需要多少个page，注意mmap基本上
+		//都是以页为单位来分配的
 		order = get_order(req->nm_block_size);
 		pg_vec = alloc_pg_vec(nlk, req, order);
 		if (pg_vec == NULL)
@@ -404,6 +416,7 @@ static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
 	}
 
 	err = -EBUSY;
+	//pg_vec 应该是page vector 的缩写
 	mutex_lock(&nlk->pg_vec_lock);
 	if (closing || atomic_read(&nlk->mapped) == 0) {
 		err = 0;
@@ -412,10 +425,12 @@ static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
 		ring->frame_max		= req->nm_frame_nr - 1;
 		ring->head		= 0;
 		ring->frame_size	= req->nm_frame_size;
+		//需要多少个page
 		ring->pg_vec_pages	= req->nm_block_size / PAGE_SIZE;
-
+		//交换参数
 		swap(ring->pg_vec_len, req->nm_block_nr);
 		swap(ring->pg_vec_order, order);
+		//设置ring缓冲区指针
 		swap(ring->pg_vec, pg_vec);
 
 		__skb_queue_purge(queue);
@@ -424,7 +439,7 @@ static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
 		WARN_ON(atomic_read(&nlk->mapped));
 	}
 	mutex_unlock(&nlk->pg_vec_lock);
-
+	//释放旧的内存
 	if (pg_vec)
 		free_pg_vec(pg_vec, order, req->nm_block_nr);
 	return err;
@@ -471,16 +486,18 @@ static int netlink_mmap(struct file *file, struct socket *sock,
 	mutex_lock(&nlk->pg_vec_lock);
 
 	expected = 0;
+
+	//计算总的字节数，包括rx和tx
 	for (ring = &nlk->rx_ring; ring <= &nlk->tx_ring; ring++) {
 		if (ring->pg_vec == NULL)
 			continue;
 		expected += ring->pg_vec_len * ring->pg_vec_pages * PAGE_SIZE;
 	}
-
 	if (expected == 0)
 		goto out;
 
 	size = vma->vm_end - vma->vm_start;
+	//请求映射的区域大小不匹配
 	if (size != expected)
 		goto out;
 
@@ -488,12 +505,15 @@ static int netlink_mmap(struct file *file, struct socket *sock,
 	for (ring = &nlk->rx_ring; ring <= &nlk->tx_ring; ring++) {
 		if (ring->pg_vec == NULL)
 			continue;
-
+		//开始映射
 		for (i = 0; i < ring->pg_vec_len; i++) {
 			struct page *page;
+			//取得block的虚拟地址
 			void *kaddr = ring->pg_vec[i];
 			unsigned int pg_num;
-
+			//每个block可能包含多个连续的页
+			//将每个页插入到用户的进程虚拟地址空间中
+			//这样用户才能访问
 			for (pg_num = 0; pg_num < ring->pg_vec_pages; pg_num++) {
 				page = pgvec_to_page(kaddr);
 				err = vm_insert_page(vma, start, page);
@@ -1700,8 +1720,13 @@ static int __netlink_sendskb(struct sock *sk, struct sk_buff *skb)
 	netlink_deliver_tap(skb);
 
 #ifdef CONFIG_NETLINK_MMAP
+	//skb已经被map到ring中
 	if (netlink_skb_is_mmaped(skb))
 		netlink_queue_mmaped_skb(sk, skb);
+	//这里需要盘段rx
+	//是因为netlink_alloc_skb 在使用mmap的时候可能会调用失败
+	//比如请求的长度大于frame size，这时候就会使用普通
+	//的allock_skb，而不使用ring
 	else if (netlink_rx_is_mmaped(sk))
 		netlink_ring_set_copied(sk, skb);
 	else
@@ -1829,7 +1854,7 @@ struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
 
 	if (ring->frame_size - NL_MMAP_HDRLEN < size)
 		goto out_put;
-
+	//只分配一个skb， 不分配数据区
 	skb = alloc_skb_head(gfp_mask);
 	if (skb == NULL)
 		goto err1;
@@ -1848,6 +1873,7 @@ struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
 	hdr = netlink_current_frame(ring, NL_MMAP_STATUS_UNUSED);
 	if (hdr == NULL)
 		goto err2;
+	//设置skb 数据区指向所分配的ring
 	netlink_ring_setup_skb(skb, sk, ring, hdr);
 	netlink_set_status(hdr, NL_MMAP_STATUS_RESERVED);
 	atomic_inc(&ring->pending);
@@ -2410,6 +2436,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 
 	copied = data_skb->len;
 	if (len < copied) {
+		//设置数据被截断标志
 		msg->msg_flags |= MSG_TRUNC;
 		copied = len;
 	}
@@ -2431,6 +2458,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 
 	memset(&scm, 0, sizeof(scm));
 	scm.creds = *NETLINK_CREDS(skb);
+	//调用者设置了MSG_TRUNC标志，返回截断前实际的长度
 	if (flags & MSG_TRUNC)
 		copied = data_skb->len;
 
@@ -3150,7 +3178,7 @@ static int __init netlink_proto_init(void)
 		goto out;
 
 	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > FIELD_SIZEOF(struct sk_buff, cb));
-
+	//最大支持MAX_LINKS 个netlink 协议
 	nl_table = kcalloc(MAX_LINKS, sizeof(*nl_table), GFP_KERNEL);
 	if (!nl_table)
 		goto panic;

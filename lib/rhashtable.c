@@ -56,6 +56,8 @@ static spinlock_t *bucket_lock(const struct bucket_table *tbl, u32 hash)
 	return &tbl->locks[hash & tbl->locks_mask];
 }
 
+//求基对象指针
+//he 内嵌在基类中
 static void *rht_obj(const struct rhashtable *ht, const struct rhash_head *he)
 {
 	return (void *) he - ht->p.head_offset;
@@ -384,7 +386,7 @@ int rhashtable_expand(struct rhashtable *ht)
 	new_tbl = bucket_table_alloc(ht, old_tbl->size * 2);
 	if (new_tbl == NULL)
 		return -ENOMEM;
-
+	//乘2
 	atomic_inc(&ht->shift);
 
 	/* Make insertions go into the new, empty table right away. Deletions
@@ -501,6 +503,7 @@ int rhashtable_shrink(struct rhashtable *ht)
 
 	/* Publish the new, valid hash table */
 	rcu_assign_pointer(ht->tbl, new_tbl);
+	//除2
 	atomic_dec(&ht->shift);
 
 	/* Wait for readers. No new readers will have references to the
@@ -558,6 +561,7 @@ static void __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	rcu_assign_pointer(tbl->buckets[hash], obj);
 
 	atomic_inc(&ht->nelems);
+	//检查是否需要调度工作队列扩大hash表
 	if (no_resize_running && rht_grow_above_75(ht, tbl->size))
 		schedule_work(&ht->run_work);
 }
@@ -1078,10 +1082,11 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 
 	if (params->nulls_base && params->nulls_base < (1U << RHT_BASE_SHIFT))
 		return -EINVAL;
-
+	// ilog2(4) = 2,ilog2用于求对数
 	params->min_shift = max_t(size_t, params->min_shift,
 				  ilog2(HASH_MIN_SIZE));
-
+	//设置了hash表中元素数目的可能值
+	//来推算hash表的初始大小
 	if (params->nelem_hint)
 		size = rounded_hashtable_size(params);
 
@@ -1089,24 +1094,26 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	mutex_init(&ht->mutex);
 	memcpy(&ht->p, params, sizeof(*params));
 	INIT_LIST_HEAD(&ht->walkers);
-
+	//分配锁
 	if (params->locks_mul)
 		ht->p.locks_mul = roundup_pow_of_two(params->locks_mul);
 	else
 		ht->p.locks_mul = BUCKET_LOCKS_PER_CPU;
-
+	//分配hash桶
 	tbl = bucket_table_alloc(ht, size);
 	if (tbl == NULL)
 		return -ENOMEM;
 
 	atomic_set(&ht->nelems, 0);
+	//求对数log2 x= tbl->size;
 	atomic_set(&ht->shift, ilog2(tbl->size));
+	//指向同一张hash 表
 	RCU_INIT_POINTER(ht->tbl, tbl);
 	RCU_INIT_POINTER(ht->future_tbl, tbl);
-
+	//生成水机数种子
 	if (!ht->p.hash_rnd)
 		get_random_bytes(&ht->p.hash_rnd, sizeof(ht->p.hash_rnd));
-
+	//初始延迟工作队列
 	INIT_WORK(&ht->run_work, rht_deferred_worker);
 
 	return 0;

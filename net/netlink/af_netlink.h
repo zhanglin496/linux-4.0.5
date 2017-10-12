@@ -10,13 +10,18 @@
 
 struct netlink_ring {
 	void			**pg_vec;
+	//缓存区的索引值
 	unsigned int		head;
 	unsigned int		frames_per_block;
 	unsigned int		frame_size;
+	//缓存区的最大索引值
 	unsigned int		frame_max;
-
+	//每个块需要多少个PAGE_SIZE ，从0开始
+	//意义同__get_free_pages中order的参数
 	unsigned int		pg_vec_order;
+	//每个块需要多少个PAGE_SIZE ，从1开始
 	unsigned int		pg_vec_pages;
+	//块的总数量
 	unsigned int		pg_vec_len;
 
 	atomic_t		pending;
@@ -61,6 +66,7 @@ static inline struct netlink_sock *nlk_sk(struct sock *sk)
 
 struct netlink_table {
 	struct rhashtable	hash;
+	//多播链表，连接所有加入了多播组的套接字
 	struct hlist_head	mc_list;
 	struct listeners __rcu	*listeners;
 	unsigned int		flags;

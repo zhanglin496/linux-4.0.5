@@ -114,9 +114,13 @@ struct nl_pktinfo {
 };
 
 struct nl_mmap_req {
+	//每个块的大小
 	unsigned int	nm_block_size;
+	//总共需要多少个块
 	unsigned int	nm_block_nr;
+	//每个frame的大小
 	unsigned int	nm_frame_size;
+	//总共需要多少个frame
 	unsigned int	nm_frame_nr;
 };
 
