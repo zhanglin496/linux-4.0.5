@@ -1476,6 +1476,9 @@ struct task_struct {
 /* filesystem information */
 	struct fs_struct *fs;
 /* open file information */
+	//记录进程打开的所有文件描述符
+	//包括所谓的套接字，也是以文件描述符的方式
+	//来引用
 	struct files_struct *files;
 /* namespaces */
 	struct nsproxy *nsproxy;

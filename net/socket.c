@@ -398,6 +398,9 @@ static int sock_map_fd(struct socket *sock, int flags)
 
 	newfile = sock_alloc_file(sock, flags, NULL);
 	if (likely(!IS_ERR(newfile))) {
+		//将打开的文件关联到当前进程
+		//这个和普通文件的打开是类似的
+		//只不过file_operations 集合不一样
 		fd_install(fd, newfile);
 		return fd;
 	}
@@ -1306,9 +1309,13 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 	retval = sock_create(family, type, protocol, &sock);
 	if (retval < 0)
 		goto out;
-	//套机字和其他文件有一些区别
-	//不是用open操作来打开
+	//套接字和其他文件有一些区别
+	//没有在文件系统中有对应的实际文件
+	//也不是用open操作来打开
 	//而是专门使用了一套系统调用
+	//比如socket connect 等
+	//但是读写使用和普通文件一样的系统调用
+	//比如read write 等
 	retval = sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
 	if (retval < 0)
 		goto out_release;

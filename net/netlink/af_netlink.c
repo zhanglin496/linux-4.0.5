@@ -518,6 +518,11 @@ static int netlink_mmap(struct file *file, struct socket *sock,
 			//将每个物理页面插入到用户的进程虚拟地址空间中并建立好页面映射
 			//这样用户才能通过虚拟地址访问对应的物理区域
 			//注意vm_insert_page和remap_pfn_range的区别
+			//这里是将所有分散的页映射到连续的虚拟地址空间中
+			// 也就是映射到[vma->vm_start, vma->vm_end]
+			//而remap_pfn_range 只能保证映射指定的物理地址到
+			//指定的虚拟地址空间中，不能映射分散的页到同一个
+			//连续的虚拟地址空间中
 			for (pg_num = 0; pg_num < ring->pg_vec_pages; pg_num++) {
 				page = pgvec_to_page(kaddr);
 				err = vm_insert_page(vma, start, page);
@@ -1881,6 +1886,7 @@ struct sk_buff *netlink_alloc_skb(struct sock *ssk, unsigned int size,
 	netlink_ring_setup_skb(skb, sk, ring, hdr);
 	netlink_set_status(hdr, NL_MMAP_STATUS_RESERVED);
 	atomic_inc(&ring->pending);
+	//更新索引值
 	netlink_increment_head(ring);
 
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
