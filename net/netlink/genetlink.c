@@ -926,6 +926,11 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 	struct genl_family *res = NULL;
 	int err = -EINVAL;
 
+	//属性验证在ctrl_policy中已经验证了长度
+	//这里检查数据包是否包含该属性
+	//对不包含在数据包里的属性，nla_policy无法验证
+	//所以这里要检查是否包含该属性
+	//详见nlmsg_parse 和validate_nla
 	if (info->attrs[CTRL_ATTR_FAMILY_ID]) {
 		u16 id = nla_get_u16(info->attrs[CTRL_ATTR_FAMILY_ID]);
 		res = genl_family_find_byid(id);

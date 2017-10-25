@@ -106,8 +106,8 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
 static inline unsigned __read_seqcount_begin(const seqcount_t *s)
 {
 	unsigned ret;
-	//å¦‚æœå€¼ä¸ºå¥‡æ•°ï¼Œè¡¨æ˜æ­£åœ¨å†™
-	//éœ€è¦å¾ªç¯ç­‰å¾…å†™é”é‡Šæ”¾
+	//Èç¹ûÖµret ÎªÆæÊı£¬±íÃ÷ÓĞĞ´×ÅÕıÔÚĞ´
+	//ĞèÒªÑ­»·µÈ´ıĞ´ËøÊÍ·Å
 repeat:
 	ret = ACCESS_ONCE(s->sequence);
 	if (unlikely(ret & 1)) {
@@ -225,6 +225,22 @@ static inline int read_seqcount_retry(const seqcount_t *s, unsigned start)
 static inline void raw_write_seqcount_begin(seqcount_t *s)
 {
 	s->sequence++;
+	//ÕâÀï¼ÓÁË×ÔÑ¡Ëø£¬ÎªÊ²Ã´»¹ÒªÓÃÄÚ´æÆÁÕÏ
+	//ÊÇÒòÎªÒª±£Ö¤sequence µÄ²Ù×÷ÊÇ°´Ë³ĞòµÄ
+	//ÒòÎª¶ÁÕßÊÇ¶Ô±ÈĞòÁĞºÅÀ´ÅĞ¶ÏÊÇ·ñÓĞĞ´×Å
+	//ÕıÔÚ¸üĞÂÊı¾İ
+	//ËùÒÔraw_write_seqcount_endÒ²Ê¹ÓÃÁËÄÚ´æÆÁÕÏ
+	//ÊÇÒòÎªĞ´Õßµ÷ÓÃwrite_seqlock ºÍ write_sequnlockÊ±Ö»±£Ö¤
+	//ÁÙ½çÇø²»¿çÔ½lock£¬µ«ÊÇ±àÒëÆ÷ºÍcpu¿ÉÄÜ¶ÔÁÙ½çÇøÄÚµÄ
+	//²Ù×÷ÓÅ»¯£¬±ÈÈçÖ¸ÁîÖØÅÅ»òÕß½«Á½¸öĞòÁĞºÅ
+	//µİÔö²Ù×÷ÓÅ»¯³ÉÒ»¸ö
+	//±ÈÈçÓÅ»¯³ÉÈçÏÂĞòÁĞ
+	//write_seqlock
+	//s->sequence++;
+	//s->sequence++;
+	//ÁÙ½çÇø²Ù×÷
+	//write_sequnlock
+	//ÕâÑù¶ÁÕß¿ÉÄÜ»á¶Áµ½´íÎóµÄÊı¾İ
 	smp_wmb();
 }
 

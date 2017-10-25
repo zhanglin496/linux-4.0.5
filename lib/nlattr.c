@@ -186,7 +186,8 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	int rem, err;
 
 	memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
-
+	//这里只验证包含在数据包里的属性
+	//因此调用者需要自己验证数据包是否包含指定的属性
 	nla_for_each_attr(nla, head, len, rem) {
 		u16 type = nla_type(nla);
 
