@@ -139,7 +139,13 @@ static void unuse_pde(struct proc_dir_entry *pde)
 /* pde is locked */
 static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 {
+	//这里要检查pdeo->closing标志
+	//因为内核和用户层可能同时调用该函数
+	//比如内核在删除该proc条目的时候
+	//用户层同时调用了release函数
 	if (pdeo->closing) {
+		//pdeo->closing为1，表明删除正在进行
+		//等待结束
 		/* somebody else is doing that, just wait */
 		DECLARE_COMPLETION_ONSTACK(c);
 		pdeo->c = &c;
@@ -151,8 +157,10 @@ static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 		pdeo->closing = 1;
 		spin_unlock(&pde->pde_unload_lock);
 		file = pdeo->file;
+		//调用用户自定义的release函数
 		pde->proc_fops->release(file_inode(file), file);
 		spin_lock(&pde->pde_unload_lock);
+		//删除opener
 		list_del_init(&pdeo->lh);
 		if (pdeo->c)
 			complete(pdeo->c);
@@ -165,10 +173,18 @@ void proc_entry_rundown(struct proc_dir_entry *de)
 	DECLARE_COMPLETION_ONSTACK(c);
 	/* Wait until all existing callers into module are done. */
 	de->pde_unload_completion = &c;
+	//如果调用者还没结束，
+	//比如在模块内注册的proc 文件
+	//在卸载模块的时候可能调用者正在调用
+	//该proc 的函数，所以必须等待其结束
+	//proc_reg_file_ops 的函数中会增加de->in_use 计数
+	//这里递减引用计数看是否有调用者
 	if (atomic_add_return(BIAS, &de->in_use) != BIAS)
 		wait_for_completion(&c);
 
 	spin_lock(&de->pde_unload_lock);
+	//如果有打开的调用者，在proc_reg_open 函数中链接到proc_reg_open
+	//因为马上要移除proc 条目，所以要调用其注册的release函数
 	while (!list_empty(&de->pde_openers)) {
 		struct pde_opener *pdeo;
 		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
