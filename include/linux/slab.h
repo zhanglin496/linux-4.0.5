@@ -50,13 +50,30 @@
  *    if (!try_get_ref(obj)) // might fail for free objects
  *      goto again;
  *
+ //内核在conntrak中使用了这个技术
+ //在__nf_conntrack_find_get中虽然检查了引用计数不为0才增加
+ //但是还是需要再一次比较key
+ //考虑如下情况:
+ //假设obj被找到，另外一个路径释放了obj，
+ //恰好另一个路径有重新分配并使用了相同的obj，
+ //这个时候obj的引用计数不为0，但是obj的内容却改变了
  //obj 有可能不是原来的obj的内容
  //所以要再次比较obj 的内容
+//    	A:  获取obj  				B:            C:
+//								释放obj  
+//												重新分配并使用相同的obj
+//		obj的引用计数不为0 
+// 		obj的内容已经改变
+//		需要再次比对key
+//
+//根本原因是因为B调用kmem_cache_free释放obj的时候不会等待A 的rcu的读端临界区结束
+//C就可以重新使用相同的obj，而A无法通过地址分辨，只能使用比较key的方法
+
  //一般释放时调用call_rcu
  //kmalloc 和kfree 为什么不会有这个问题?
  //我的理解是调用kmalloc分配的内存释放时是调用call_rcu
  //后再kfree，所以不可能重复使用obj
- //因为这里调用了rcu 锁，所以obj在退出临界区时
+ //因为这里调用了rcu 锁，所以obj在退出读端临界区时
  //是不可能释放的，调用kmalloc不可能分配到同一个obj 
  //所以就不会出现在临界区内obj的重新使用
  //因此就不需要再一次比对key
