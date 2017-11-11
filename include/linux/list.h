@@ -130,7 +130,9 @@ static inline void list_replace(struct list_head *old,
 }
 //old:A<->B<->C
 //new1:D<->E<->F
-//è¿æ¥åï¼Œæ³¨æ„E<->Fä¼šä¸¢å¤±
+//Á¬½Óºó£¬×¢ÒâE<->F»á¶ªÊ§
+//ÆäÊµ¾ÍÊÇÓÃnewÌæ»»old
+//ÒªÇónew±ØĞëÊÇÒ»¸ö¿ÕÁ´±í
 //old:A
 //new1:D<->B<->C
 static inline void list_replace_init(struct list_head *old,
@@ -291,7 +293,8 @@ static inline void __list_splice(const struct list_head *list,
 
 //list:A<->B<->C
 //head:D<->E<->F
-//è¿æ¥å
+//Á¬½Óºó
+//¾ÍÊÇ°ÑlistÖĞµÄÔªËØÈ«²¿ÒÆµ½headÖĞ
 //list:A
 //head:D<->B<->C<->E<->F
 /**

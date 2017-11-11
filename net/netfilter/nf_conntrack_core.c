@@ -447,19 +447,22 @@ begin:
 	//比如 1：A->B->C->D和2：E->F->G->H两个链表
 	//假设我们需要查找1中的C，因为rcu查找没有加锁，
 	//所以到1中的B时，可能B移动到2中了，变成：2：E->F->B->G->H
+	//比如调用了nf_conntrack_set_hashsize调整了hash桶的大小
+	//就会出现这个情况
 	//此时读取B的后继指针要么是C，要么就是G，不可能是其他值，因为rcu保证指针的读取和赋值是原子的
 	//如果此时我们读取的后继指针是G,那么到链表末端读取的nulls值和1中开始的hash nulls值不同，
 	//此时必须重新找，因为C实际是在1中的，只不过发生了链表移动导致在1中的遍历过程被错误的停止
 	//如果读取的是C，那么不需要重新查找
 	//如果B没有移动，只是删除并调用rcu等待释放，那么不需要重新查找，
 	//因为hlist_del_rcu不会修改next指针，所以B仍然指向C
-	
+
 	//但是这里实现有bug，第一因为没有重新计算hash值，
 	//所以即使发现B移动到了新的hash表中，
 	//也可能找不到C
 	//第二net->ct.hash可能读到新的hash指针，但是使用了旧
 	//的hash值，可能会崩溃
 	//比如hash桶是128，旧的hash值是256
+	//不相等，表示节点移动了
 	if (get_nulls_value(n) != bucket) {
 		NF_CT_STAT_INC(net, search_restart);
 		goto begin;
@@ -1651,6 +1654,9 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 	}
 
 	if (hash && nulls)
+		//初始化hash桶，null节点的实际存储的值是1，3，5，7，9，11，.....
+		//都是奇数, 调用get_nulls_value 获取的有效值是0，1，2，3，...
+		//对应hash桶的数组下标
 		for (i = 0; i < nr_slots; i++)
 			INIT_HLIST_NULLS_HEAD(&hash[i], i);
 
@@ -1684,6 +1690,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 		return -ENOMEM;
 
 	local_bh_disable();
+	//加锁，锁住所有的hash桶
 	nf_conntrack_all_lock();
 	write_seqcount_begin(&init_net.ct.generation);
 
