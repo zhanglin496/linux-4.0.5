@@ -463,6 +463,8 @@ begin:
 	//的hash值，可能会崩溃
 	//比如hash桶是128，旧的hash值是256
 	//不相等，表示节点移动了
+	//注意 这里并不保证一定能发现查找的元素，有可能元素移动后的hash值恰好未改变
+	//所以在ipv4_confirm会加写锁，再查找一次，这样就可以保证唯一性
 	if (get_nulls_value(n) != bucket) {
 		NF_CT_STAT_INC(net, search_restart);
 		goto begin;
@@ -1691,6 +1693,8 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 
 	local_bh_disable();
 	//加锁，锁住所有的hash桶
+	//和ipv4_confirm的插入操作互斥，
+	//所以在hash调整未完成之前，其他的CPU都会在锁上等待直到调整完成
 	nf_conntrack_all_lock();
 	write_seqcount_begin(&init_net.ct.generation);
 
