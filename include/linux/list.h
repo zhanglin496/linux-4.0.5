@@ -102,6 +102,11 @@ static inline void __list_del_entry(struct list_head *entry)
 	__list_del(entry->prev, entry->next);
 }
 
+//list_del同时毒化了next 和prev指针
+//list_del_rcu 只毒化了prev指针
+//因为rcu 读写可以并行，所以不能毒化next指针
+//否则会导致内存访问错误
+//同理hlist_del_rcu 也是如此
 static inline void list_del(struct list_head *entry)
 {
 	__list_del(entry->prev, entry->next);

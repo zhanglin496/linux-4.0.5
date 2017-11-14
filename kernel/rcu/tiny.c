@@ -244,6 +244,9 @@ static void rcu_process_callbacks(struct softirq_action *unused)
  //在UP机器上因为不允许在rcu 临界区内调用该函数
  //因此在调用该函数的时候，一定已经退出了rcu临界区
  //所以不会有问题
+ //该函数用于等待所有CPU都处在可抢占状态，
+ //它能保证正在运行的中断处理函数处理完毕，
+ //但不能保证正在运行的softirq处理完毕
 void synchronize_sched(void)
 {
 	rcu_lockdep_assert(!lock_is_held(&rcu_bh_lock_map) &&
