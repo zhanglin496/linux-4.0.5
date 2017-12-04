@@ -155,7 +155,7 @@ void nf_send_reset(struct sk_buff *oldskb, int hook)
 	 */
 	 //这里的意思是，假设br0 桥接了eth0, eth1, eth2 三个接口
 	 //假设收到的数据包的目的地址是eth2
-	 //如果直接调用ip_local_out， 那么原mac 地址将会是br0 而不是
+	 //如果直接调用ip_local_out， 那么nskb 的原mac 地址将会是br0 而不是
 	 //eth2, 所以这里特殊处理了
 	 //原因是nskb->dev此刻是指向br0 的dev实例
 	if (oldskb->nf_bridge) {
