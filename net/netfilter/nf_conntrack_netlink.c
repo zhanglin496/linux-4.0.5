@@ -1039,6 +1039,7 @@ static int ctnetlink_flush_conntrack(struct net *net,
 		if (IS_ERR(filter))
 			return PTR_ERR(filter);
 	}
+	//filter == NULL表示删除所有的conntrack
 
 	nf_ct_iterate_cleanup(net, ctnetlink_filter_match, filter,
 			      portid, report);
@@ -1064,9 +1065,10 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	err = ctnetlink_parse_zone(cda[CTA_ZONE], &zone);
 	if (err < 0)
 		return err;
-
+	//通过正向五元组删除
 	if (cda[CTA_TUPLE_ORIG])
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_ORIG, u3);
+	//通过反向五元组删除
 	else if (cda[CTA_TUPLE_REPLY])
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_REPLY, u3);
 	else {
@@ -1083,7 +1085,9 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		return -ENOENT;
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
-
+	//对比ID 删除
+	// 使用了32位的地址，为什么不是64位的
+	//可能是为了兼容以前的代码
 	if (cda[CTA_ID]) {
 		u_int32_t id = ntohl(nla_get_be32(cda[CTA_ID]));
 		if (id != (u32)(unsigned long)ct) {

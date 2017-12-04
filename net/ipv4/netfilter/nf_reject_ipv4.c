@@ -154,16 +154,19 @@ void nf_send_reset(struct sk_buff *oldskb, int hook)
 	 * source, and send the RST packet directly.
 	 */
 	 //这里的意思是，假设br0 桥接了eth0, eth1, eth2 三个接口
-	 //数据包的目的地址是eth2
+	 //假设收到的数据包的目的地址是eth2
 	 //如果直接调用ip_local_out， 那么原mac 地址将会是br0 而不是
 	 //eth2, 所以这里特殊处理了
+	 //原因是nskb->dev此刻是指向br0 的dev实例
 	if (oldskb->nf_bridge) {
+		//取得原始数据包的以太头
 		struct ethhdr *oeth = eth_hdr(oldskb);
 		//获取实际的入口设备
 		nskb->dev = oldskb->nf_bridge->physindev;
 		niph->tot_len = htons(nskb->len);
 		ip_send_check(niph);
 		//调用入口设备的二层函数构建二层头
+		//nskb 二层头的mac地址和oeth 相反，与br0 无关
 		if (dev_hard_header(nskb, nskb->dev, ntohs(nskb->protocol),
 				    oeth->h_source, oeth->h_dest, nskb->len) < 0)
 			goto free_nskb;
