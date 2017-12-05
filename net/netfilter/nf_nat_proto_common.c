@@ -51,6 +51,7 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		portptr = &tuple->dst.u.all;
 
 	/* If no range specified... */
+	//如果用户没有指定端口范围
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
 		/* If it's dst rewrite, can't change port */
 		//如果是目的端口选择
@@ -69,46 +70,61 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		//Ports 1024 and above.
 		//A port will never be implicitly mapped into a different class.
 		//不同类的端口不允许映射到其他类
+		//根据原始数据包的端口值来界定映射的
+		//端口最小值和最大值
 		if (ntohs(*portptr) < 1024) {
 			/* Loose convention: >> 512 is credential passing */
 			if (ntohs(*portptr) < 512) {
 				min = 1;
-				range_size = 511 - min + 1;
-				//这里(512, 600)之间的端口没有使用
+				range_size = 511 - min + 1;				
+				//映射范围[1, 511]
+				//这里[512, 600)之间的端口没有使用
 			} else {
 				min = 600;
-				range_size = 1023 - min + 1;
+				range_size = 1023 - min + 1; // = 424
+				//range_size 表示最大值和最小值的距离				
+				//映射范围[600, 1023]
 			}
 		} else {
 			min = 1024;
 			range_size = 65535 - 1024 + 1;
+			//映射范围[1024, 65535]
 		}
-	//但是这里可以随机选择目的端口
+	} else {
+	//如果用户自己配置了端口范围	
+	//这里可以随机选择目的端口
 	//这是因为这是用户自己选择的配置
 	//用户自己知道自己想干什么
 	//所以即便出错，也由用户自己负责
-	} else {
 		min = ntohs(range->min_proto.all);
 		range_size = ntohs(range->max_proto.all) - min + 1;
 	}
+//I think use variable 'min' instead of number '1024' is better.
 
 	if (range->flags & NF_NAT_RANGE_PROTO_RANDOM) {
+		//根据ip地址和随机数
+		//生成一个临时偏移
 		off = l3proto->secure_port(tuple, maniptype == NF_NAT_MANIP_SRC
 						  ? tuple->dst.u.all
 						  : tuple->src.u.all);
 	} else if (range->flags & NF_NAT_RANGE_PROTO_RANDOM_FULLY) {
+		//伪随机生成一个偏移，跟IP地址无关
 		off = prandom_u32();
 	} else {
+		//使用上一次的off值，下一次选择端口时
+		// 会继续从off 偏移开始选择
 		off = *rover;
 	}
 
 	for (i = 0; ; ++off) {
 		//保证portptr在指定的范围内[min，min + range_size - 1]
 		*portptr = htons(min + off % range_size);
-		//尝试一定的次数，即便端口冲突了
+		//尝试range_size 指定的次数，即便端口冲突了
 		//也只能尽力而为
 		if (++i != range_size && nf_nat_used_tuple(tuple, ct))
 			continue;
+		//如果设置了随机化端口选择
+		//不需要保存off 偏移值
 		if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL))
 			*rover = off;
 		return;

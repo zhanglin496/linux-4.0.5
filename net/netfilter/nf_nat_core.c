@@ -159,11 +159,11 @@ static int in_range(const struct nf_nat_l3proto *l3proto,
 	/* If we are supposed to map IPs, then we must be in the
 	 * range specified, otherwise let this drag us onto a new src IP.
 	 */
-	//检查src IP地址是否在range范围内
+	//检查tuple 的src IP地址是否在range范围内
 	if (range->flags & NF_NAT_RANGE_MAP_IPS &&
 	    !l3proto->in_range(tuple, range))
 		return 0;
-	//检查端口是否在range范围内
+	//检查端口是否在tuple 的端口是否在range范围内
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
 	    l4proto->in_range(tuple, NF_NAT_MANIP_SRC,
 			      &range->min_proto, &range->max_proto))
@@ -233,6 +233,8 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 	bool full_range;
 
 	/* No IP mapping?  Do nothing. */
+	//没有设置NF_NAT_RANGE_MAP_IPS标志
+	//表示不需要做IP 地址转换
 	if (!(range->flags & NF_NAT_RANGE_MAP_IPS))
 		return;
 
@@ -242,7 +244,7 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 		var_ipp = &tuple->dst.u3;
 
 	/* Fast path: only one choice. */
-	//只有一地址可以选择的情况
+	//只有一个地址可以选择的情况
 	if (nf_inet_addr_cmp(&range->min_addr, &range->max_addr)) {
 		//对于单wan路由器来说，只有一个IP地址可以选择
 		*var_ipp = range->min_addr;
@@ -358,7 +360,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		//
 		//     orig_tuple为192.168.18.100:10088---------->61.139.2.69:80
 		//路由器的wan口ip地址为172.168.3.36
-		//假设对wan口是用了MASQUERADE模块
+		//假设对wan口使用了MASQUERADE模块
 		//range指定的ip地址为172.168.3.36
 		//这里先尝试使用原IP地址和端口是否可行
 		//这里192.168.18.100不在range指定的IP地址172.168.3.36范围内
@@ -373,7 +375,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 			//在ct.nat_bysource中选择是否可以映射到相同的源地址
 			//这样可以节约端口号
 			//就是说有相同的四层协议和源地址、源端口的映射表已经存在
-			//假设已经存在一个192.168.18.100：1008,TCP的映射
+			//假设已经存在一个192.168.18.100:1008,TCP的映射
 			//其源地址映射到172.168.3.36:10088--->61.139.2.69:8080
 			//192.168.18.100:10088---------->61.139.2.69:80将会被映射到
 			//172.168.3.36:10088 ---------->61.139.2.69:80
@@ -488,7 +490,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		//正常情况下，NAT信息的设置都是在流首包完成的
 		//也就是说此刻conntrack未被加入到hash表中，是新建的conntrack
 		//该skb独占该conntrack，在conntrack被加入到全局hash表后
-		//不会再调用次函数，因为所需的NAT信息都已经建立完成
+		//不会再调用此函数，因为所需的NAT信息都已经建立完成
 		//这是内核NAT实现的规定
 		//不需要加锁，因为conntrack 还未加入hash表中，未被确认
 		//conntrack 处于unconfirm 链表中，是skb 独有的

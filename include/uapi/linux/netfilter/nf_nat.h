@@ -13,7 +13,11 @@
 #define NF_NAT_RANGE_MAP_IPS			(1 << 0)
 //用户是否通过iptables 配置时指定了端口范围
 //比如MASQURADE 模块的--to-ports选项
-//内核接受到参数是会用struct nf_nat_range 来构造配置的端口范围来随机选择端口
+//内核接收到参数时会用struct nf_nat_range 来构造配置的端口范围
+//该标志的意思用户配置规则时指定了端口选择的范围
+//因此，内核需要做两件事
+//1. 需要检查数据包的原始端口是否在配置的范围内
+//2. 根据用户的配置在范围内选择合适的端口
 #define NF_NAT_RANGE_PROTO_SPECIFIED		(1 << 1)
 //随机生成端口偏移值，影响端口选择
 #define NF_NAT_RANGE_PROTO_RANDOM		(1 << 2)
@@ -46,8 +50,10 @@ struct nf_nat_ipv4_multi_range_compat {
 
 struct nf_nat_range {
 	unsigned int			flags;
+	//配置的ipv4/ipv6地址范围
 	union nf_inet_addr		min_addr;
 	union nf_inet_addr		max_addr;
+	//对已udp和tcp来说指代端口号
 	union nf_conntrack_man_proto	min_proto;
 	union nf_conntrack_man_proto	max_proto;
 };
