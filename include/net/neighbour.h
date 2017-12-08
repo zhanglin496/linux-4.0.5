@@ -148,7 +148,7 @@ struct neighbour {
 	__u8			type;
 	__u8			dead;
 	seqlock_t		ha_lock;
-	//单个L2地址
+	//缓存解析出来的单个L2地址
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 	//hard header cache，缓存整个L2首部
 	struct hh_cache		hh;
@@ -156,6 +156,7 @@ struct neighbour {
 	const struct neigh_ops	*ops;
 	struct rcu_head		rcu;
 	struct net_device	*dev;
+	//ipv4地址或ipv6地址
 	u8			primary_key[0];
 };
 

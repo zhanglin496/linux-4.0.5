@@ -30,6 +30,8 @@
 /* Global control variables for rcupdate callback mechanism. */
 struct rcu_ctrlblk {
 	struct rcu_head *rcucblist;	/* List of pending callbacks (CBs). */
+	//donetail 表示已经完成宽限期检测的回调函数末尾指针
+	//curtail 则会一直跟踪新加入的回调函数末尾指针
 	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
 	struct rcu_head **curtail;	/* ->next pointer of last CB. */
 	RCU_TRACE(long qlen);		/* Number of pending CBs. */
@@ -39,6 +41,7 @@ struct rcu_ctrlblk {
 	RCU_TRACE(const char *name);	/* Name of RCU type. */
 };
 
+//donetail 和curtail 初始都指向rcucblist
 /* Definition for rcupdate control block. */
 static struct rcu_ctrlblk rcu_sched_ctrlblk = {
 	.donetail	= &rcu_sched_ctrlblk.rcucblist,

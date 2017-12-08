@@ -717,6 +717,11 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		/*
 		 * Check retransmissions.
 		 */
+		 //这里的目的并不是检测通常意义的tcp 重传
+		 //并且这里也无法准确检测tcp 重传，
+		 //这里应该是检测只有一个方向在不断重传数据包，
+		 //对端无响应的情况
+		 //也就是失效连接
 		if (index == TCP_ACK_SET) {
 			if (state->last_dir == dir
 			    && state->last_seq == seq

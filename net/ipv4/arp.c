@@ -876,10 +876,10 @@ static int arp_process(struct sk_buff *skb)
 
 		rt = skb_rtable(skb);
 		addr_type = rt->rt_type;
-		//tip 是本机地址
+		//tip 是本机配置的IP 地址
 		if (addr_type == RTN_LOCAL) {
 			int dont_send;
-
+			//检查是否要响应接收到的arp报文
 			dont_send = arp_ignore(in_dev, sip, tip);
 			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
 				//执行反向路径检查

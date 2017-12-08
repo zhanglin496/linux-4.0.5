@@ -56,6 +56,7 @@ EXPORT_SYMBOL(irq_stat);
 static struct softirq_action softirq_vec[NR_SOFTIRQS];
 
 //每cpu一个内核线程
+//将大量不能立即执行的软中断推迟到内核线程中执行
 DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
 
 const char * const softirq_to_name[NR_SOFTIRQS] = {
@@ -247,7 +248,7 @@ asmlinkage __visible void __do_softirq(void)
 
 	pending = local_softirq_pending();
 	account_irq_enter_time(current);
-
+	//禁止软中断，表明现在处于软中断环境中
 	__local_bh_disable_ip(_RET_IP_, SOFTIRQ_OFFSET);
 	in_hardirq = lockdep_softirq_start();
 
@@ -271,6 +272,7 @@ restart:
 		kstat_incr_softirqs_this_cpu(vec_nr);
 
 		trace_softirq_entry(vec_nr);
+		//调用软中断回调函数
 		h->action(h);
 		trace_softirq_exit(vec_nr);
 		if (unlikely(prev_count != preempt_count())) {
@@ -282,7 +284,7 @@ restart:
 		h++;
 		pending >>= softirq_bit;
 	}
-
+	//ruc 标记当前cpu 软中断已经完成了一次静止状态
 	rcu_bh_qs();
 	local_irq_disable();
 

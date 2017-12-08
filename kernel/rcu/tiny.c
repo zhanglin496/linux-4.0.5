@@ -100,11 +100,21 @@ EXPORT_SYMBOL(__rcu_is_watching);
  * Also irqs are disabled to avoid confusion due to interrupt handlers
  * invoking call_rcu().
  */
+ //要关闭中断以避免在中断处理程序中调用call_rcu
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
 	RCU_TRACE(reset_cpu_stall_ticks(rcp));
 	if (rcp->rcucblist != NULL &&
+		//rcp->donetail != rcp->curtail,表示有新的回调需要执行
 	    rcp->donetail != rcp->curtail) {
+	    	//记录当前已经完成宽限期的末尾链表指针
+	    	//如果后面又有新加入的rcu 回调
+	    	//那么在没有再次调用rcu_note_context_switch 函数时，
+	    	//新加入的rcu回调要等到下一次宽限期检测
+	    	//rcu_process_callbacks 只会处理从rcucblist 到donetail 的回调函数
+	    	//donetail 表示已经完成宽限期检测的回调函数末尾指针
+	    	//curtail 则会一直跟踪新加入的回调函数末尾指针
+	    	//然后在rcu_process_callbacks 中处理当前已经完成的回调函数
 		rcp->donetail = rcp->curtail;
 		return 1;
 	}
@@ -131,6 +141,10 @@ void rcu_sched_qs(void)
 /*
  * Record an rcu_bh quiescent state.
  */
+ //记录当前cpu 已经经历了一次软中断静止状态
+ //在单cpu 的情况下，就相当于经历了一次
+ //宽限期
+ //而多cpu 情况下采用的tree rcu 实现比较复杂
 void rcu_bh_qs(void)
 {
 	unsigned long flags;
@@ -147,6 +161,10 @@ void rcu_bh_qs(void)
  * be called from hardirq context.  It is normally called from the
  * scheduling-clock interrupt.
  */
+ //定时器中断周期调用该函数
+ //原因是有可能系统很长的时间都不发生进程调度
+ //所以必须要有一个辅助方法来检测宽限期是否结束
+ //
 void rcu_check_callbacks(int user)
 {
 //user 为1 表示当前进程运行于用户态
@@ -158,6 +176,7 @@ void rcu_check_callbacks(int user)
 	RCU_TRACE(check_cpu_stalls());
 	if (user)
 		rcu_sched_qs();
+	//软中断计数为0，表示已经退出软中断
 	else if (!in_softirq())
 		rcu_bh_qs();
 	if (user)
@@ -187,13 +206,19 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	}
 
 	/* Move the ready-to-invoke callbacks to a local list. */
+	//这里要禁止中断
+	//防止中断嵌套并发访问rcp
 	local_irq_save(flags);
 	RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, rcp->qlen, -1));
 	list = rcp->rcucblist;
+	//注意rcp->rcucblist 这里不一定为NULL
+	//只会调用部分回调函数
+	//更新rcp->rcucblist 指向剩余的链表
 	rcp->rcucblist = *rcp->donetail;
 	*rcp->donetail = NULL;
 	if (rcp->curtail == rcp->donetail)
 		rcp->curtail = &rcp->rcucblist;
+	//更新rcp->donetail，表示目前没有回调
 	rcp->donetail = &rcp->rcucblist;
 	local_irq_restore(flags);
 
@@ -270,6 +295,8 @@ static void __call_rcu(struct rcu_head *head,
 	head->func = func;
 	head->next = NULL;
 
+	//head 加入链表尾部
+	//只需要禁止中断互斥防止并发
 	local_irq_save(flags);
 	*rcp->curtail = head;
 	rcp->curtail = &head->next;
@@ -287,6 +314,12 @@ static void __call_rcu(struct rcu_head *head,
  * period.  But since we have but one CPU, that would be after any
  * quiescent state.
  */
+ //只要发生了进程调度
+ //就认为当前cpu 度过了一次静止状态
+ //进程调度包括了bh 宽限期检查
+ //因为软中断是不允许发生进程调度
+ //如果发生了进程调度，则表示一定退出了软中断
+ //因此在rcu_sched_qs 中检查了rcu_bh_ctrlblk 回调
 void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
 	__call_rcu(head, func, &rcu_sched_ctrlblk);
@@ -297,6 +330,8 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
  * Post an RCU bottom-half callback to be invoked after any subsequent
  * quiescent state.
  */
+ //只要退出了软中断
+ //就认为当前cpu 度过了一次静止状态
 void call_rcu_bh(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
 	__call_rcu(head, func, &rcu_bh_ctrlblk);

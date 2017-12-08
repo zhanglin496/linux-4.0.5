@@ -188,6 +188,8 @@ static int rcu_gp_in_progress(struct rcu_state *rsp)
  * one since the start of the grace period, this just sets a flag.
  * The caller must have disabled preemption.
  */
+ //和tiny rcu 的实现不同
+ //这里只是简单标记
 void rcu_sched_qs(void)
 {
 	if (!__this_cpu_read(rcu_sched_data.passed_quiesce)) {
@@ -2553,6 +2555,7 @@ void rcu_check_callbacks(int user)
 
 		rcu_bh_qs();
 	}
+	//检查抢占式rcu
 	rcu_preempt_check_callbacks();
 	if (rcu_pending())
 		invoke_rcu_core();

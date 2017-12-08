@@ -273,6 +273,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device 
 	if (entries >= tbl->gc_thresh3 ||
 	    (entries >= tbl->gc_thresh2 &&
 	     time_after(now, tbl->last_flush + 5 * HZ))) {
+	     //强制邻居表回收
 		if (!neigh_forced_gc(tbl) &&
 		    entries >= tbl->gc_thresh3)
 			goto out_entries;
@@ -467,7 +468,7 @@ struct neighbour *__neigh_create(struct neigh_table *tbl, const void *pkey,
 		rc = ERR_PTR(-ENOBUFS);
 		goto out;
 	}
-
+	//arp_tbl
 	memcpy(n->primary_key, pkey, key_len);
 	n->dev = dev;
 	dev_hold(dev);
@@ -870,6 +871,7 @@ static void neigh_probe(struct neighbour *neigh)
 		skb = skb_copy(skb, GFP_ATOMIC);
 	write_unlock(&neigh->lock);
 	neigh->ops->solicit(neigh, skb);
+	//增加已经发送arp 的探测计数器
 	atomic_inc(&neigh->probes);
 	kfree_skb(skb);
 }
@@ -1017,7 +1019,9 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			}
 			//即将离开rcu临界区，增加引用计数
 			skb_dst_force(skb);
+			//缓存暂时无法发送的skb
 			__skb_queue_tail(&neigh->arp_queue, skb);
+			//统计字节数
 			neigh->arp_queue_len_bytes += skb->truesize;
 		}
 		rc = 1;
