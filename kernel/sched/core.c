@@ -2757,6 +2757,8 @@ static void __sched __schedule(void)
 	rq->clock_skip_update <<= 1; /* promote REQ to ACT */
 
 	switch_count = &prev->nivcsw;
+	//PREEMPT_ACTIVE 被设置，任务不会被从 CPU 所属 Run Queue 移除而睡眠，
+	//这时只发生上下文切换，当前任务被下一个任务取代在 CPU 上运行。
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
 		if (unlikely(signal_pending_state(prev->state, prev))) {
 			prev->state = TASK_RUNNING;
@@ -2857,11 +2859,47 @@ void __sched schedule_preempt_disabled(void)
 	preempt_disable();
 }
 
+//继续本节开始的例子，prepare_to_wait_exclusive中当前任务设置好 TASK_UNINTERRUPTIBLE 
+//状态，即将调用 schedule 之前被prepare_to_wait_exclusive 中spin_unlock 里的 
+//preempt_enable 调用 preempt_schedule。
+
+//由于是 Kernel Preemption 上下文，PREEMPT_ACTIVE 被设置，
+//任务不会被从 CPU 所属 Run Queue 移除而睡眠，
+//这时只发生上下文切换，当前任务被下一个任务
+//取代在 CPU 上运行。 当 Run Queue 中已经处于 
+//TASK_UNINTERRUPTIBLE 状态的任务被调度到 CPU 上时，
+//PREEMPT_ACTIVE 标志早被清除，因此再次调用schedule时，该任务会被 
+//deactivate_task 从 Run Queue 上删除，进入到睡眠状态。
+
+//这样的处理保证了 Kernel Preemption 的正确性，以及
+//后续被 Preempt 任务再度被调度时的正确性，
+
+//Preemption 的本质是一种打断引起的上下文切换，
+//不应该处理任务的睡眠操作。
+
+//当前被 Preempt 的任务从 Run Queue 移除去睡眠的工作，
+//本来就应该由任务自己代码调用的 schedule 来完成。 
+//假如没有 PREEMPT_ACTIVE 标志的检查，那么当前被
+//Preempt 任务就在 preempt_schedule 调用 schedule 时提前被从
+//Run Queue 移除而睡眠。 这样一来，该任务原来代码
+//的语义发生了变化，从任务角度看，Preemption 只是
+//一种任务打断，被 Preempt 任务的睡眠不应该由 
+//preempt_schedule 的代码来做。
+//Run Queue 队列移除操作给 Kernel Preemption 的代码路径
+//增加了不必要的时延。
+//不但如此，这个被 Preempt 任务再次被唤醒后，
+//该任务还未执行的 schedule 调用还会再被执行一次。
+
+//所以使用了PREEMPT_ACTIVE标志
 static void __sched notrace preempt_schedule_common(void)
 {
 	do {
+		//设置 preempt_count 的 PREEMPT_ACTIVE，
+		//避免抢占发生途中，再有内核抢占
+		/* 调用 schedule 前，PREEMPT_ACTIVE 被设置 */
 		__preempt_count_add(PREEMPT_ACTIVE);
 		__schedule();
+		/* 结束一次抢占，PREEMPT_ACTIVE 被清除 */
 		__preempt_count_sub(PREEMPT_ACTIVE);
 
 		/*
@@ -2869,6 +2907,7 @@ static void __sched notrace preempt_schedule_common(void)
 		 * between schedule and now.
 		 */
 		barrier();
+		/* 恢复执行时，再次检查 TIF_NEED_RESCHED 标志是否设置 */
 	} while (need_resched());
 }
 
@@ -4221,6 +4260,9 @@ SYSCALL_DEFINE0(sched_yield)
 	return 0;
 }
 
+//这里说的有条件是因为 
+//cond_resched 要检查 TIF_NEED_RESCHED 标志，
+//看是否有新的 Preemption 的请求
 int __sched _cond_resched(void)
 {
 	if (should_resched()) {
@@ -4295,6 +4337,10 @@ EXPORT_SYMBOL(__cond_resched_softirq);
  * If you want to use yield() to be 'nice' for others, use cond_resched().
  * If you still want to use yield(), do not!
  */
+ //而 yield 内核 API，不检查 TIF_NEED_RESCHED 标志，
+ //则无条件触发任务切换，但在所在 
+ //CPU Run Queue 没有其它任务的情况下，
+ //不会发生真正的任务切换。
 void __sched yield(void)
 {
 	set_current_state(TASK_RUNNING);
