@@ -268,6 +268,10 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	if (fib_lookup(net, &fl4, &res))
 		goto last_resort;
 	if (res.type != RTN_UNICAST &&
+//	Change fib_validate_source() to accept packets with a local source address when
+//    the "accept_local" sysctl is set for the incoming inet device. Combined with the
+//    previous patches, this allows to communicate between multiple local interfaces
+//    over the wire.
 	    (res.type != RTN_LOCAL || !IN_DEV_ACCEPT_LOCAL(idev)))
 		goto e_inval;
 	if (!rpf && !fib_num_tclassid_users(dev_net(dev)) &&

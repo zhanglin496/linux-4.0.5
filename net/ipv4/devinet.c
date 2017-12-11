@@ -1442,6 +1442,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		ip_mc_up(in_dev);
 		/* fall through */
 	case NETDEV_CHANGEADDR:
+		//是否发送免费arp更新
 		if (!IN_DEV_ARP_NOTIFY(in_dev))
 			break;
 		/* fall through */

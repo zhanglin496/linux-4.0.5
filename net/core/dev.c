@@ -2930,7 +2930,8 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 		skb_dst_drop(skb);
 	else
 		skb_dst_force(skb);
-
+	//linux 的实现要求每个设备必须关联到一个排队规则上
+	//dev_open 时关联排队规则
 	txq = netdev_pick_tx(dev, skb, accel_priv);
 	q = rcu_dereference_bh(txq->qdisc);
 
@@ -2938,6 +2939,9 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_EGRESS);
 #endif
 	trace_net_dev_queue(skb);
+	//检查是否有入队规则
+	//设备处于down状态时，调用dev_close 使q指向noop_qdisc
+	//所有数据被被丢去
 	if (q->enqueue) {
 		rc = __dev_xmit_skb(skb, q, dev, txq);
 		goto out;
@@ -2955,6 +2959,9 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	   Check this and shot the lock. It is not prone from deadlocks.
 	   Either shot noqueue qdisc, it is even simpler 8)
 	 */
+	 //对于loopback设备，q指向noqueue_qdisc，enqueue为NULL
+	 //没有入队规则
+	 //如果设备不处于up状态，丢弃数据包
 	if (dev->flags & IFF_UP) {
 		int cpu = smp_processor_id(); /* ok because BHs are off */
 
@@ -6437,7 +6444,7 @@ int register_netdevice(struct net_device *dev)
 	//初始化qdisc排队规则
 	//这里默认为noop_qdisc，是无法发送数据包
 	//当用ifconfig 开启设备时会
-	// 在dev_open 或者__dev_open中调用dev_activate中选取适当的排队规则
+	//在dev_open 或者__dev_open中调用dev_activate中选取适当的排队规则
 	//对大多数虚拟设备默认的规则是noqueue_qdisc
 	dev_init_scheduler(dev);
 	dev_hold(dev);

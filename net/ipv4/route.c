@@ -2269,6 +2269,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			if (res.fi->fib_prefsrc)
 				fl4->saddr = res.fi->fib_prefsrc;
 			else
+				//否侧使用目的地址作为源地址
 				fl4->saddr = fl4->daddr;
 		}
 		//如果是自己给自己发生数据包，
