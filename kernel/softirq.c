@@ -316,7 +316,7 @@ asmlinkage __visible void do_softirq(void)
 //2. 还有一个，就是如果在内核任务ksoftirqd文境中执行 do_softirq()的时候，被中断打断后，也不会实质进入软中断，这样可以避免大部分的内核同步问题 
 	if (in_interrupt())
 		return;
-
+//local_irq_disable API 不会操作HARDIRQ_OFFSET 计数器，而是在__irq_enter 和__irq_exit中操作
 	local_irq_save(flags);
 
 	pending = local_softirq_pending();
@@ -387,6 +387,8 @@ static inline void tick_irq_exit(void)
  */
 void irq_exit(void)
 {
+//首先要禁止本地中断
+//否则无法防止软中断的并发执行
 #ifndef __ARCH_IRQ_EXIT_IRQS_DISABLED
 	local_irq_disable();
 #else
@@ -394,9 +396,22 @@ void irq_exit(void)
 #endif
 
 	account_irq_exit_time(current);
+
+	//只有当preempt_count为0时才可以调度或抢占。
+	//这样的话在do_IRQ执行期间（并且在irq_exit执行preempt_count-1之前），
+	//是不允许内核抢占以及调度到其他进程的，这样不论是在
+	//irq_enter或者irq_exit函数执行过程中，current宏得到的都是
+	//同一个进程，获取的都是同一个进程的preempt_count，
+	//即中断前运行的进程
+
+	//为了和irq_enter 相对应，需要递减当前中断上下文的硬中断计数值
+	//这么做的目的可以检测中断嵌套
+	//假设在调用irq_exit 时被其他中断B 嵌套中断了，那么B再执行到这里时，
+	//硬中断计数值将不会是0，in_interrupt将返回1，这样可以防止软中断并发执行
 	preempt_count_sub(HARDIRQ_OFFSET);
-	//如果当前CPU在硬件中断或者软中断则退出
-	//因此软中断在当前cpu上不能并行执行
+
+	//如果当前CPU在硬件中断或者软中断中则退出
+	//因此软中断在当前cpu上是串行执行
 	if (!in_interrupt() && local_softirq_pending())
 		invoke_softirq();
 

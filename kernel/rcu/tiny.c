@@ -39,6 +39,8 @@
 
 #include "rcu.h"
 
+// tiny rcu 是专门为单cpu（uniproceesor）的嵌入系统而设计的
+
 /* Forward declarations for tiny_plugin.h. */
 struct rcu_ctrlblk;
 static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp);

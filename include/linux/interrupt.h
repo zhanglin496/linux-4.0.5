@@ -392,6 +392,7 @@ extern bool force_irqthreads;
    al. should be converted to tasklets, not to softirqs.
  */
 //软中断类型，值越小优先级越高
+//对应local_softirq_pending 中整数中的bit 位
 enum
 {
 	HI_SOFTIRQ=0,
