@@ -106,6 +106,8 @@ int ip_forward(struct sk_buff *skb)
 	 *	that reaches zero, we must reply an ICMP control message telling
 	 *	that the packet's lifetime expired.
 	 */
+	 //对于转发的数据包ttl 要减1
+	 //到本地的数据包不需要再检查ttl 
 	if (ip_hdr(skb)->ttl <= 1)
 		goto too_many_hops;
 
