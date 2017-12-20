@@ -883,6 +883,12 @@ static inline void rcu_preempt_sleep_check(void)
  */
 static inline void rcu_read_lock(void)
 {
+	//__rcu_read_lock 有两个版本的实现，一个是抢占式RCU实现
+	//另一个是非抢占式RCU实现，非抢占RCU实现会强制禁止
+	//读者的当前上下文被抢占，抢占式RCU实现没有关闭抢占
+
+	//抢占式RCU实现的基本思想是如果读者在临界区时处于可以被抢占的
+	//状态，就有可能会被高优先级的任务打断
 	__rcu_read_lock();
 	__acquire(RCU);
 	rcu_lock_acquire(&rcu_lock_map);

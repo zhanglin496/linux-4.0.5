@@ -110,6 +110,7 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 		if (!(q->flags & TCQ_F_ONETXQUEUE) ||
 		    !netif_xmit_frozen_or_stopped(txq)) {
 			skb = q->dequeue(q);
+			//将 取 出 的 多 个 独 立 的 skb 构 造 一 个 skb 链 表
 			if (skb && qdisc_may_bulk(q))
 				try_bulk_dequeue_skb(q, skb, txq, packets);
 		}
@@ -170,6 +171,8 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 
 	if (skb) {
 		HARD_TX_LOCK(dev, txq, smp_processor_id());
+		//检查发送队列的状态是否可以发送
+		//
 		if (!netif_xmit_frozen_or_stopped(txq))
 			skb = dev_hard_start_xmit(skb, dev, txq, &ret);
 
@@ -242,6 +245,8 @@ void __qdisc_run(struct Qdisc *q)
 	int quota = weight_p;
 	int packets;
 
+	//如果队列不为空并且取出的分组没有超出配额，
+	//那么它将一直重复dequeue_skb，
 	while (qdisc_restart(q, &packets)) {
 		/*
 		 * Ordered by possible occurrence: Postpone processing if
@@ -478,6 +483,16 @@ struct pfifo_fast_priv {
  * 	bitmap=1 means there is an skb on band 0.
  *	bitmap=7 means there are skbs on all 3 bands, etc.
  */
+//bitmap 最大值7
+// |---1---|---1 ---|---1---| 分别对应
+// |-band2  |  band1   | band0  |
+//bitmap2band 是这样计算的，对应的最低有效位
+//第一个bit为1 的偏移值
+//比如7 = 0111，偏移为0，映射到0，表示从band 0 开始处理
+//比如6 = 0110，偏移为1，映射到1，表示从band 1 开始处理
+//比如5 = 0101，偏移为0，映射到0，表示从band 0 开始处理
+//比如4 = 0100，偏移为2，映射到2，表示从band 2 开始处理
+
 static const int bitmap2band[] = {-1, 0, 1, 0, 2, 0, 1, 0};
 
 static inline struct sk_buff_head *band2list(struct pfifo_fast_priv *priv,
@@ -489,21 +504,31 @@ static inline struct sk_buff_head *band2list(struct pfifo_fast_priv *priv,
 static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc)
 {
 	if (skb_queue_len(&qdisc->q) < qdisc_dev(qdisc)->tx_queue_len) {
+		//根据优先级映射到对应的band，最大值为2
+		//因为PFIFO_FAST_BANDS 数组的值为3
 		int band = prio2band[skb->priority & TC_PRIO_MAX];
 		struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
 		struct sk_buff_head *list = band2list(priv, band);
-
+		//设置对应的bit 位，表示对应的band 有待处理的数据包
 		priv->bitmap |= (1 << band);
+		//更新skb 计数
 		qdisc->q.qlen++;
+		//实际skb 是加入到list 中
+		//而不是q中
 		return __qdisc_enqueue_tail(skb, qdisc, list);
 	}
-
+	//队列已满，丢弃数据包
 	return qdisc_drop(skb, qdisc);
 }
 
 static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 {
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
+	//假设bitmap == 7，bit 0111
+	//只有三个band，所以bitmap的最大值是7
+	//根据bitmap 得出优先级最高的band
+	//如果优先级最高的band 数据包一直未处理完
+	//低优先级的band 将一直得不到处理
 	int band = bitmap2band[priv->bitmap];
 
 	if (likely(band >= 0)) {
@@ -511,6 +536,8 @@ static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 		struct sk_buff *skb = __qdisc_dequeue_head(qdisc, list);
 
 		qdisc->q.qlen--;
+		//如果list 为空，表示当前的band 为空
+		//要清除对应的bitmap 位，bit 变为0110
 		if (skb_queue_empty(list))
 			priv->bitmap &= ~(1 << band);
 
@@ -569,6 +596,7 @@ static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
 		__skb_queue_head_init(band2list(priv, prio));
 
 	/* Can by-pass the queue discipline */
+	//在满足某种条件下可以跳过排队规则
 	qdisc->flags |= TCQ_F_CAN_BYPASS;
 	return 0;
 }
@@ -754,6 +782,12 @@ static void attach_one_default_qdisc(struct net_device *dev,
 		if (!netif_is_multiqueue(dev))
 			qdisc->flags |= TCQ_F_ONETXQUEUE;
 	}
+	//之所以赋值给 sleeping qdisc，是因为由__dev_open 引发的
+	//设备激活过程中，设备的链路未必就
+	//绪: netif_carrier_ok(dev) != true. 这种情况下，
+	//先用 qdisc_sleeping来记录新分配的 qdisc对象，
+	//等将来设备的 netif_carrier_ok(dev)时，才真正将 
+	//sleeping qdisc 对象赋予 dev->_tx[]，
 	dev_queue->qdisc_sleeping = qdisc;
 }
 
@@ -786,7 +820,7 @@ static void transition_one_qdisc(struct net_device *dev,
 
 	if (!(new_qdisc->flags & TCQ_F_BUILTIN))
 		clear_bit(__QDISC_STATE_DEACTIVATED, &new_qdisc->state);
-
+	//将记录的sleeping qdisc 对象赋予 qdisc
 	rcu_assign_pointer(dev_queue->qdisc, new_qdisc);
 	if (need_watchdog_p && new_qdisc != &noqueue_qdisc) {
 		dev_queue->trans_start = 0;
@@ -806,6 +840,7 @@ void dev_activate(struct net_device *dev)
 	if (dev->qdisc == &noop_qdisc)
 		attach_default_qdiscs(dev);
 
+	//未检测到载波，表示设备还未就绪
 	if (!netif_carrier_ok(dev))
 		/* Delay activation until next carrier-on event */
 		return;

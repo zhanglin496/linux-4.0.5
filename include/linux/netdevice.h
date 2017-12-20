@@ -210,7 +210,9 @@ struct netdev_hw_addr {
 };
 
 struct netdev_hw_addr_list {
+	//连接struct netdev_hw_addr， 组成一个MAC 地址列表
 	struct list_head	list;
+	//当前struct netdev_hw_addr 的数量
 	int			count;
 };
 
@@ -274,8 +276,11 @@ struct header_ops {
  */
 
 enum netdev_state_t {
+	//表示设备已经通过__dev_open 打开过了
 	__LINK_STATE_START,
+	//表示设备已经存在了，已经通过register_netdevice 注册到系统中了
 	__LINK_STATE_PRESENT,
+	//表示当前链路没有检测到载波
 	__LINK_STATE_NOCARRIER,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
@@ -531,7 +536,9 @@ static inline void napi_synchronize(const struct napi_struct *n)
 #endif
 
 enum netdev_queue_state_t {
+	//驱动停止发送
 	__QUEUE_STATE_DRV_XOFF,
+	//协议栈停止发送
 	__QUEUE_STATE_STACK_XOFF,
 	__QUEUE_STATE_FROZEN,
 };
@@ -1658,6 +1665,7 @@ struct net_device {
 /*
  * Cache lines mostly used on transmit path
  */
+ 	//发送队列
 	struct netdev_queue	*_tx ____cacheline_aligned_in_smp;
 	unsigned int		num_tx_queues;
 	unsigned int		real_num_tx_queues;

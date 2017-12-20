@@ -190,7 +190,7 @@ struct hlist_head {
 
 //pprev的指针用途
 //1.pprev指针用于检查元素是否被加入了hash桶中,为什么不能用next来判断，
-//因为在rcu链表中next的指针值不能毒化，否则会导致链表断裂
+//因为在rcu链表中next的指针值不能毒化，否则会导致读者在遍历链表时断裂
 //2.用于链表的反向遍历，反向遍历是检查pprev的地址是否等于&hlist_head->first的地址，表示反向遍历结束
 //
 struct hlist_node {

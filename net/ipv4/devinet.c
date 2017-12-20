@@ -1420,6 +1420,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		if (!inetdev_valid_mtu(dev->mtu))
 			break;
 		if (dev->flags & IFF_LOOPBACK) {
+			//如果是回环设备，分配IP地址
 			struct in_ifaddr *ifa = inet_alloc_ifa();
 
 			if (ifa) {

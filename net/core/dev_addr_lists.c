@@ -377,6 +377,7 @@ int dev_addr_init(struct net_device *dev)
 		 */
 		ha = list_first_entry(&dev->dev_addrs.list,
 				      struct netdev_hw_addr, list);
+		//设置dev_addr指向MAC地址列表中的第一个地址		 
 		dev->dev_addr = ha->addr;
 	}
 	return err;

@@ -106,6 +106,7 @@ static inline bool qdisc_is_running(const struct Qdisc *qdisc)
 
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
+	//如果正在运行
 	if (qdisc_is_running(qdisc))
 		return false;
 	//标记qdisc正在运行

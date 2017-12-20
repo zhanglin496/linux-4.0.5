@@ -169,7 +169,7 @@ static void rcu_preempt_note_context_switch(void)
 		//释放rcu_read_unlock 
 		//如果有第三者在等待rcu结束
 		//这完全只有依赖调度器的实现何时
-		//重新调度该进程
+		//重新调度被抢占的进程
 		//内核会检查满足条件时调用force_quiescent_state
 		//强制进程调度系统发起一次进程切换
 		//比如callback太多了
@@ -346,7 +346,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 	}
 
 	/* Hardware IRQ handlers cannot block, complain if they get here. */
-	//在中断上下文不能睡眠
+	//在中断上下文不能睡眠，也不能被抢占
 	//所以不应该出现这个状态
 	//只有可能在进程上下或内核线程的情况
 	//下才可能睡眠

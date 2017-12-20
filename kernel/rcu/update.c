@@ -66,6 +66,7 @@ module_param(rcu_expedited, int, 0);
 //抢占式的RCU实现
 //对比与classic rcu ，调用者可以被内核抢占，
 //在进程上下文中可以睡眠
+//在中断上下文和软中断上下文仍然是不能睡眠的
 /*
  * Preemptible RCU implementation for rcu_read_lock().
  * Just increment ->rcu_read_lock_nesting, shared state will be updated
@@ -73,6 +74,7 @@ module_param(rcu_expedited, int, 0);
  */
 void __rcu_read_lock(void)
 {
+	//增加rcu 嵌套计数
 	current->rcu_read_lock_nesting++;
 	barrier();  /* critical section after entry code. */
 }

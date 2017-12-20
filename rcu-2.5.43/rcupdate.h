@@ -118,7 +118,7 @@ static inline int rcu_pending(int cpu)
 	else
 		return 0;
 }
-//早期版本的rcu实现，就是简单的禁止抢占
+//classic 的rcu实现，就是简单的禁止抢占
 #define rcu_read_lock()		preempt_disable()
 #define rcu_read_unlock()	preempt_enable()
 

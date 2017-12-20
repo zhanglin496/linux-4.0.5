@@ -984,6 +984,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 		 * the user.  There must be either one "%d" and no other "%"
 		 * characters.
 		 */
+		 //只允许存在一个%号
 		if (p[1] != 'd' || strchr(p + 2, '%'))
 			return -EINVAL;
 
@@ -1068,11 +1069,13 @@ static int dev_get_valid_name(struct net *net,
 {
 	BUG_ON(!net);
 
+	//检查name是否满足规则
 	if (!dev_valid_name(name))
 		return -EINVAL;
-
+	//含有%号，表示要动态分配一个名称
 	if (strchr(name, '%'))
 		return dev_alloc_name_ns(net, dev, name);
+	//否则检查名称是否已经存在
 	else if (__dev_get_by_name(net, name))
 		return -EEXIST;
 	else if (dev->name != name)
@@ -1260,7 +1263,7 @@ static int __dev_open(struct net_device *dev)
 	int ret;
 
 	ASSERT_RTNL();
-
+	//设备是否已经注册到系统中
 	if (!netif_device_present(dev))
 		return -ENODEV;
 
@@ -2804,6 +2807,16 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
 		kfree_skb(skb);
 		rc = NET_XMIT_DROP;
+
+//其次，如果同时满足以下三个条件，那么分组将不会经过 qdisc 队列的 enqueue 和 dequeue
+//流程而直接交由设备驱动程序处理(sch_direct_xmit)，也就是越过了 Qdisc：
+//条件 a， qdisc 对象可以被 by-pass： q->flags & TCQ_F_CAN_BYPASS(内核缺省使用的 pfifo_fast
+//qdisc 在其初始化函数中会设置该标志)
+//条件 b， qdisc 当前的队列长度为 0： q->q.qlen = 0.
+//条件 c， qdisc 当前还没有处于 RUNNING 状态： q->__state & __QDISC___STATE_RUNNING = 0;
+
+//三个条件同时成立表明，当前下行的分组正在进入一个空闲的 qdisc 对象中，既然队列里并
+//无其他分组等待处理，那么就没有理由让分组进入 enqueue 和 dequeue 流程去浪费时间。
 	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
 		   qdisc_run_begin(q)) {
 		/*
@@ -2941,7 +2954,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	trace_net_dev_queue(skb);
 	//检查是否有入队规则
 	//设备处于down状态时，调用dev_close 使q指向noop_qdisc
-	//所有数据被被丢去
+	//所有数据包会被丢弃
 	if (q->enqueue) {
 		rc = __dev_xmit_skb(skb, q, dev, txq);
 		goto out;
@@ -3430,6 +3443,12 @@ int netif_rx_ni(struct sk_buff *skb)
 	return err;
 }
 EXPORT_SYMBOL(netif_rx_ni);
+//因为定时器中断是定时产生的
+//所以软中断都有机会被执行到
+//内核很多设计需要软中断来配合
+//可以理解为一个周期性的检测机制
+//比如调度数据包的发送等
+
 //所有的软中断都是在do_softirq  中回调的
 //所谓的触发软中断只不过是设置相关标记位，
 //然后由do_softirq检查并回调注册好的函数
@@ -3463,6 +3482,8 @@ static void net_tx_action(struct softirq_action *h)
 		}
 	}
 
+	//注意output_queue 是一个Qdisc 对象
+	//如果Qdisc 对象为空，表示当前不需要调度发送队列
 	if (sd->output_queue) {
 		struct Qdisc *head;
 
@@ -3475,7 +3496,7 @@ static void net_tx_action(struct softirq_action *h)
 		while (head) {
 			struct Qdisc *q = head;
 			spinlock_t *root_lock;
-
+			//下一个要调度的qdisc 对象
 			head = head->next_sched;
 
 			root_lock = qdisc_lock(q);
@@ -6390,6 +6411,7 @@ int register_netdevice(struct net_device *dev)
 	}
 
 	ret = -EBUSY;
+	//获取一个有效的index
 	if (!dev->ifindex)
 		dev->ifindex = dev_new_index(net);
 	else if (__dev_get_by_index(net, dev->ifindex))
@@ -6448,6 +6470,7 @@ int register_netdevice(struct net_device *dev)
 	//对大多数虚拟设备默认的规则是noqueue_qdisc
 	dev_init_scheduler(dev);
 	dev_hold(dev);
+	//将dev加到hash 表中
 	list_netdevice(dev);
 	add_device_randomness(dev->dev_addr, dev->addr_len);
 
@@ -6459,6 +6482,9 @@ int register_netdevice(struct net_device *dev)
 		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* Notify protocols, that a new device appeared. */
+	//调用通知链新的dev 被注册
+	//这导致内核的 inetdev_event 函数被调用，后者会分配并初始化一个 in_device
+	//对象，然后把它的地址赋予 dev->ip_ptr，用来完成 IPv4 相关功能，比如路由等
 	ret = call_netdevice_notifiers(NETDEV_REGISTER, dev);
 	ret = notifier_to_errno(ret);
 	if (ret) {
@@ -6845,11 +6871,14 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev->pcpu_refcnt = alloc_percpu(int);
 	if (!dev->pcpu_refcnt)
 		goto free_dev;
-
+	//初始化dev->dev_addr 指针，使其指向一个MAC地址空间
+	//后面由调用者来设置具体的MAC地址
 	if (dev_addr_init(dev))
 		goto free_pcpu;
 
-	dev_mc_init(dev);
+	//初始化多播地址列表
+	dev_mc_init(dev);	
+	//初始化单播地址列表
 	dev_uc_init(dev);
 
 	dev_net_set(dev, &init_net);
@@ -6869,8 +6898,9 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->ptype_all);
 	INIT_LIST_HEAD(&dev->ptype_specific);
 	dev->priv_flags = IFF_XMIT_DST_RELEASE | IFF_XMIT_DST_RELEASE_PERM;
+	//调用用户自定义的初始化函数
 	setup(dev);
-	//分配并初始化netdev_queue
+	//分配并初始化发送队列netdev_queue
 	//默认发送和接收都是1
 	dev->num_tx_queues = txqs;
 	dev->real_num_tx_queues = txqs;
