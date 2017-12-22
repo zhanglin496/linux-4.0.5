@@ -5,10 +5,27 @@
 
 
 struct ip_ct_tcp_state {
+//以下值都是根据相应条件动态变化的
+//之所以都要记录最大值，是因为数据包的
+//到达可能乱序，为了防止错误的丢弃
+//合法的数据包，使用最大值来增加
+//系统的容错能力
+
+
+//连接项中当前有效ACK边界的确立：
+//因为A不可能为其未收到的数据进行确认，
+//所以报文中的ACK不可能大于其所收到报文的最大SEQ，
+//所以有效ACK的上限为：
+//A ：ack <= B ：max{ seq + len}  
+//记录该连接曾经收到的最大数据包结束序列号值
 	u_int32_t	td_end;		/* max of seq + len */
+//记录该连接曾经收到的最大可以接收的ack 字节序列号值
 	u_int32_t	td_maxend;	/* max of ack + max(win, 1) */
+//记录该连接曾经收到最大通告窗口值
 	u_int32_t	td_maxwin;	/* max(win) */
+//记录该连接曾经收到的最大有效ack值
 	u_int32_t	td_maxack;	/* max of ack */
+//通告窗口扩展因子
 	u_int8_t	td_scale;	/* window scale factor */
 	u_int8_t	flags;		/* per direction options */
 };

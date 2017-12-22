@@ -372,6 +372,12 @@ static inline __u32 segment_seq_plus_len(__u32 seq,
 		+ (tcph->syn ? 1 : 0) + (tcph->fin ? 1 : 0));
 }
 
+//如何确立ACK的下限，则显得比较困难。
+//因为报文到达的无序性，所以filter采用了一种较为宽松的方式，
+//以避免有效的ACK被阻塞:
+//A : ack >= B : max{ seq + len} – MAXACKWINDOW
+//MAXACKWINDOW被定义为66000，即TCP允许的最大的窗口大小，
+//该值的大小决定了有效ACK被阻塞的可能性。
 /* Fixme: what about big packets? */
 #define MAXACKWINCONST			66000
 #define MAXACKWINDOW(sender)						\
@@ -485,6 +491,7 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 				for (i = 0;
 				     i < (opsize - TCPOLEN_SACK_BASE);
 				     i += TCPOLEN_SACK_PERBLOCK) {
+					//获取右边沿的sack值[sack1, sack2) 
 					tmp = get_unaligned_be32((__be32 *)(ptr+i)+1);
 
 					if (after(tmp, *sack))
@@ -498,6 +505,8 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
+//tcp_in_window 采用的数据包检测算法来自
+//一篇论文"Real Stateful TCP Packet Filtering in IP Filter"
 static bool tcp_in_window(const struct nf_conn *ct,
 			  struct ip_ct_tcp *state,
 			  enum ip_conntrack_dir dir,
@@ -524,8 +533,11 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	win = ntohs(tcph->window);
 	end = segment_seq_plus_len(seq, skb->len, dataoff, tcph);
 
+	//因为若报文中有SACK选项，
+	//那么实际上sender发出报文的实际最大ACK是在SACK选项中，
+	//并且是其中最大的。
 	if (receiver->flags & IP_CT_TCP_FLAG_SACK_PERM)
-		tcp_sack(skb, dataoff, tcph, &sack);
+		tcp_sack(skb, dataoff, tcph, &sack); //获取最大的sack号
 
 	/* Take into account NAT sequence number mangling */
 	receiver_offset = nf_ct_seq_offset(ct, !dir, ack - 1);
@@ -544,6 +556,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		 receiver->td_scale);
 	//对于syn的被动发起方而言，sender->td_maxwin 一定等于0
+	//reply 方向才会出现== 0 的情况
+	//original 方向不会走到这个分支
 	if (sender->td_maxwin == 0) {
 		/*
 		 * Initialize sender data.
@@ -576,7 +590,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			//不等于0，会在tcp_new中赋值
 			//假设
 			//A--->B 发送syn，这里sender等于A ,td_maxwin会在tcp_new中赋值不为0
-			//B--->A 发送syn，这里sender等于B ,td_maxwin会在tcp_new中赋值为0
+			//B--->A 发送syn，这里sender等于B ,td_maxwin会在tcp_new中初始化时已经赋值为0
 			//因此若B--->A 未设置ACK，则表示是同时打开
 
 			if (!tcph->ack)
@@ -615,7 +629,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		sender->td_end =
 		sender->td_maxend = end;
 		sender->td_maxwin = (win == 0 ? 1 : win);
-
+		//解析窗口扩展选项
 		tcp_options(skb, dataoff, tcph, sender);
 	}
 
@@ -674,6 +688,9 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		/*
 		 * Take into account window scaling (RFC 1323).
 		 */
+		 //非syn报文实际的窗口值要乘以窗口扩展因子
+		 //syn报文不需要处理
+		 //窗口扩展选项只出现在syn报文中
 		if (!tcph->syn)
 			win <<= sender->td_scale;
 
@@ -702,7 +719,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			receiver->td_maxwin += end - sender->td_maxend;
 		if (after(sack + win, receiver->td_maxend - 1)) {
 			//更新接收方的最大结束序列号
-			//接受方发送的数据起始序列号应在发送方
+			//接收方发送的数据起始序列号应在发送方
 			//[ACK, sack + win) 范围内，因为这是发送发的
 			//通告窗口决定的
 			receiver->td_maxend = sack + win;
@@ -1062,6 +1079,7 @@ static int tcp_packet(struct nf_conn *ct,
 	    && new_state == TCP_CONNTRACK_FIN_WAIT)
 		ct->proto.tcp.seen[dir].flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
 
+	//根据当前状态选择合适的超时时间
 	if (ct->proto.tcp.retrans >= tn->tcp_max_retrans &&
 	    timeouts[new_state] > timeouts[TCP_CONNTRACK_RETRANS])
 		timeout = timeouts[TCP_CONNTRACK_RETRANS];
@@ -1132,6 +1150,7 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	}
 
 	if (new_state == TCP_CONNTRACK_SYN_SENT) {
+		//初始连接，清零数据区
 		memset(&ct->proto.tcp, 0, sizeof(ct->proto.tcp));
 		/* SYN packet */
 		ct->proto.tcp.seen[0].td_end =
@@ -1149,6 +1168,8 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		/* Don't try to pick up connections. */
 		return false;
 	} else {
+		//捕获到中间过程的数据包
+		//比如连接超时后产生的新连接
 		memset(&ct->proto.tcp, 0, sizeof(ct->proto.tcp));
 		/*
 		 * We are in the middle of a connection,
