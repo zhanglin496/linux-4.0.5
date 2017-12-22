@@ -17,7 +17,7 @@ struct ip_ct_tcp_state {
 //所以报文中的ACK不可能大于其所收到报文的最大SEQ，
 //所以有效ACK的上限为：
 //A ：ack <= B ：max{ seq + len}  
-//记录该连接曾经发送的最大数据包结束序列号值
+//记录该连接曾经收到的最大数据包结束序列号值
 	u_int32_t	td_end;		/* max of seq + len */
 //记录该连接曾经收到的最大可以接收的ack 字节序列号值
 	u_int32_t	td_maxend;	/* max of ack + max(win, 1) */
