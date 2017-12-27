@@ -531,6 +531,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	seq = ntohl(tcph->seq);
 	ack = sack = ntohl(tcph->ack_seq);
 	win = ntohs(tcph->window);
+	//结束序列号
 	end = segment_seq_plus_len(seq, skb->len, dataoff, tcph);
 
 	//因为若报文中有SACK选项，
@@ -647,7 +648,13 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 */
 		ack = sack = receiver->td_end;
 	}
-
+	//A               B 
+	//syn   ---> 
+	//      <---- rst
+	//对于这种情况作了区分
+	//为什么要检查seq == 0
+	//是因为RFC 规定如果收到的报文未设置ACK
+	//回复RST 报文的序列号应该设置为0
 	if (tcph->rst && seq == 0 && state->state == TCP_CONNTRACK_SYN_SENT)
 		/*
 		 * RST sent answering SYN.

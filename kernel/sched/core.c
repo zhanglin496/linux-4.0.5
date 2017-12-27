@@ -2663,7 +2663,8 @@ pick_next_task(struct rq *rq, struct task_struct *prev)
 		p = fair_sched_class.pick_next_task(rq, prev);
 		if (unlikely(p == RETRY_TASK))
 			goto again;
-
+		//未在fair_sched_class 类中选择出合适的进程
+		//那么只有在idle_sched_class 中选择swapper 进程运行
 		/* assumes fair_sched_class->next == idle_sched_class */
 		if (unlikely(!p))
 			p = idle_sched_class.pick_next_task(rq, prev);
@@ -2672,6 +2673,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev)
 	}
 
 again:
+	//遍历调度类选择一个合适的进程运行
 	for_each_class(class) {
 		p = class->pick_next_task(rq, prev);
 		if (p) {

@@ -964,16 +964,37 @@ static int copy_files(unsigned long clone_flags, struct task_struct *tsk)
 	oldf = current->files;
 	if (!oldf)
 		goto out;
+//linux下的多线程会设置CLONE_FILES 标志
+//多进程不会设置该标志
 
+//	If CLONE_FILES is set, the calling process and the child process share the same file 
+//descriptor table. Any file descriptor created by the calling process or by the child process 
+//is also valid in the other process. Similarly, if one of the processes closes a file descriptor, 
+//or changes its associated flags (using the fcntl(2) F_SETFD operation), the other process is also affected.
+
+//	If CLONE_FILES is not set, the child process inherits a copy of all file descriptors opened 
+//in the calling process at the time of clone(). (The duplicated file descriptors in the child refer 
+//to the same open file descriptions (see open(2)) as the corresponding file descriptors in the 
+//calling process.) 
+//Subsequent operations that open or close file descriptors, or change file descriptor flags, 
+//performed by either the calling process or the child process do not affect the other process.
+
+//如果设置了CLONE_FILES, 就共享files_struct
 	if (clone_flags & CLONE_FILES) {
 		atomic_inc(&oldf->count);
 		goto out;
 	}
-
+//如果父进程fork 之前已经打开了某些文件描述符
+//那么子进程会共享之前父进程已经打开的file 结构体
+//并增加f_count 引用计数，但是files_struct 不共享
+//所以才会说对同一个文件描述符父进程close关闭，
+//并不会立即关闭，因为子进程增加了引用计数
+//fork 之后父子进程新打开的文件描述符不共享，
+//dup_fd 会共享file，创建新的files_struct 和fdtable
 	newf = dup_fd(oldf, &error);
 	if (!newf)
 		goto out;
-
+//新的files_struct 描述
 	tsk->files = newf;
 	error = 0;
 out:

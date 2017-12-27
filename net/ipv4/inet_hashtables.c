@@ -314,11 +314,17 @@ begin:
 				goto out;
 		
              	//这里为什么要两次检验：通过google搜索，
-             	//直到当时加上2次检验的原因是因为RCU的缘故。
+             	//知道当时加上2次检验的原因是因为RCU的缘故。
              	//想了半天，终于明白了。在第一次INET_MATCH时，
              	//该sk还没有被hold。只有执行了atomic_inc_not_zero，
              	//才相当于hold了这个sk。但是正常的RCU的操作，
              	//应该是先hold，才能保证内容没有变化。所以需要二次判断。
+		//比较两次是因为这里slab 的分配使用了SLAB_DESTROY_BY_RCU 标志
+		//考虑如下情况
+		//第一次INET_MATCH 命中时，另外的路径kmem_cache_free 了sk
+		//这里的free 是指把内存归还给slab 系统，并未真正的释放
+		//然后其他的路径重新使用了该内存，内容可能发送了变化
+		//所以需要第二次INET_MATCH 
 			if (unlikely(!INET_MATCH(sk, net, acookie,
 						 saddr, daddr, ports, dif))) {
 				sock_gen_put(sk);

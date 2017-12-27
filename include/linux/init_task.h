@@ -155,7 +155,13 @@ extern struct task_group root_task_group;
 #else
 # define INIT_VTIME(tsk)
 #endif
+//ËùÓĞ½ø³ÌµÄ×æÏÈ½Ğ×ö½ø³Ì0 £¬
+//idle ½ø³Ì»òÒòÎªÀúÊ·µÄÔ­Òò½Ğ×öswapper ½ø³Ì
 
+//idÎª0µÄ½ø³ÌÍ¨³£ÊÇµ÷¶È½ø³Ì£¬
+//³£³£±»³ÆÎª½»»»½ø³Ì£¨swapper£©,
+//¸Ã½ø³ÌÎªÄÚºËµÄÒ»²¿·Ö£¬Ëû²¢²»Ö´Ğ
+//ÈÎºÎ´ÅÅÌÉÏµÄ³ÌĞò£¬Òò´ËÒ²±»³ÆÎªÏµÍ³½ø³Ì
 #define INIT_TASK_COMM "swapper"
 
 #ifdef CONFIG_RT_MUTEXES

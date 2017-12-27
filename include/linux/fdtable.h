@@ -24,7 +24,9 @@
 struct fdtable {
 	unsigned int max_fds;
 	struct file __rcu **fd;      /* current fd array */
+	//设置了close_on_exec 的文件描述符位图
 	unsigned long *close_on_exec;
+	//文件描述符位图
 	unsigned long *open_fds;
 	struct rcu_head rcu;
 };
@@ -43,6 +45,7 @@ static inline bool fd_is_open(int fd, const struct fdtable *fdt)
  * Open file table structure
  */
  //记录进程打开的所有文件描述符
+ //多线程会共享files_struct ,其中count 是引用计数
 struct files_struct {
   /*
    * read mostly part

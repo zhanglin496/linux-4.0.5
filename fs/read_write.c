@@ -635,6 +635,10 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 		size_t, count)
 {
+	//fdget_pos 会获取f_pos_lock 锁
+	//保证对同一个fd 写的原子性
+	//但是对不同进程的fd 没有保证
+	//
 	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 

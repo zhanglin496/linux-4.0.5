@@ -256,6 +256,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	atomic_set(&newf->count, 1);
 
 	spin_lock_init(&newf->file_lock);
+	//初始化默认值
 	newf->next_fd = 0;
 	new_fdt = &newf->fdtab;
 	new_fdt->max_fds = NR_OPEN_DEFAULT;
@@ -270,6 +271,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	/*
 	 * Check whether we need to allocate a larger fd array and fd set.
 	 */
+	//若未超过NR_OPEN_DEFAULT，就使用内置的fd_array
 	while (unlikely(open_files > new_fdt->max_fds)) {
 		spin_unlock(&oldf->file_lock);
 
@@ -304,10 +306,11 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 	memcpy(new_fdt->open_fds, old_fdt->open_fds, open_files / 8);
 	memcpy(new_fdt->close_on_exec, old_fdt->close_on_exec, open_files / 8);
-
+	//拷贝已经打开过的file
 	for (i = open_files; i != 0; i--) {
 		struct file *f = *old_fds++;
 		if (f) {
+			//共享之前打开过的file
 			get_file(f);
 		} else {
 			/*
