@@ -168,7 +168,7 @@ nf_ct_tuple_src_mask_cmp(const struct nf_conntrack_tuple *t1,
 		return false;
 
 	if (t1->src.l3num != t2->src.l3num ||
-	    t1->dst.protonum != t2->dst.protonum)// 三层协议和L4 PROTOCOAL
+	    t1->dst.protonum != t2->dst.protonum)// 三层协议和L4 PROTOCOL
 		return false;
 
 	return true;
