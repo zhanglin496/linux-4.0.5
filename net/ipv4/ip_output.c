@@ -271,6 +271,10 @@ static int ip_finish_output(struct sk_buff *skb)
 	//需要特殊处理
 	//gso的目的是为了推迟大数据包的分片
 	//原理类似TSO/UFO
+	//这样对于大尺寸的数据包可以减少内核代码路径的调用次数
+	//比如对已一个20K的数据包，发送路径需要在传输层调用10次发送
+	//流程，而如果推迟大数据包的分片时机，就可以减少
+	//内核路径调用链的次数，降低开销和延迟
 	if (skb_is_gso(skb))
 		return ip_finish_output_gso(skb);
 
