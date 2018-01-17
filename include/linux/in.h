@@ -53,7 +53,7 @@ static inline bool ipv4_is_local_multicast(__be32 addr)
 {
 	return (addr & htonl(0xffffff00)) == htonl(0xe0000000);
 }
-
+//255.255.255.255
 static inline bool ipv4_is_lbcast(__be32 addr)
 {
 	/* limited broadcast */

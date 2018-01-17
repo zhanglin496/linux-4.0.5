@@ -2526,7 +2526,7 @@ static inline int __skb_cow(struct sk_buff *skb, unsigned int headroom,
  *	and at least @headroom of space at head.
  */
  //保证 skb->head...skb->tail 是可写的
- //同时有headroom 大小的头部空间
+ //同时保证skb 有headroom 大小的头部空间
 static inline int skb_cow(struct sk_buff *skb, unsigned int headroom)
 {
 	return __skb_cow(skb, headroom, skb_cloned(skb));

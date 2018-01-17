@@ -1259,7 +1259,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		//非线性数据区域不会释放，因为增加了引用计数
 		skb_release_data(skb);
 	} else {
-		//skb 为clone
+		//skb 未clone
 		//可以直接释放分配的线性区，注意非线性区的数据未释放
 		skb_free_head(skb);
 	}
