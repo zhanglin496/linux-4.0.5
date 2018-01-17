@@ -1223,6 +1223,14 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		//ICMP差错报文应该和一个已经存在的
 		//conntrack关联，详见icmp_error
 		/* ICMP[v6] protocol trackers may assign one conntrack. */
+		//跳过余下的匹配流程
+		//可以利用icmp 来探测ttl
+		//实现tcp打洞功能 
+		//这是因为对于正常的tcp 连接
+		//如果ttl设置的过小，不会导致tcp 连接的异常终止
+		//因为这不是一个致命错误，
+		//同时也不会刷新tcp状态，这样就会留下一个有效
+		//的conntrack 连接记录，利用这一点就可以实现tcp打洞
 		if (skb->nfct)
 			goto out;
 	}
