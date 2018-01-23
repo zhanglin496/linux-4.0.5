@@ -79,14 +79,14 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *e;
-
+	//检查是否设置了事件回调函数
 	if (!rcu_access_pointer(net->ct.nf_conntrack_event_cb))
 		return;
 
 	e = nf_ct_ecache_find(ct);
 	if (e == NULL)
 		return;
-
+	//每个事件对应其中一个bit 位
 	set_bit(event, &e->cache);
 }
 

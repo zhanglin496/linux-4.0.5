@@ -179,6 +179,7 @@ void rcu_check_callbacks(int user)
 	if (user)
 		rcu_sched_qs();
 	//软中断计数为0，表示已经退出软中断
+	//标记软中断的rcu 读者完成
 	else if (!in_softirq())
 		rcu_bh_qs();
 	if (user)

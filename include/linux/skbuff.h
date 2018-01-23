@@ -38,7 +38,7 @@
 
 
 /* A. Checksumming of received packets by device. 
- * //接受路径和输出路径的定义不一样
+ * //接收路径和输出路径的定义不一样
  *
  * CHECKSUM_NONE:
  *
@@ -133,6 +133,37 @@
  *
  * Any questions? No questions, good.		--ANK
  */
+// 当数据包是一个输入包时
+//skb->csum:存放硬件或者软件计算的payload的checksum不包括伪头，
+//但是是否有意义由skb->ip_summed的值决定。
+	
+//CHECKSUM_NONE表示csum域中的校验值是无意义的，
+//需要L4层自己校验payload和伪头。
+//有可能是硬件检验出错或者硬件没有校验功能，
+//或者协议栈软件更改如pskb_trim_rcsum函数。
+
+//CHECKSUM_UNNECESSARY表示网卡或者协议栈已经计算和验证了L4层
+//的头和校验值。也就是计算了tcp udp的伪头。
+//还有一种情况就是回环，因为在回环中错误发生的概率太低了，
+//因此就不需要计算校验来节省cpu事件。
+
+//CHECKSUM_COMPLETE表示网卡已经计算了L4层payload的校验，
+//并且csum已经被赋值，此时L4层的接收者只需要
+//加伪头并验证校验结果。
+	
+	 
+	
+//1） 在L4层发现如果udp->check位段被设为0，那么skb->ip_summed直接设为CHECKSUM_UNNECESSARY，放行该报文。
+	
+//2)	 如果skb->ip_summed为CHECKSUM_COMPLETE，则把skb->csum加上伪头进行校验，成功则将skb->ip_summed设为CHECKSUM_UNNECESSARY， 放行该数据包。
+
+//3)	 通过上述后skb->ip_summed还不是CHECKSUM_UNNECESSARY，那么重新计算伪头赋给skb->csum。
+	
+//4)	  将还不是CHECKSUM_UNNECESSARY的数据报文的payload加上skb->csum进行checksum计算，成功将设为CHECKSUM_UNNECESSARY并放行，失败则丢弃。
+
+
+//skb->ip_summed表示的是四层校验的状态，
+//下面的几个宏定义表示了设备驱动传递给4层的一些信息
 
 /* Don't change this without changing skb_csum_unnecessary! */
 #define CHECKSUM_NONE		0
@@ -655,6 +686,21 @@ struct sk_buff {
 #endif
 #endif
 
+//1） skb->csum和skb->ip_summed这两个域也是与4层校验相关的，
+//这两个域的含义依赖于skb表示的是一个输入包还是一个输出包。
+//2） 当网卡设备能提供硬件checksum并且作为输出包的时候，
+//表示为skb-> csum_start和skb-> csum_offset
+//csum_start: Offset from skb->head where checksumming should start
+//csum_offset: Offset from csum_start where checksum should be stored
+
+//当数据包是输出包时
+//skb->csum表示为csum_start和csum_offset，
+//它表示硬件网卡存放将要计算的校验值的地址
+//和最后填充的偏移
+
+//当数据包是一个输入包时
+//skb->ip_summed表示的是四层校验的状态
+//skb->csum 存放硬件或者软件计算的payload的checksum不包括伪头，
 	union {
 		__wsum		csum;
 		struct {

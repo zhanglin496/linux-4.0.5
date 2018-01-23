@@ -3678,11 +3678,13 @@ static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 
 	orig_dev = skb->dev;
 
-	//skb->data 已被设置为指向L3
-	//正确设置相关指针,
+	//skb->data 在eth_type_trans 已被设置为指向L3 头部
+	//正确设置相关指针
+	//设置网络层偏移
 	skb_reset_network_header(skb);
 	if (!skb_transport_header_was_set(skb))
 		skb_reset_transport_header(skb);
+	//设置二层mac 头部长度
 	skb_reset_mac_len(skb);
 
 	pt_prev = NULL;
