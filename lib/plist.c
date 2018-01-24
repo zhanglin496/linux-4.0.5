@@ -96,6 +96,7 @@ void plist_add(struct plist_node *node, struct plist_head *head)
 				struct plist_node, prio_list);
 	} while (iter != first);
 
+	//插入在iter节点之前
 	if (!prev || prev->prio != node->prio)
 		list_add_tail(&node->prio_list, &iter->prio_list);
 ins_node:
