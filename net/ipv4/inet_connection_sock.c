@@ -767,6 +767,7 @@ int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
 	 * It is OK, because this socket enters to hash table only
 	 * after validation is complete.
 	 */
+	 //ÉèÖÃsk Îª¼àÌı×´Ì¬
 	sk->sk_state = TCP_LISTEN;
 	if (!sk->sk_prot->get_port(sk, inet->inet_num)) {
 		inet->inet_sport = htons(inet->inet_num);

@@ -418,6 +418,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 			    (range->min_proto.all == range->max_proto.all ||
 			     !nf_nat_used_tuple(tuple, ct)))
 				goto out;
+		//如果tuple 不冲突，不需要生成新的tuple
 		} else if (!nf_nat_used_tuple(tuple, ct)) {
 			goto out;
 		}

@@ -112,7 +112,7 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		off = prandom_u32();
 	} else {
 		//使用上一次的off值，下一次选择端口时
-		// 会继续从off 偏移开始选择
+		// 会继续从min + off 偏移开始选择
 		off = *rover;
 	}
 

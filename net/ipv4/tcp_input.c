@@ -5269,6 +5269,7 @@ slow_path:
 		goto csum_error;
 
 	//没有设置ack，直接丢弃
+	//对于非rst 和syn 报文，
 	if (!th->ack && !th->rst && !th->syn)
 		goto discard;
 
@@ -5522,6 +5523,7 @@ discard:
 			__kfree_skb(skb);
 			return 0;
 		} else {
+		//发送三次握手最后一个ACK
 			tcp_send_ack(sk);
 		}
 		return -1;
@@ -5545,6 +5547,8 @@ discard:
 		goto discard_and_undo;
 
 	if (th->syn) {
+		//处理同时打开的情况
+		//理论上可用于tcp NAT打洞
 		/* We see SYN without ACK. It is attempt of
 		 * simultaneous connect with crossed SYNs.
 		 * Particularly, it can be connect to self.
@@ -5566,6 +5570,7 @@ discard:
 		/* RFC1323: The window in SYN & SYN/ACK segments is
 		 * never scaled.
 		 */
+		//带syn 标记的报文，不允许窗口伸缩
 		tp->snd_wnd    = ntohs(th->window);
 		tp->snd_wl1    = TCP_SKB_CB(skb)->seq;
 		tp->max_window = tp->snd_wnd;

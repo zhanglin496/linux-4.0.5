@@ -1075,12 +1075,67 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		return NULL;
 	}
 
+	//1. 基本NAT
+	//　　基本NAT只转换IP地址，而不转换端口。
+	//一个基本NAT往往需要具有多个公网IP来满足
+	//多个内网节点中具有相同端口的应用程序的
+	//同时访问。由于这种类型的NAT设备限制大，现在已不常见。
+	//　　2. NAPT
+	//　　（注：Endpoint表示一个IP地址和端口对）
+	//　　与基本NAT只转换IP地址不同，NAPT转换整个
+	//Endpoint。由于NAPT允许内网内的多个节点通过共享的
+	//方式使用同一个IP地址，因此，
+	//如今NAPT类型的NAT设备已经越来越多。
+	//　　NAPT又可以进一步分为以下四种类型：
+	//		(1) 完全锥型NAT(FULL CONE NAT)
+	//　　完全锥型NAT在内网用户A(Private Endpoint)首次向外部主机
+	//发送数据包时创建地址映射会话，
+	//并为A分配一个公网地址和端口(Public Endpoint)，
+	//以后任何A向外部发送的数据都将使用这个Public Endpoint。
+	//此后，任何外部主机想要与A通信，
+	//只要将数据包发送到Public Endpoint上，A就能够顺利的进行接收。
+	//　　(2) 限制锥型NAT (RESTRICT CONE NAT)
+	//　　限制锥型NAT在内网用户A(Private Endpoint)首次向外部主机
+	//发送数据包时创建地址映射会话，并为A分配一个公网地址和端口
+	//(Public Endpoint)，以后任何A向外部发送的数据包都将使用这个
+	//Public Endpoint。此后，如果某个外部主机（Endpoint IP:PORT）
+	//想要与A通信，只要将数据包发送到Public Endpoint并且保证A
+	//曾用当前与NAT的会话向该外部主机的IP地址发送过数据，
+	//A就能够正常收到外部主机（Endpoint IP:PORT）发送来的数据包。
+	//　　(3) 端口限制锥型NAT(PORT RESTRICT CONE NAT)
+	//　　端口限制锥型在内网用户A(Private Endpoint)首次向外部主机
+	//发送数据包时创建地址映射会话，并为A分配一个公网地址
+	//和端口(Public Endpoint)，以后任何A向外部发送的数据都将使用
+	//这个Public Endpoint。此后，如果某个外部主机（Endpoint IP:PORT）
+	//想要与A通信，只要将数据包发送到Public Endpoint并且保证A
+	//曾用当前与NAT的会话向该外部主机的Endpoint发送过数据，
+	//A就能够正常收到外部主机（Endpoint IP:PORT）发送来的数据包。
+	//　　(4) 对称型NAT(SYMMETRIC NAT)
+	//　　对称型NAT是一种比较特殊的NAT。内网用户A(Private Endpoint)首次
+	//向外部主机S1发送数据包时创建地址映射会话Session1，
+	//并为A分配一个公网地址和端口(Public Endpoint1)，
+	//以后A所有发向S1的数据包都使用这个Public Endpoint1。
+	//如果之后A用同一个Socket向外部主机S2发送数据包，
+	//这时对称型NAT又为其分配一个地址映射会话，
+	//并为A分配一个新的公网地址和端口对（Public Endpoint2），
+	//以后A所有发向S2的数据包都使用这个Public Endpoint2。
+	//对称型NAT规定Public Endpoint1和Public Endpoint2一定不相同。
+	//此外，如果任何外部主机想要发送数据给A，那么它首先应该
+	//收到A发给他的数据，然后才能往回发送，
+	//否则即使他知道内网主机的Public Endpoint也不能发送数据给A。
+	//这种NAT可以通过端口猜测等方法进行穿透，
+	//但是效果并不是很好，很难实现UDP-P2P通信。
+
 	/* look for tuple match */
-	
-	/*
+	//NAT类型, 内容来自rfc3489.txt
+	/*//前面3 中NAT都是相同的内部IP地址和端口会
+	  * //一直映射到相同的外部IP地址和端口
          * Based on NAT treatments of UDP in RFC3489:
-         *  //任意外部主机都可以发送报文给
+         *  //只要知道了内部主机的映射关系
+         * //任意外部主机都可以发送报文给
          * //内部主机，不需要内部主机提前发送报文
+         * //不限制外部主机的IP地址和端口
+         * //全锥形NAT 是最容易打洞成功的
          * 1)Full Cone: A full cone NAT is one where all requests from the
          * same internal IP address and port are mapped to the same external
          * IP address and port.  Furthermore, any external host can send a
@@ -1089,6 +1144,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
          *
          * //内部主机要先发报文到外部主机指定的IP
          * //这样外部主机才能发送报文到内部主机
+         * //和全锥形NAT 不同的是，这里限制了外部主机的IP地址
          * 2)Restricted Cone: A restricted cone NAT is one where all requests
          * from the same internal IP address and port are mapped to the same
          * external IP address and port.  Unlike a full cone NAT, an external
@@ -1097,13 +1153,20 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
          * address X.
          *
          * //内部主机要先发报文到外部主机指定的IP和端口
+         * //和全锥形NAT 不同的是，这里同时限制了外部主机的IP地址和端口
          * 3)Port Restricted Cone: A port restricted cone NAT is like a
          * restricted cone NAT, but the restriction includes port numbers.
          * Specifically, an external host can send a packet, with source IP
          * address X and source port P, to the internal host only if the
          * internal host had previously sent a packet to IP address X and
          * port P.
-         * //如果目的地址或端口不一样，则相同的IP源地址和端口不一定映射到相同的外部地址和端口
+	  * 
+         * // 对称NAT，根据五元组来映射
+         * //不同的5元组使用不同的映射
+         * //如果目的地址或端口不一样，则相同的IP源地址和端口
+         * //一定会映射到不同的外部地址和端口(注意: 外部地址可能相同
+         * //但是端口要求一定不相同)
+         * //对称NAT 要求比上面3中NAT都高，用于高安全的通信
          * //和cone nat 不一样
          * 4)Symmetric: A symmetric NAT is one where all requests from the
          * same internal IP address and port, to a specific destination IP
@@ -1115,7 +1178,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
          *
          *
          *
-         *
+         * //linux的NAT混合了对称NAT和端口受限制的NAT特征
          * Original Linux NAT type is hybrid 'port restricted cone' and
          * 'symmetric'. XBOX certificate recommands NAT type is 'fully cone'
          * or 'restricted cone', so i patch the linux kernel to support

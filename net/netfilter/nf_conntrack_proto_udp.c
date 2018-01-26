@@ -134,6 +134,8 @@ static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	}
 
 	/* Packet with no checksum */
+	//udp 的校验和可选
+	//如果是0，不检查校验和
 	if (!hdr->check)
 		return NF_ACCEPT;
 

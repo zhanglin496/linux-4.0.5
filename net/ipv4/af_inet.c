@@ -593,7 +593,13 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 		/* Fall out of switch with err, set for this state */
 		break;
 	case SS_UNCONNECTED:
+		//对于新创建的套接字，其初始状态为TCP_CLOSE
+		//如果该套接字调用了listen ，其状态变更改为TCP_LISTEN
+		//所以如果使用该套接字调用connect 去连接对方会失败
+		//所以对于tcp 的同时打开，不能调用listen，双方直接同时调用
+		//connect 即可
 		err = -EISCONN;
+		//必须为TCP_CLOSE 状态
 		if (sk->sk_state != TCP_CLOSE)
 			goto out;
 
