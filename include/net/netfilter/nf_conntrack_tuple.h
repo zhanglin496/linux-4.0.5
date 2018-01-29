@@ -29,6 +29,7 @@ struct nf_conntrack_man {
 	union nf_inet_addr u3;
 	union nf_conntrack_man_proto u;
 	/* Layer 3 protocol */
+	//L3 协议
 	u_int16_t l3num;
 };
 
@@ -64,9 +65,12 @@ struct nf_conntrack_tuple {
 		} u;
 
 		/* The protocol. */
+		//L4	协议
 		u_int8_t protonum;
 
 		/* The direction (for tuplehash) */
+		//数据包的方向，收到的第一个数据包就是
+		//IP_CT_DIR_ORIGINAL 方向
 		u_int8_t dir;
 	} dst;
 };
