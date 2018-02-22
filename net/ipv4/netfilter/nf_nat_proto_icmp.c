@@ -41,9 +41,10 @@ icmp_unique_tuple(const struct nf_nat_l3proto *l3proto,
 	range_size = ntohs(range->max_proto.icmp.id) -
 		     ntohs(range->min_proto.icmp.id) + 1;
 	/* If no range specified... */
+	//没指定范围，那就在整个范围内查找
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED))
 		range_size = 0xFFFF;
-
+	//icmp使用头部的ID 字段 来保证唯一性
 	for (i = 0; ; ++id) {
 		tuple->src.u.icmp.id = htons(ntohs(range->min_proto.icmp.id) +
 					     (id % range_size));

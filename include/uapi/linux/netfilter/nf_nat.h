@@ -53,7 +53,7 @@ struct nf_nat_range {
 	//配置的ipv4/ipv6地址范围
 	union nf_inet_addr		min_addr;
 	union nf_inet_addr		max_addr;
-	//对已udp和tcp来说指代端口号
+	//对于udp和tcp来说指代配置的端口号最小值和最大值
 	union nf_conntrack_man_proto	min_proto;
 	union nf_conntrack_man_proto	max_proto;
 };

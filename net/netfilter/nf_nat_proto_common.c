@@ -64,14 +64,16 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		//按照netfilter的官方文档是因为把端口分成了三类
 		//
 		//When this implicit source mapping occurs, ports are divided into three classes:
-		
 		//Ports below 512
 		//Ports between 512 and 1023
 		//Ports 1024 and above.
 		//A port will never be implicitly mapped into a different class.
-		//不同类的端口不允许映射到其他类
-		//根据原始数据包的端口值来界定映射的
+		//同时根据rfc4787的建议
+		//0~1023的知名端口号映射后最好也在0~1023内
+		//不同类的端口不允许映射到其他类中
+		//根据原始数据包的端口值来界定映射后的
 		//端口最小值和最大值
+		//但是不同的NAT 系统映射的方法可能有差别
 		if (ntohs(*portptr) < 1024) {
 			/* Loose convention: >> 512 is credential passing */
 			if (ntohs(*portptr) < 512) {

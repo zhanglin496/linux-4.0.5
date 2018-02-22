@@ -311,7 +311,8 @@ nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		//会出现IP_CT_RELATED的情况
 		//对于期待连接，也会出现IP_CT_RELATED的情况
 
-		//ICMP 需要做特殊的处理
+		//ICMP 需要做特殊的处理,根据RFC2663要求
+		//ICMP error packet 的负载部分需要NAT 还原处理
 		//比如对于UDP 有可能连接的发起方关闭了套接字
 		//如果对端再发数据，就会出现ICMP_DEST_UNREACH错误
 		//如果是ICMP协议，需要做特殊的NAT处理
