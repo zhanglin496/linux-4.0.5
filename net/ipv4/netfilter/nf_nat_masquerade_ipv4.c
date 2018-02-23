@@ -63,6 +63,7 @@ nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
 	memset(&newrange.min_addr, 0, sizeof(newrange.min_addr));
 	memset(&newrange.max_addr, 0, sizeof(newrange.max_addr));
 	newrange.flags       = range->flags | NF_NAT_RANGE_MAP_IPS;
+	//设置选择的IP地址
 	newrange.min_addr.ip = newsrc;
 	newrange.max_addr.ip = newsrc;
 	newrange.min_proto   = range->min_proto;

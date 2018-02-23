@@ -174,6 +174,9 @@ extern int _cond_resched(void);
  * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
+ //might_sleep 本身并不会导致睡眠
+ //而是通知调用者函数余下路径可能会导致睡眠
+ //不应该在原子上下文调用
 # define might_sleep() \
 	do { __might_sleep(__FILE__, __LINE__, 0); might_resched(); } while (0)
 # define sched_annotate_sleep()	(current->task_state_change = 0)

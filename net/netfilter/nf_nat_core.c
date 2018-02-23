@@ -201,10 +201,10 @@ find_appropriate_src(struct net *net, u16 zone,
 		ct = nat->ct;
 		if (same_src(ct, tuple) && nf_ct_zone(ct) == zone) {
 			/* Copy source part from reply tuple. */
-			//映射到相同的源地址
+			//映射到相同的源地址和端口
 			nf_ct_invert_tuplepr(result,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-			//保存实际的目的地址
+			//保存实际的目的地址和端口
 			result->dst = tuple->dst;
 
 			if (in_range(l3proto, l4proto, result, range))
@@ -264,6 +264,7 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 	 * like this), even across reboots.
 	 */
 	 //NF_NAT_RANGE_PERSISTENT的意思是保证在一个给定的地址范围内
+	 //相同的源IP地址都会映射到同一个IP地址
 	 //前后都映射到相同的IP地址
 	 //比如A开始时映射到B,在conntrack超时后，A还是映射到B
 	 //否则A有可能映射到C
@@ -357,7 +358,10 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (maniptype == NF_NAT_MANIP_SRC &&
 	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
-		//
+		//没有设置NF_NAT_RANGE_PROTO_RANDOM_ALL
+		//如果设置了NF_NAT_RANGE_PROTO_RANDOM_ALL
+		//表示要对源端口做随机映射
+
 		//     orig_tuple为192.168.18.100:10088---------->61.139.2.69:80
 		//路由器的wan口ip地址为172.168.3.36
 		//假设对wan口使用了MASQUERADE模块
@@ -365,8 +369,8 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		//这里先尝试使用原IP地址和端口是否可行
 		//这里192.168.18.100不在range指定的IP地址172.168.3.36范围内
 		if (in_range(l3proto, l4proto, orig_tuple, range)) {
-			//大多是情况下只有本机发出去数据包才会到达这里
-			//可行，检查该tuple是否冲突
+			//大多数情况下只有本机发出去数据包才会到达这里
+			//检查该tuple是否冲突
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
 				//ok，tuple唯一
 				*tuple = *orig_tuple;
@@ -377,9 +381,15 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 			//就是说有相同的四层协议和源地址、源端口的映射表已经存在
 			//假设已经存在一个192.168.18.100:1008,TCP的映射
 			//其源地址映射到172.168.3.36:10088--->61.139.2.69:8080
-			//192.168.18.100:10088---------->61.139.2.69:80将会被映射到
-			//172.168.3.36:10088 ---------->61.139.2.69:80
+			//那么192.168.18.100:1008------->61.139.2.69:80将会被映射到
+			//172.168.3.36:10088 ------->61.139.2.69:80
 			//因为这里目的端口不一样
+			//对于UDP 而言可以使用相同的IP地址和端口向不同的目的地址
+			//和端口发送数据包
+
+			//根据netfilter 的NAT 实现，TCP也是可以的映射到同一个IP地址和端口
+			//只要协议栈支持用同一个IP地址和端口向不同的目的地址
+			//和端口发送数据包
 		} else if (find_appropriate_src(net, zone, l3proto, l4proto,
 						orig_tuple, tuple, range)) {
 			pr_debug("get_unique_tuple: Found current src map\n");
@@ -517,7 +527,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 	if (maniptype == NF_NAT_MANIP_SRC) {
 		unsigned int srchash;
-
+		//如果是SNAT，就记录到nat_bysource hash 表中
 		srchash = hash_by_src(net, nf_ct_zone(ct),
 				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 		//因为nat扩展是内嵌于conntrack中的
