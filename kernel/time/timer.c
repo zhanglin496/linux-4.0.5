@@ -75,6 +75,7 @@ struct tvec_root {
 	struct list_head vec[TVR_SIZE];
 };
 
+//timer vector base ËõĞ´
 struct tvec_base {
 	spinlock_t lock;
 	struct timer_list *running_timer;
