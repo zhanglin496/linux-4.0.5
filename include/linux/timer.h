@@ -14,15 +14,20 @@ struct timer_list {
 	 * All fields that change during normal runtime grouped to the
 	 * same cacheline
 	 */
+	//连接到base 定时器链表中
 	struct list_head entry;
+	//超时时间，jiffies 为单位
 	unsigned long expires;
+	//每个CPU 有一个管理结构
 	struct tvec_base *base;
 
+	//定时器超时回调函数
 	void (*function)(unsigned long);
 	unsigned long data;
 
 	int slack;
 
+//下面都是用于调试
 #ifdef CONFIG_TIMER_STATS
 	int start_pid;
 	void *start_site;

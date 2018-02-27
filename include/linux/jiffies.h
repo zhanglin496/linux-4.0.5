@@ -98,6 +98,25 @@ static inline u64 get_jiffies_64(void)
  * good compiler would generate better code (and a really good compiler
  * wouldn't care). Gcc is currently neither.
  */
+
+//在理想的情况下，时间是可以不停增长的，
+//后来的时间值一定比前面的值大。
+//所以b-a一定小于0。然后计算机的世界不是一个理想的世界，
+//所有的值都有其位数限制的。
+//在32位平台上，long的位数为32位。
+//按照二进制补码的表示方式，从0到0x7fffffff的区间，值是逐渐递增的。
+//从0x80000000到0xFFFFFFFF这个区间，值是逐渐缩小的。
+//这就有4中情况：
+//1. a和b都在0到0x7FFFFFFF之间：
+//a若在b之后发生，则a的值大于b。那么(long)b-(long)a<0。
+//2. a和b都在0x80000000到0xFFFFFFFF之间：
+//a若在b之后发生，b为较大的负数，a为较小的负数，那么(long)b-(long)a<0。
+//3. b在0到0x7FFFFFFF之间，而a在0x80000000到0xFFFFFFFF之间：
+//a为负数。b-a，相当于b+(-a)。只要a与b之间的绝对差值小于或等于0x80000000，则b+(-a)仍然为负数。
+//4. b在0x80000000到0xFFFFFFFF之间，而a在0到0x7FFFFFFF之间：
+//b为负数，b-a等于b+(-a)。同样在a与b之间的绝对差值小于或等于0x80000000，则b+(-a)仍然为负数。
+//总结这四种情况，在a与b的绝对值相差不到0x80000000时，
+//这个宏是正确的。而在利用jiffies作为时间度量和比较单位时，时间差并不会太大。
 #define time_after(a,b)		\
 	(typecheck(unsigned long, a) && \
 	 typecheck(unsigned long, b) && \

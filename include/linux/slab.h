@@ -312,6 +312,7 @@ static __always_inline int kmalloc_index(size_t size)
 	if (size <=  8 * 1024 * 1024) return 23;
 	if (size <=  16 * 1024 * 1024) return 24;
 	if (size <=  32 * 1024 * 1024) return 25;
+	//64 MB
 	if (size <=  64 * 1024 * 1024) return 26;
 	BUG();
 

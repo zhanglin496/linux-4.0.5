@@ -61,7 +61,9 @@ EXPORT_SYMBOL(jiffies_64);
  */
 #define TVN_BITS (CONFIG_BASE_SMALL ? 4 : 6)
 #define TVR_BITS (CONFIG_BASE_SMALL ? 6 : 8)
+//16 或64
 #define TVN_SIZE (1 << TVN_BITS)
+//64或256
 #define TVR_SIZE (1 << TVR_BITS)
 #define TVN_MASK (TVN_SIZE - 1)
 #define TVR_MASK (TVR_SIZE - 1)
@@ -93,6 +95,8 @@ struct tvec_base {
 
 struct tvec_base boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
+//tvec_bases 在系统初始化时都指向boot_tvec_bases
+//后面新上线的CPU都重新分配一个tvec_base
 static DEFINE_PER_CPU(struct tvec_base *, tvec_bases) = &boot_tvec_bases;
 
 /* Functions below help us manage 'deferrable' flag */
@@ -348,6 +352,8 @@ EXPORT_SYMBOL_GPL(set_timer_slack);
 static bool catchup_timer_jiffies(struct tvec_base *base)
 {
 	if (!base->all_timers) {
+		//在没有定时器时，必须更新timer_jiffies
+		//否侧下一次设置定时器时就不准确了
 		base->timer_jiffies = jiffies;
 		return true;
 	}
@@ -357,19 +363,33 @@ static bool catchup_timer_jiffies(struct tvec_base *base)
 static void
 __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
+	//期望的超期时间
 	unsigned long expires = timer->expires;
+	//根据节拍差值来定位索引值，用来决定该插到哪个队列中去。
+	//正常情况下，expires都是大于timer_jiffies的
+	//等到timer_jiffies 等于expires 时，就知道这个定时器超时了
 	unsigned long idx = expires - base->timer_jiffies;
 	struct list_head *vec;
-
+	//小于2^8=256个节拍
+	//若idx小于2^8，则取expires的第0位到第7位的值I
+	//把timer加到tv1.vec中第I个链表的第一个表项之前。
 	if (idx < TVR_SIZE) {
+		//取expires 低8位
+		//timer_jiffies 低8位时等于expire的低8位时，表示第一级的i 这个定时器超期了
 		int i = expires & TVR_MASK;
 		vec = base->tv1.vec + i;
+	//小于2^14 个节拍
+	//则取expires的第8位到第13位的值I，
 	} else if (idx < 1 << (TVR_BITS + TVN_BITS)) {
 		int i = (expires >> TVR_BITS) & TVN_MASK;
 		vec = base->tv2.vec + i;
+	//小于2^20 个节拍
+	//则取expires的第14位到第19位的值I
 	} else if (idx < 1 << (TVR_BITS + 2 * TVN_BITS)) {
 		int i = (expires >> (TVR_BITS + TVN_BITS)) & TVN_MASK;
 		vec = base->tv3.vec + i;
+	//小于2^26个节拍
+	//则取expires的第20位到第25位的值I
 	} else if (idx < 1 << (TVR_BITS + 3 * TVN_BITS)) {
 		int i = (expires >> (TVR_BITS + 2 * TVN_BITS)) & TVN_MASK;
 		vec = base->tv4.vec + i;
@@ -378,6 +398,7 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		 * Can happen if you add a timer with expires == jiffies,
 		 * or you set a timer to go off in the past
 		 */
+		 //这里根据timer_jiffies 当前值来插入到队列中
 		vec = base->tv1.vec + (base->timer_jiffies & TVR_MASK);
 	} else {
 		int i;
@@ -389,6 +410,8 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 			idx = MAX_TVAL;
 			expires = idx + base->timer_jiffies;
 		}
+		//加入tv5
+		//则取expires的第26位到第32位的值I
 		i = (expires >> (TVR_BITS + 3 * TVN_BITS)) & TVN_MASK;
 		vec = base->tv5.vec + i;
 	}
@@ -1105,6 +1128,7 @@ static int cascade(struct tvec_base *base, struct tvec *tv, int index)
 	 * We are removing _all_ timers from the list, so we
 	 * don't have to detach them individually.
 	 */
+	 //移除所有的定时器，重新计算加入到合适的链表中
 	list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
 		BUG_ON(tbase_get_base(timer->base) != base);
 		/* No accounting, while moving them */
@@ -1178,18 +1202,29 @@ static inline void __run_timers(struct tvec_base *base)
 	while (time_after_eq(jiffies, base->timer_jiffies)) {
 		struct list_head work_list;
 		struct list_head *head = &work_list;
+		//index 代表tv1 中0~255/0~64个节拍到期的定时器的索引值
+		//不考虑中途添加的定时器
 		int index = base->timer_jiffies & TVR_MASK;
 
 		/*
 		 * Cascade timers:
 		 */
+		 //如果index 为0 ，表示tv1 中没有超时的定时器
+		 //必须从tv2~tv5中获取逐级加入到tv1中
+		 //类似于时钟，要过了60秒，分钟才会增加
+		 //同样，要过了60分钟，小时才会增加
+		 //cascade 返回0 ，表示这一级的计时节拍溢出，
+		 //需要继续检查下一级
 		if (!index &&
 			(!cascade(base, &base->tv2, INDEX(0))) &&
 				(!cascade(base, &base->tv3, INDEX(1))) &&
 					!cascade(base, &base->tv4, INDEX(2)))
 			cascade(base, &base->tv5, INDEX(3));
+		//增加timer_jiffies的值，表示上一次节拍需要处理的定时器
+		//已经完成
 		++base->timer_jiffies;
 		list_replace_init(base->tv1.vec + index, head);
+		//tv1 中是否有到期的定时器
 		while (!list_empty(head)) {
 			void (*fn)(unsigned long);
 			unsigned long data;
@@ -1214,6 +1249,7 @@ static inline void __run_timers(struct tvec_base *base)
 
 			if (irqsafe) {
 				spin_unlock(&base->lock);
+				//调用定时器处理函数
 				call_timer_fn(timer, fn, data);
 				spin_lock(&base->lock);
 			} else {
@@ -1409,6 +1445,11 @@ static void run_timer_softirq(struct softirq_action *h)
 
 	hrtimer_run_pending();
 
+	//当前jiffies 如果小于timer_jiffies
+	//不处理定时器
+	//也就是定时器的精度是一个jiffies
+	//比如HZ是100，则每10ms jiffies 加1
+	//所以定时器精度就是10ms
 	if (time_after_eq(jiffies, base->timer_jiffies))
 		__run_timers(base);
 }
@@ -1546,12 +1587,15 @@ static int init_timers_cpu(int cpu)
 {
 	int j;
 	struct tvec_base *base;
+	//局部静态变量，初始值为0
 	static char tvec_base_done[NR_CPUS];
 
 	if (!tvec_base_done[cpu]) {
+		//局部静态变量，初始值为0
 		static char boot_done;
 
 		if (boot_done) {
+			//新上线的CPU
 			/*
 			 * The APs use this path later in boot
 			 */
@@ -1561,10 +1605,12 @@ static int init_timers_cpu(int cpu)
 				return -ENOMEM;
 
 			/* Make sure tvec_base has TIMER_FLAG_MASK bits free */
+			//保证base 结构4字节对齐
 			if (WARN_ON(base != tbase_get_base(base))) {
 				kfree(base);
 				return -ENOMEM;
 			}
+			//设置当前CPU tvec_bases指向动态分配的base
 			per_cpu(tvec_bases, cpu) = base;
 		} else {
 			/*
@@ -1573,17 +1619,24 @@ static int init_timers_cpu(int cpu)
 			 * ready yet and because the memory allocators are not
 			 * initialised either.
 			 */
+			//boot_done 表示启动完成，后面新上线的CPU
+			//base 结构要动态分配
 			boot_done = 1;
+			//系统启动过程中的CPU，base 指向boot_tvec_bases
 			base = &boot_tvec_bases;
 		}
 		spin_lock_init(&base->lock);
+		//记录当前CPU的base 结构分配完成
 		tvec_base_done[cpu] = 1;
+		//记录当前base 所在的CPU
 		base->cpu = cpu;
 	} else {
+		//tvec_base_done为1,表示当前CPU的base 结构已经初始化完成
 		base = per_cpu(tvec_bases, cpu);
 	}
+	//下面初始化base 结构
 
-
+	//初始化定时器链表
 	for (j = 0; j < TVN_SIZE; j++) {
 		INIT_LIST_HEAD(base->tv5.vec + j);
 		INIT_LIST_HEAD(base->tv4.vec + j);
@@ -1592,9 +1645,11 @@ static int init_timers_cpu(int cpu)
 	}
 	for (j = 0; j < TVR_SIZE; j++)
 		INIT_LIST_HEAD(base->tv1.vec + j);
-
+	//记录当前的jiffies
 	base->timer_jiffies = jiffies;
+	//记录下一个定时器的到期时间
 	base->next_timer = base->timer_jiffies;
+	//活动的定时器为0 
 	base->active_timers = 0;
 	base->all_timers = 0;
 	return 0;
@@ -1682,14 +1737,18 @@ void __init init_timers(void)
 	int err;
 
 	/* ensure there are enough low bits for flags in timer->base pointer */
+	//tvec_base 必须是4字节对齐
 	BUILD_BUG_ON(__alignof__(struct tvec_base) & TIMER_FLAG_MASK);
 
+	//初始化每个CPU上的定时器管理结构
 	err = timer_cpu_notify(&timers_nb, (unsigned long)CPU_UP_PREPARE,
 			       (void *)(long)smp_processor_id());
 	BUG_ON(err != NOTIFY_OK);
 
 	init_timer_stats();
+	//注册cpu 事件通知链处理函数
 	register_cpu_notifier(&timers_nb);
+	//注册定时器软中断
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }
 
