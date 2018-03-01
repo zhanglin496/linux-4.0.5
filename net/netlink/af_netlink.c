@@ -1091,7 +1091,10 @@ static int netlink_insert(struct sock *sk, u32 portid)
 	if (BITS_PER_LONG > 32 &&
 	    unlikely(atomic_read(&table->hash.nelems) >= UINT_MAX))
 		goto err;
-
+	//portid 在对应的nl_table和网络命名空间中
+	//必须是唯一的
+	//也就是说在同一个sk_protocol(比如NETLINK_GENERIC)和同一个命令空间中
+	//portid 不能重复
 	nlk_sk(sk)->portid = portid;
 	sock_hold(sk);
 

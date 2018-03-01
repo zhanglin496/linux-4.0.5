@@ -53,7 +53,7 @@ static inline int is_a_nulls(const struct hlist_nulls_node *ptr)
  * Should be called only if is_a_nulls(ptr);
  */
  //
-//如果最低位为1，表示是一个null节点,获取null节点值
+//如果最低位为1，表示是一个null节点,获取null节点 实际存储的有效值
 static inline unsigned long get_nulls_value(const struct hlist_nulls_node *ptr)
 {
 	return ((unsigned long)ptr) >> 1;

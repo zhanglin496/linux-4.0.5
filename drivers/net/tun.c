@@ -829,6 +829,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	//将skb挂接到用户态打开的字符设备/dev/net/tun socket
 	//数据包交给用户态程序处理
+	//假如是一个IFF_TAP设备，二层头的填充由内核
+	//邻居层负责
 	/* Enqueue packet */
 	skb_queue_tail(&tfile->socket.sk->sk_receive_queue, skb);
 
@@ -1176,6 +1178,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		skb->dev = tun->dev;
 		break;
 	case IFF_TAP:
+		//剥离L2头部
 		skb->protocol = eth_type_trans(skb, tun->dev);
 		break;
 	}
@@ -1224,6 +1227,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	skb_probe_transport_header(skb, 0);
 
 	rxhash = skb_get_hash(skb);
+	//重新进入协议栈，然后重新路由
+	//进入对应的本地socket 或者从其它设备转发出去
 	netif_rx_ni(skb);
 
 	tun->dev->stats.rx_packets++;
@@ -1377,7 +1382,10 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 
 	if (tun->dev->reg_state != NETREG_REGISTERED)
 		return -EIO;
-
+	//读数据，将数据包原封不动的拷贝到应用层
+	//通常的做法是将读取的数据在通过另外一个套接字
+	//发送出去
+	//这样这个套接字上就可以跑多种不同的L4~L7协议
 	/* Read frames from queue */
 	skb = __skb_recv_datagram(tfile->socket.sk, noblock ? MSG_DONTWAIT : 0,
 				  &peeked, &off, &err);
@@ -1521,6 +1529,7 @@ static int tun_release(struct socket *sock)
 
 //目前只有vhost 在使用
 //用于kvm
+//这个是对应套机字的操作函数
 /* Ops structure to mimic raw sockets with tun */
 static const struct proto_ops tun_socket_ops = {
 	.sendmsg = tun_sendmsg,

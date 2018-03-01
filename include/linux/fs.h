@@ -819,6 +819,9 @@ struct file {
 	atomic_long_t		f_count;
 	unsigned int 		f_flags;
 	fmode_t			f_mode;
+	//文件写入位置锁
+	//用来保证共享同一文件描述符的多线程
+	//在写同一个文件时不会交错
 	struct mutex		f_pos_lock;
 	loff_t			f_pos;
 	struct fown_struct	f_owner;
