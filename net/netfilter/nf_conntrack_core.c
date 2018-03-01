@@ -1094,6 +1094,15 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	//以后任何A向外部发送的数据都将使用这个Public Endpoint。
 	//此后，任何外部主机想要与A通信，
 	//只要将数据包发送到Public Endpoint上，A就能够顺利的进行接收。
+	//也就是不限制外部主机的IP地址和端口
+	//同时也不需要内部主机向外部主机主动发数据包
+	//A full cone NAT is also known as a one-to-one NAT. Once an
+	//internal IP address and port are mapped to some external
+	//IP address and port respectively, all the packets with the
+	//internal IP address and port will be translated to the fixed
+	//external IP address and port. Furthermore, any external
+	//host can send a packet to the internal host by sending a
+	//packet to the mapped external address.
 	//　　(2) 限制锥型NAT (RESTRICT CONE NAT)
 	//　　限制锥型NAT在内网用户A(Private Endpoint)首次向外部主机
 	//发送数据包时创建地址映射会话，并为A分配一个公网地址和端口
@@ -1102,6 +1111,14 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	//想要与A通信，只要将数据包发送到Public Endpoint并且保证A
 	//曾用当前与NAT的会话向该外部主机的IP地址发送过数据，
 	//A就能够正常收到外部主机（Endpoint IP:PORT）发送来的数据包。
+	//也就是说限制了外部的主机的IP地址，但是不限制端口。
+	//In the restricted cone NAT, all requests from an internal IP
+	//address and port are mapped to a fixed external IP address
+	//and port. It is similar to the full cone NAT except that unlike the full cone NAT, 
+	//an external host s2 (with IP address x) 
+	//can send a packet to an internal host only if 
+	//the internal host has previously sent a packet to the IP address x
+	//through the restricted cone NAT.
 	//　　(3) 端口限制锥型NAT(PORT RESTRICT CONE NAT)
 	//　　端口限制锥型在内网用户A(Private Endpoint)首次向外部主机
 	//发送数据包时创建地址映射会话，并为A分配一个公网地址
@@ -1110,6 +1127,13 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	//想要与A通信，只要将数据包发送到Public Endpoint并且保证A
 	//曾用当前与NAT的会话向该外部主机的Endpoint发送过数据，
 	//A就能够正常收到外部主机（Endpoint IP:PORT）发送来的数据包。
+	//也就是说限制了外部的主机的IP地址和端口。
+	//The port restricted cone NAT is similar to the restricted
+	//cone NAT. However, the port restricted cone NAT also takes
+	//the port numbers into account along with the IP addresses.
+	//An external host can send a packet with source IP address
+	//x and source port p to an internal host only if the internal
+	//host has previously sent a packet to the IP address x and port p. 
 	//　　(4) 对称型NAT(SYMMETRIC NAT)
 	//　　对称型NAT是一种比较特殊的NAT。内网用户A(Private Endpoint)首次
 	//向外部主机S1发送数据包时创建地址映射会话Session1，
@@ -1125,6 +1149,14 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	//否则即使他知道内网主机的Public Endpoint也不能发送数据给A。
 	//这种NAT可以通过端口猜测等方法进行穿透，
 	//但是效果并不是很好，很难实现UDP-P2P通信。
+	//In a symmetric NAT, any request from an internal IP address and a port number 
+	//to some destination IP address and
+	//port number is mapped to a unique external IP address and
+	//a unique port number. If the same host sends a packet from
+	//the same source address and the same port number but to
+	//a different destination, a different mapping is used. Only
+	//the external host that receives a packet from an internal
+	//host can send a UDP packet back to the internal host.
 
 	/* look for tuple match */
 	//NAT类型, 内容来自rfc3489.txt
@@ -1163,9 +1195,13 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	  * 
          * // 对称NAT，根据五元组来映射
          * //不同的5元组使用不同的映射
+         * //和锥形NAT不一样，锥形NAT始终会把相同的IP源地址和端口
+         * //映射到相同的 外部IP地址和端口
          * //如果目的地址或端口不一样，则相同的IP源地址和端口
          * //一定会映射到不同的外部地址和端口(注意: 外部地址可能相同
          * //但是端口要求一定不相同)
+         * //而且要求内部主机先向外部主机发送数据包
+         * //外部主机才能和内部主机通信
          * //对称NAT 要求比上面3中NAT都高，用于高安全的通信
          * //和cone nat 不一样
          * 4)Symmetric: A symmetric NAT is one where all requests from the
