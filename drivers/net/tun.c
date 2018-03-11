@@ -1602,7 +1602,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
-		//如果指定了设备名称
+		//如果指定的设备已经存在
 		//可以多次打开字符设备/dev/net/tun
 		//然后关联到指定的tun/tap设备
 		if (ifr->ifr_flags & IFF_TUN_EXCL)
