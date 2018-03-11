@@ -1391,7 +1391,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 				  &peeked, &off, &err);
 	if (!skb)
 		return err;
-
+	//将数据拷贝到应用层
 	ret = tun_put_user(tun, tfile, skb, to);
 	if (unlikely(ret < 0))
 		kfree_skb(skb);
@@ -1529,7 +1529,7 @@ static int tun_release(struct socket *sock)
 
 //目前只有vhost 在使用
 //用于kvm
-//这个是对应套机字的操作函数
+//这个是对应套接字的操作函数
 /* Ops structure to mimic raw sockets with tun */
 static const struct proto_ops tun_socket_ops = {
 	.sendmsg = tun_sendmsg,
