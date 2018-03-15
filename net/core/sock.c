@@ -715,6 +715,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	//如果端口忙，而TCP状态位于其他状态，
 	//重用端口时依旧得到一个错误信息，
 	//指明"地址已经使用中"。
+	//主动关闭tcp 的一方会进入TIME_WATI状态
 	case SO_REUSEADDR:
 		sk->sk_reuse = (valbool ? SK_CAN_REUSE : SK_NO_REUSE);
 		break;

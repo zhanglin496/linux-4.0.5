@@ -177,6 +177,8 @@ struct tun_flow_entry {
  */
 struct tun_struct {
 	struct tun_file __rcu	*tfiles[MAX_TAP_QUEUES];
+	//记录当前队列数量
+	//tfiles 的有效个数
 	unsigned int            numqueues;
 	unsigned int 		flags;
 	kuid_t			owner;
@@ -1663,7 +1665,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		//如果用户指定了设备名称
 		if (*ifr->ifr_name)
 			name = ifr->ifr_name;
-
+		//分配虚拟设备
 		dev = alloc_netdev_mqs(sizeof(struct tun_struct), name,
 				       NET_NAME_UNKNOWN, tun_setup, queues,
 				       queues);

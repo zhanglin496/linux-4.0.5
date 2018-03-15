@@ -214,6 +214,7 @@ tb_not_found:
 	if (!tb && (tb = inet_bind_bucket_create(hashinfo->bind_bucket_cachep,
 					net, head, snum)) == NULL)
 		goto fail_unlock;
+	//sk_reuse 用于TCP_REPAIR 和SO_REUSEADDR选项
 	if (hlist_empty(&tb->owners)) {
 		if (sk->sk_reuse && sk->sk_state != TCP_LISTEN)
 			tb->fastreuse = 1;
@@ -225,6 +226,9 @@ tb_not_found:
 		} else
 			tb->fastreuseport = 0;
 	} else {
+		//listen 函数也会调用该函数
+		//因此如果发现sk 处于TCP_LISTEN 状态
+		//会把tb->fastreuse 置0
 		if (tb->fastreuse &&
 		    (!sk->sk_reuse || sk->sk_state == TCP_LISTEN))
 			tb->fastreuse = 0;

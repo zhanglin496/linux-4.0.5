@@ -496,16 +496,22 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
 	unsigned short hnum = ntohs(dport);
+	//目的端口hash
 	unsigned int hash2, slot2, slot = udp_hashfn(net, hnum, udptable->mask);
 	struct udp_hslot *hslot2, *hslot = &udptable->hash[slot];
 	int score, badness, matches = 0, reuseport = 0;
 	u32 hash = 0;
 
 	rcu_read_lock();
+	//以下是优化措施
+	//如果count 大于10，看能不能使用hslot2
 	if (hslot->count > 10) {
+		//目的端口和目的地址hash
 		hash2 = udp4_portaddr_hash(net, daddr, hnum);
 		slot2 = hash2 & udptable->mask;
 		hslot2 = &udptable->hash2[slot2];
+		//hslot2   大于 hslot
+		//那么直接在hlsot 中查找
 		if (hslot->count < hslot2->count)
 			goto begin;
 
@@ -513,6 +519,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 					  daddr, hnum, dif,
 					  hslot2, slot2);
 		if (!result) {
+			//全0 地址和目的端口hash
 			hash2 = udp4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
 			slot2 = hash2 & udptable->mask;
 			hslot2 = &udptable->hash2[slot2];
@@ -529,6 +536,9 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 begin:
 	result = NULL;
 	badness = 0;
+	//找出分值最高的sk
+	//比如有的bind 到192.168.0.1:80
+	//有的bind 到0.0.0.0:80
 	sk_nulls_for_each_rcu(sk, node, &hslot->head) {
 		score = compute_score(sk, net, saddr, hnum, sport,
 				      daddr, dport, dif);
@@ -1808,6 +1818,10 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		return __udp4_lib_mcast_deliver(net, skb, uh,
 						saddr, daddr, udptable, proto);
 
+	/* 接收udp包的上层应用对应的sock都组织在udptable这个以注册端口为关键字的
+	   * 哈希表中，该函数遍历哈希槽找最满足匹配条件的sock并返回它，匹配的字段包括
+	   * 地址域是否是PF_INET，源、目的地址是否匹配，端口是否匹配，绑定的外出接口
+	   * 设备是否匹配。得分最多的获胜。 */
 	sk = __udp4_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 	if (sk != NULL) {
 		int ret;
@@ -2509,6 +2523,7 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 {
 	unsigned int i;
 
+	//分配hash 表
 	table->hash = alloc_large_system_hash(name,
 					      2 * sizeof(struct udp_hslot),
 					      uhash_entries,

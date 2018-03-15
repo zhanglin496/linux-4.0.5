@@ -92,6 +92,8 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 	atomic_inc(&hashinfo->bsockets);
 
 	//记录bind的端口号
+	//将端口号赋给该套接字，在进行bind的时候会检查这个字段，
+	//如果不为0就不再二次bind
 	inet_sk(sk)->inet_num = snum;
 	//记录bind 了多少套接字
 	//这里应该是为了支持SO_REUSEPORT选项
@@ -176,6 +178,10 @@ static inline int compute_score(struct sock *sk, struct net *net,
 	int score = -1;
 	struct inet_sock *inet = inet_sk(sk);
 
+	//匹配需要满足以下条件
+	// 1.在同一个网络命名空间中
+	// 2.目的端口相等
+	// 3.不是只能接受ipv6 的sk
 	if (net_eq(sock_net(sk), net) && inet->inet_num == hnum &&
 			!ipv6_only_sock(sk)) {
 		__be32 rcv_saddr = inet->inet_rcv_saddr;
@@ -183,12 +189,14 @@ static inline int compute_score(struct sock *sk, struct net *net,
 		score = sk->sk_family == PF_INET ? 2 : 1;
 		//比较目的地址，若目的地址相等，增加记分牌
 		if (rcv_saddr) {
+			//若目的地址不相等，匹配失败
 			if (rcv_saddr != daddr)
 				return -1;
 			score += 4;
 		}
 		//比较接口，若接口相等，增加记分牌
 		if (sk->sk_bound_dev_if) {
+			//若接口不相等，匹配失败
 			if (sk->sk_bound_dev_if != dif)
 				return -1;
 			score += 4;
@@ -222,6 +230,7 @@ struct sock *__inet_lookup_listener(struct net *net,
 	rcu_read_lock();
 begin:
 	result = NULL;
+	//记录曾经出现过的最高分值
 	hiscore = 0;
 	//选择一个得分最高的sk
 	//也就是最匹配的sk
@@ -236,12 +245,18 @@ begin:
 			//记录当前匹配的sk和score
 			result = sk;
 			hiscore = score;
+			//sk 是否开启了SO_REUSEPORT 选项
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
+				//生成一个随机值
+				//为了在相同的score并启用了reuseport 的sk中均衡的选择一个sk
 				phash = inet_ehashfn(net, daddr, hnum,
 						     saddr, sport);
 				matches = 1;
 			}
+			// 若本次的score 等于hiscore，并reuseport==1
+			// 表示有多个套接字使用了SO_REUSEPORT选项
+			// 那么给这个套接字一个被选中的机会
 		} else if (score == hiscore && reuseport) {
 			matches++;
 			if (reciprocal_scale(phash, matches) == 0)
@@ -292,6 +307,8 @@ struct sock *__inet_lookup_established(struct net *net,
 				  const int dif)
 {
 	INET_ADDR_COOKIE(acookie, saddr, daddr);
+	//把源端口和目的端口组合成4字节的port
+	//这样只需要一个比较指令
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	struct sock *sk;
 	const struct hlist_nulls_node *node;
@@ -307,7 +324,8 @@ begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
-		  /* 地址端口等均匹配 */
+		  /* 源地址和目的地址和端口等均匹配 */
+		  //从这里看是要5元组都匹配
 		if (likely(INET_MATCH(sk, net, acookie,
 				      saddr, daddr, ports, dif))) {
 			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
