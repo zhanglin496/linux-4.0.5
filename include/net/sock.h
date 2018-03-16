@@ -181,7 +181,9 @@ struct sock_common {
 
 	unsigned short		skc_family;
 	volatile unsigned char	skc_state;
+	//对应SO_REUSEADDR
 	unsigned char		skc_reuse:4;
+	//对应SO_REUSEPORT
 	unsigned char		skc_reuseport:1;
 	unsigned char		skc_ipv6only:1;
 	int			skc_bound_dev_if;

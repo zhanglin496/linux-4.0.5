@@ -255,16 +255,19 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		} while (++first != last);
 		goto fail;
 	} else {
+		//端口号为key 的hash值
 		hslot = udp_hashslot(udptable, net, snum);
 		spin_lock_bh(&hslot->lock);
 		if (hslot->count > 10) {
 			int exist;
+			//用端口号和接收地址为key 的hash
 			unsigned int slot2 = udp_sk(sk)->udp_portaddr_hash ^ snum;
 
 			slot2          &= udptable->mask;
 			hash2_nulladdr &= udptable->mask;
 
 			hslot2 = udp_hashslot2(udptable, slot2);
+			//hslot 小于hslot2
 			if (hslot->count < hslot2->count)
 				goto scan_primary_hash;
 
@@ -504,14 +507,15 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 
 	rcu_read_lock();
 	//以下是优化措施
+	//比如相同端口的UDP套接字过多
 	//如果count 大于10，看能不能使用hslot2
 	if (hslot->count > 10) {
 		//目的端口和目的地址hash
 		hash2 = udp4_portaddr_hash(net, daddr, hnum);
 		slot2 = hash2 & udptable->mask;
 		hslot2 = &udptable->hash2[slot2];
-		//hslot2   大于 hslot
-		//那么直接在hlsot 中查找
+		//hslot2   大于 hslot 的数量
+		//那么不如直接在hlsot 中查找
 		if (hslot->count < hslot2->count)
 			goto begin;
 
@@ -539,6 +543,10 @@ begin:
 	//找出分值最高的sk
 	//比如有的bind 到192.168.0.1:80
 	//有的bind 到0.0.0.0:80
+	//每次都要完全扫描整个冲突链表
+	//才能决定选中的sk
+	//在冲突链比较长的情况下(4000 个)会成为性能问题
+	//perf top
 	sk_nulls_for_each_rcu(sk, node, &hslot->head) {
 		score = compute_score(sk, net, saddr, hnum, sport,
 				      daddr, dport, dif);
@@ -547,10 +555,14 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
+				//对同一条流生成的hash值相同
 				hash = udp_ehashfn(net, daddr, hnum,
 						   saddr, sport);
 				matches = 1;
 			}
+		//只有设置了reuseport才有机会均衡选择sk
+		//否侧对多个相同的endpoint 会选择到固定的sk
+		//比如设置了reuseaddr 的udp 套接字
 		} else if (score == badness && reuseport) {
 			matches++;
 			if (reciprocal_scale(hash, matches) == 0)
@@ -570,9 +582,11 @@ begin:
 		//因为是无锁操作
 		//所以有可能别的进程释放时已经将计数器递减到0
 		//所以要判断是否是非0，如果为0，表示别的进程
-		//在释放了，所以不能再引用
+		//再释放了，所以不能再引用
 		if (unlikely(!atomic_inc_not_zero_hint(&result->sk_refcnt, 2)))
 			result = NULL;
+		//slab 使用了SLAB_DESTROY_BY_RCU标志
+		//要再一次对内容比较
 		else if (unlikely(compute_score(result, net, saddr, hnum, sport,
 				  daddr, dport, dif) < badness)) {
 			sock_put(result);

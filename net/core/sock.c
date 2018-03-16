@@ -716,6 +716,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	//重用端口时依旧得到一个错误信息，
 	//指明"地址已经使用中"。
 	//主动关闭tcp 的一方会进入TIME_WATI状态
+	//该选项对于UDP 来说允许完全重复的绑定
 	case SO_REUSEADDR:
 		sk->sk_reuse = (valbool ? SK_CAN_REUSE : SK_NO_REUSE);
 		break;

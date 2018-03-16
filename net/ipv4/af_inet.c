@@ -498,6 +498,28 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	/* Make sure we are allowed to bind here. */
 	//检查端口是否可以绑定
+	//对于TCP，即使使用了SO_REUSEADDR选项
+	//也不允许有多个套接字绑定到同一个端口号
+	//这里对TCP 来说SO_REUSEADDR的语义是指在其中一个套接字
+	//处于TIME_WAIT 状态的情况下才允许重复绑定
+	//但是UDP 没有连接的说法，只要设置了SO_REUSEADDR 或者
+	//SO_REUSEPORT，都允许绑定到同一个endpoint (IP地址和端口号相同)
+
+	//TCP 必须使用SO_REUSEPORT选项才能绑定到同一个端口号
+	//这个和4.4BSD 协议栈的实现有所不同
+	//SO_REUSEPORT 允许完全重复的bind
+	//也就是说IP地址和端口号相同
+	//对于UDP来说SO_REUSEPORT和SO_REUSEADDR在linux 下bind 的语义完全等价
+	//但是在数据流派发上有重要的区别
+
+	//对于使用了SO_REUSEADDR的多个相同endpoint 的套接字
+	//不同的流始终会派发到同一个套机字，这样其他套机字都收到数据
+
+	//而对于SO_REUSEPORT
+	//内核会把不同的流均衡派发到多个相同endpoint 的套接字
+	//同一条流始终会派发到同一个套接字
+	//tcp: inet_csk_get_port
+	//udp: udp_v4_get_port
 	if (sk->sk_prot->get_port(sk, snum)) {
 		inet->inet_saddr = inet->inet_rcv_saddr = 0;
 		err = -EADDRINUSE;
