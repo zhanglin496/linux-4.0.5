@@ -35,6 +35,9 @@
  *
  * Return whether list is empty before adding.
  */
+ //连接链表到新的链表head中
+ //new_first指向要链接链表的一个元素
+ //new_last指向要链接链表的最后一个元素
 bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 		     struct llist_head *head)
 {
@@ -42,6 +45,9 @@ bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 
 	do {
 		new_last->next = first = ACCESS_ONCE(head->first);
+	//如果head->first 等于first, 就交换head->first 和new_first的值
+	//如果返回值不等于first，表示有其他调用者在同时改变
+	//
 	} while (cmpxchg(&head->first, first, new_first) != first);
 
 	return !first;

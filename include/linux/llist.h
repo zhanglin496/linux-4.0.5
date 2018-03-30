@@ -141,6 +141,9 @@ static inline void init_llist_head(struct llist_head *list)
  * you want to traverse from the oldest to the newest, you must
  * reverse the order by yourself before traversing.
  */
+
+ //&pos->member来检查结束
+ //仅当node 为NULL时有效
 #define llist_for_each_entry_safe(pos, n, node, member)			       \
 	for (pos = llist_entry((node), typeof(*pos), member);		       \
 	     &pos->member != NULL &&					       \
@@ -188,6 +191,7 @@ static inline bool llist_add(struct llist_node *new, struct llist_head *head)
  * return the pointer to the first entry.  The order of entries
  * deleted is from the newest to the oldest added one.
  */
+//删除所有的节点并返回第一个节点的值
 static inline struct llist_node *llist_del_all(struct llist_head *head)
 {
 	return xchg(&head->first, NULL);

@@ -270,14 +270,25 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	const struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
 
+	//通过conntrack 拿取原始的目的IP地址和端口
 	memset(&tuple, 0, sizeof(tuple));
+	//本地IP地址
 	tuple.src.u3.ip = inet->inet_rcv_saddr;
+	//本地端口
 	tuple.src.u.tcp.port = inet->inet_sport;
+	//对端IP地址
 	tuple.dst.u3.ip = inet->inet_daddr;
+	//对端端口
 	tuple.dst.u.tcp.port = inet->inet_dport;
 	tuple.src.l3num = PF_INET;
 	tuple.dst.protonum = sk->sk_protocol;
 
+	//udp 不行，因为不是基于连接的
+	//只有一个socket
+	//没办法对应到唯一的conntrack
+	//一般tcp 使用REDIRECT模块后，调用这个方法拿到原始的目的地址
+	//udp 如果使用代理，一般使用TPPTOXY 模块，这个模块不会更改
+	//原始的目的地址
 	/* We only do TCP and SCTP at the moment: is there a better way? */
 	if (sk->sk_protocol != IPPROTO_TCP && sk->sk_protocol != IPPROTO_SCTP) {
 		pr_debug("SO_ORIGINAL_DST: Not a TCP/SCTP socket\n");
