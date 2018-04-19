@@ -125,7 +125,13 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	      ip_set_get_extensions(set, tb, &ext);
 	if (ret)
 		return ret;
-
+	//根据子网长度算出子网掩码
+	//比如24位就是255.255.255.0
+	//默认ipset create 的netmask是32位
+	//hash:ip和hash:net的区别是
+	//ipset add 192.168.1.1/24 在hash:ip 中将会创建192.168.1.0~192.168.1.255个
+	//ip 地址项，比较耗费内存
+	//起始ip地址
 	ip &= ip_set_hostmask(h->netmask);
 
 	if (adt == IPSET_TEST) {
@@ -136,17 +142,21 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	}
 
 	ip_to = ip;
+	//结束ip地址
 	if (tb[IPSET_ATTR_IP_TO]) {
 		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP_TO], &ip_to);
 		if (ret)
 			return ret;
 		if (ip > ip_to)
 			swap(ip, ip_to);
+		//再根据子网掩码长度算出ip地址范围
 	} else if (tb[IPSET_ATTR_CIDR]) {
 		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
 		if (!cidr || cidr > 32)
 			return -IPSET_ERR_INVALID_CIDR;
+		//假设 cidr 为24位
+		// 计算出的ip地址范围为192.168.1.0 ~ 192.168.1.255
 		ip_set_mask_from_to(ip, ip_to, cidr);
 	}
 
