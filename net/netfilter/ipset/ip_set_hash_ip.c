@@ -89,6 +89,9 @@ hash_ip4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	__be32 ip;
 
+	//检查目的IP地址或者源IP地址
+	//注意不会同时检查源地址和目的地址
+	//如果要，需要用两条规则
 	ip4addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &ip);
 	ip &= ip_set_netmask(h->netmask);
 	if (ip == 0)
