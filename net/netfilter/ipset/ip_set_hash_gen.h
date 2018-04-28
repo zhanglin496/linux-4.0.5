@@ -1015,6 +1015,8 @@ static int
 IPSET_TOKEN(MTYPE, _uadt)(struct ip_set *set, struct nlattr *tb[],
 	    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried);
 
+//mtype_variant 对应一个宏
+//每个支持的ipset类型都要实现这个结构体
 static const struct ip_set_type_variant mtype_variant = {
 	.kadt	= mtype_kadt,
 	.uadt	= mtype_uadt,
@@ -1032,6 +1034,9 @@ static const struct ip_set_type_variant mtype_variant = {
 };
 
 #ifdef IP_SET_EMIT_CREATE
+//HTYPE 是每个具体实现定义的宏
+//hash_net
+//hash_net_create
 static int
 IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 			    struct nlattr *tb[], u32 flags)
@@ -1135,6 +1140,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 #ifndef IP_SET_PROTO_UNDEF
 	if (set->family == NFPROTO_IPV4) {
 #endif
+//hash_net4_variant
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 				sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)));

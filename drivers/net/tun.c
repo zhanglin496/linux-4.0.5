@@ -1156,6 +1156,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
+		//点对点模式，跑IP层数据
+		//无法跑arp数据
 		if (tun->flags & IFF_NO_PI) {
 			//IFF_NO_PI，第一个字节必须满足下面的条件
 			//就是查看struct iphdr->version  ip版本号字段的值
@@ -1180,7 +1182,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		skb->dev = tun->dev;
 		break;
 	case IFF_TAP:
-		//剥离L2头部
+		//TAP 模式，跑以太网数据，需要剥离L2头部
 		skb->protocol = eth_type_trans(skb, tun->dev);
 		break;
 	}

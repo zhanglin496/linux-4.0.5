@@ -496,6 +496,7 @@ ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
 	    !(opt->family == set->family || set->family == NFPROTO_UNSPEC))
 		return 0;
 
+	//是否在该集合内
 	read_lock_bh(&set->lock);
 	ret = set->variant->kadt(set, skb, par, IPSET_TEST, opt);
 	read_unlock_bh(&set->lock);

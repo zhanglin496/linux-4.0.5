@@ -120,7 +120,7 @@ bitmap_ip_kadt(struct ip_set *set, const struct sk_buff *skb,
 	ip = ntohl(ip4addr(skb, opt->flags & IPSET_DIM_ONE_SRC));
 	if (ip < map->first_ip || ip > map->last_ip)
 		return -IPSET_ERR_BITMAP_RANGE;
-
+	//将IP地址映射到一个bit 位
 	e.id = ip_to_id(map, ip);
 
 	return adtfn(set, &e, &ext, &opt->ext, opt->cmdflags);
@@ -259,15 +259,18 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
 		return -IPSET_ERR_PROTOCOL;
-
+	//必须有起始IP地址
 	ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP], &first_ip);
 	if (ret)
 		return ret;
 
 	if (tb[IPSET_ATTR_IP_TO]) {
+		//结束IP地址
 		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP_TO], &last_ip);
 		if (ret)
 			return ret;
+		//如果起始地址大于结束地址
+		//交换两个值
 		if (first_ip > last_ip) {
 			u32 tmp = first_ip;
 
@@ -275,10 +278,12 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 			last_ip = tmp;
 		}
 	} else if (tb[IPSET_ATTR_CIDR]) {
+		//如果指定了子网掩码
 		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
 		if (cidr >= 32)
 			return -IPSET_ERR_INVALID_CIDR;
+		//根据子网掩码计算结束IP地址
 		ip_set_mask_from_to(first_ip, last_ip, cidr);
 	} else
 		return -IPSET_ERR_PROTOCOL;
@@ -292,7 +297,7 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		first_ip &= ip_set_hostmask(netmask);
 		last_ip |= ~ip_set_hostmask(netmask);
 	}
-
+	//计算elements 需要分配的空间大小
 	if (netmask == 32) {
 		hosts = 1;
 		elements = (u64)last_ip - first_ip + 1;
