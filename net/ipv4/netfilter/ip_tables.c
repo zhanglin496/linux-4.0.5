@@ -348,7 +348,7 @@ ipt_do_table(struct sk_buff *skb,
 		const struct xt_entry_match *ematch;
 
 		IP_NF_ASSERT(e);
-		//标准匹配
+		//标准匹配，IP地址，入\出口设备，协议号
 		if (!ip_packet_match(ip, indev, outdev,
 		    &e->ip, acpar.fragoff)) {
  no_match:
@@ -356,6 +356,8 @@ ipt_do_table(struct sk_buff *skb,
 			continue;
 		}
 		//扩展匹配		
+		//同一条规则可以有多个match匹配项
+		//或者0个match
 		xt_ematch_foreach(ematch, e) {
 			acpar.match     = ematch->u.kernel.match;
 			acpar.matchinfo = ematch->data;
@@ -416,7 +418,8 @@ ipt_do_table(struct sk_buff *skb,
 
 		acpar.target   = t->u.kernel.target;
 		acpar.targinfo = t->data;
-		//鑷畾涔塼arget
+		//扩展arget
+		//同一条规则只能有一个target
 		verdict = t->u.kernel.target->target(skb, &acpar);
 		/* Target might have changed stuff. */
 		ip = ip_hdr(skb);
