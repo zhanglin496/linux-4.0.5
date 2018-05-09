@@ -178,7 +178,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
 		return err;
 	}
-
+	//命中的路由不能是广播或者多播
+	//也就是说目的IP 地址不能是广播地址
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
 		ip_rt_put(rt);
 		return -ENETUNREACH;
@@ -187,7 +188,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (!inet_opt || !inet_opt->opt.srr)
 		daddr = fl4->daddr;
 	//如果没有指定原地址，比如客户端没调用bind
-	//那就使用路由选择的原地址
+	//那就使用路由选择的源地址
 	if (!inet->inet_saddr)
 		inet->inet_saddr = fl4->saddr;
 	inet->inet_rcv_saddr = inet->inet_saddr;
