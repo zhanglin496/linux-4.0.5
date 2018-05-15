@@ -416,11 +416,19 @@ static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 
 	hh = &n->hh;
 	//如果邻居项现在可用，构造二层首部然后调用dev_queue_xmit
-	//如果是NUD_CONNECTED，包括NUD_NOARP 状态，不需要发送arp报文
+	//如果是NUD_CONNECTED，包括NUD_NOARP 状态，比如点对点的设备，不需要发送arp报文
 	//直接输出报文
 	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
 		return neigh_hh_output(hh, skb);
 	else
+		//第一次进入该函数时hh->hh_len为0，直接调用output函数，
+		//如果设备的dev->header_ops为NULL，就调用arp_direct_ops
+		//output->neigh_direct_output->dev_queue_xmit,因此不需要构造
+		//L2头部，比如点对点的设备，其中tun设备就属于这种情况
+
+		//如果设备的header_ops不为NULL，表明设备是支持L2首部构建的
+		//但是设备有可能设置了IFF_NOARP标志
+		
 		//如果邻居项现在不可用，比如还未查到IP对应的MAC地址
 		//调用output缓存skb，等待邻居项解析成功再发送SKB
 		//比如arp解析完成

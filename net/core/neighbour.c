@@ -1329,7 +1329,7 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 		do {
 			__skb_pull(skb, skb_network_offset(skb));
 			seq = read_seqbegin(&neigh->ha_lock);
-			//未指定源MAC地址，使用出口设备的MAC地址
+			//未指定源MAC地址，使用出口设备的MAC地址作为源MAC地址
 			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					      neigh->ha, NULL, skb->len);
 		} while (read_seqretry(&neigh->ha_lock, seq));

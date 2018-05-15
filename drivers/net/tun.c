@@ -1161,6 +1161,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		if (tun->flags & IFF_NO_PI) {
 			//IFF_NO_PI，第一个字节必须满足下面的条件
 			//就是查看struct iphdr->version  ip版本号字段的值
+			//应用层的数据必须是IP头开始的
 			switch (skb->data[0] & 0xf0) {
 				//IPV4
 			case 0x40:
