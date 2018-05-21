@@ -70,6 +70,10 @@ void GetPukfromPEM(const char *file, int public)
 	unsigned char e[4096] ={0x0};  
 	unsigned int len;
 	rsa = create_rsa_by_file(file, public);
+	if (!rsa) {
+		printf("read rsa pem file error\n");
+		return;
+	}	
 
 	if(rsa->n != NULL) {
 		BN_bn2bin(rsa->n, n);
@@ -77,7 +81,8 @@ void GetPukfromPEM(const char *file, int public)
 		printf("N:\n");
 		PrintHex(n,len);
 	} else {
-		printf("PEM error \n");  
+		printf("PEM error \n");
+		return;
 	}
 
 	if (rsa->e != NULL) {  
