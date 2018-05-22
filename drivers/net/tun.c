@@ -582,10 +582,15 @@ static int tun_attach(struct tun_struct *tun, struct file *file, bool skip_filte
 		err = sk_attach_filter(&tun->fprog, tfile->socket.sk);
 		if (!err)
 			goto out;
-	}
+	}	
+	//tun->numqueues初始值为0
+	//记录当前的tfile属于哪个队列
 	tfile->queue_index = tun->numqueues;
+	//记录指向的tun
 	rcu_assign_pointer(tfile->tun, tun);
+	//记录指向用户空间的tfile
 	rcu_assign_pointer(tun->tfiles[tun->numqueues], tfile);
+	//增加队列数量，作为tfiles的索引值
 	tun->numqueues++;
 
 	if (tfile->detached)
@@ -769,6 +774,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 numqueues = 0;
 
 	rcu_read_lock();
+	//获取当前skb映射到哪个队列
+	//在有多队列的情况下
 	tfile = rcu_dereference(tun->tfiles[txq]);
 	numqueues = ACCESS_ONCE(tun->numqueues);
 
@@ -831,8 +838,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	//将skb挂接到用户态打开的字符设备/dev/net/tun socket
 	//数据包交给用户态程序处理
-	//假如是一个IFF_TAP设备，二层头的填充由内核
-	//邻居层负责
+	//如果是一个IFF_TAP设备，二层头的填充由内核邻居层负责
 	/* Enqueue packet */
 	skb_queue_tail(&tfile->socket.sk->sk_receive_queue, skb);
 
@@ -1605,10 +1611,14 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	if (tfile->detached)
 		return -EINVAL;
 
+	//如果用户指定的设备已经存在
+	//
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
 		//如果指定的设备已经存在
 		//可以多次打开字符设备/dev/net/tun
+		//每一次调用open打开/dev/net/tun，都会创建一个新的文件描述符，
+		//并且分配一个新的tun_file 结构
 		//然后关联到指定的tun/tap设备
 		if (ifr->ifr_flags & IFF_TUN_EXCL)
 			return -EBUSY;
@@ -1628,7 +1638,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		err = security_tun_dev_open(tun->security);
 		if (err < 0)
 			return err;
-
+		//关联tun_file到dev
 		err = tun_attach(tun, file, ifr->ifr_flags & IFF_NOFILTER);
 		if (err < 0)
 			return err;
@@ -1644,7 +1654,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	else {
 		char *name;
 		unsigned long flags = 0;
-		//IFF_MULTI_QUEUE 多个队列
+		//创建一个新的tun/tap设备
+		//是否指定了IFF_MULTI_QUEUE 来支持多个队列
+		//获取队列的数量
 		int queues = ifr->ifr_flags & IFF_MULTI_QUEUE ?
 			     MAX_TAP_QUEUES : 1;
 
@@ -1669,6 +1681,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (*ifr->ifr_name)
 			name = ifr->ifr_name;
 		//分配虚拟设备
+		//同时分配一个struct tun_struct私有扩展空间和dev相关联
 		dev = alloc_netdev_mqs(sizeof(struct tun_struct), name,
 				       NET_NAME_UNKNOWN, tun_setup, queues,
 				       queues);
@@ -1682,6 +1695,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		dev->sysfs_groups[0] = &tun_attr_group;
 
 		tun = netdev_priv(dev);
+		//记录该tun属于的dev
 		tun->dev = dev;
 		tun->flags = flags;
 		tun->txflt.count = 0;
@@ -1709,6 +1723,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 				       NETIF_F_HW_VLAN_STAG_TX);
 
 		INIT_LIST_HEAD(&tun->disabled);
+		//将tun和tfile相关联
 		err = tun_attach(tun, file, false);
 		if (err < 0)
 			goto err_free_flow;
@@ -2202,6 +2217,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 
 	DBG1(KERN_INFO, "tunX: tun_chr_open\n");
 
+	//struct sock sk 作为tun_file的第一个成员
+	//sk_alloc实际分配的大小由tun_proto来指定
 	tfile = (struct tun_file *)sk_alloc(&init_net, AF_UNSPEC, GFP_KERNEL,
 					    &tun_proto);
 	if (!tfile)
