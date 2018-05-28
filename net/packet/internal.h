@@ -62,7 +62,9 @@ struct packet_ring_buffer {
 	unsigned int		frame_max;
 
 	unsigned int		pg_vec_order;
+	//每个block包含几个页面
 	unsigned int		pg_vec_pages;
+	//总的block数量
 	unsigned int		pg_vec_len;
 
 	unsigned int __percpu	*pending_refcnt;

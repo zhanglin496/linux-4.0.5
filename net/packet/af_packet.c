@@ -3855,6 +3855,8 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 			goto out;
 
 		err = -ENOMEM;
+		//获取对应的块大小需要多少个页
+		//转换成指数
 		order = get_order(req->tp_block_size);
 		pg_vec = alloc_pg_vec(req, order);
 		if (unlikely(!pg_vec))
@@ -3963,10 +3965,11 @@ static int packet_mmap(struct file *file, struct socket *sock,
 	if (expected_size == 0)
 		goto out;
 
+	//mmap申请的虚拟地址范围必须等于设置的RX_RING和TX_RING的范围
 	size = vma->vm_end - vma->vm_start;
 	if (size != expected_size)
 		goto out;
-
+	//用户调用mmap申请的内存对应的虚拟地址
 	start = vma->vm_start;
 	for (rb = &po->rx_ring; rb <= &po->tx_ring; rb++) {
 		if (rb->pg_vec == NULL)
@@ -3976,12 +3979,18 @@ static int packet_mmap(struct file *file, struct socket *sock,
 			struct page *page;
 			void *kaddr = rb->pg_vec[i].buffer;
 			int pg_num;
-
+			//将多个物理页面映射到连续的虚拟地址空间中
+			//每个页面可能由多个PAGE_SIZE页面组成
+			//需要一个一个的映射
 			for (pg_num = 0; pg_num < rb->pg_vec_pages; pg_num++) {
+				//将物理地址转换成page指针
 				page = pgv_to_page(kaddr);
+				//将单个物理页映射到指定的start虚拟地址
+				//insert individual pages they've allocated into a user vma.
 				err = vm_insert_page(vma, start, page);
 				if (unlikely(err))
 					goto out;
+				//都是以PAGE_SIZE为单位，start地址递增
 				start += PAGE_SIZE;
 				kaddr += PAGE_SIZE;
 			}
