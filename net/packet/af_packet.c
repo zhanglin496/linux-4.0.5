@@ -1983,7 +1983,9 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		__skb_queue_tail(&sk->sk_receive_queue, copy_skb);
 	}
 	spin_unlock(&sk->sk_receive_queue.lock);
-
+	//仍然存在一次数据拷贝操作
+	//可以优化成驱动从ring上直接分配skb
+	//这样就可以避免拷贝
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
 
 	if (!(ts_status = tpacket_get_timestamp(skb, &ts, po->tp_tstamp)))
@@ -2070,6 +2072,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		//避免数据拷贝，未将skb加入接收队里，
 		//因此不能直接调用read，否则会一直阻塞
 		//需要调用多路复用函数，比如select,poll等
+		//仍然需要一个进程唤醒操作
 		sk->sk_data_ready(sk);
 	} else {
 		prb_clear_blk_fill_status(&po->rx_ring);
