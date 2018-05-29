@@ -57,10 +57,13 @@ struct packet_ring_buffer {
 	struct pgv		*pg_vec;
 
 	unsigned int		head;
+	//每个block包含多少个frame
 	unsigned int		frames_per_block;
+	//每个frame的大小
 	unsigned int		frame_size;
 	unsigned int		frame_max;
 
+	//分配的page 指数值
 	unsigned int		pg_vec_order;
 	//每个block包含几个页面
 	unsigned int		pg_vec_pages;

@@ -486,8 +486,9 @@ static void *packet_lookup_frame(struct packet_sock *po,
 {
 	unsigned int pg_vec_pos, frame_offset;
 	union tpacket_uhdr h;
-
+	//计算对应数组索引
 	pg_vec_pos = position / rb->frames_per_block;
+	//计算对应block 中的frame 的索引
 	frame_offset = position % rb->frames_per_block;
 
 	h.raw = rb->pg_vec[pg_vec_pos].buffer +
@@ -3764,12 +3765,13 @@ static struct pgv *alloc_pg_vec(struct tpacket_req *req, int order)
 	unsigned int block_nr = req->tp_block_nr;
 	struct pgv *pg_vec;
 	int i;
-
+	//分配block_nr  个数组来保存页面地址
 	pg_vec = kcalloc(block_nr, sizeof(struct pgv), GFP_KERNEL);
 	if (unlikely(!pg_vec))
 		goto out;
 
 	for (i = 0; i < block_nr; i++) {
+		//分配的页面初始引用计数为1
 		pg_vec[i].buffer = alloc_one_pg_vec_page(order);
 		if (unlikely(!pg_vec[i].buffer))
 			goto out_free_pgvec;
@@ -3900,7 +3902,9 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 		err = 0;
 		spin_lock_bh(&rb_queue->lock);
 		swap(rb->pg_vec, pg_vec);
+		//ring buffer最大索引值
 		rb->frame_max = (req->tp_frame_nr - 1);
+		//ring buffer当前可用的索引值
 		rb->head = 0;
 		rb->frame_size = req->tp_frame_size;
 		spin_unlock_bh(&rb_queue->lock);
@@ -3948,12 +3952,16 @@ static int packet_mmap(struct file *file, struct socket *sock,
 	int err = -EINVAL;
 	int i;
 
+	//对应mmap 的offset 参数
+	//这里实现不允许设置偏移
 	if (vma->vm_pgoff)
 		return -EINVAL;
-
+	//同一个进程可以多次重复调用
+	//映射到不同的虚拟地址空间中
 	mutex_lock(&po->pg_vec_lock);
 
 	expected_size = 0;
+	//计算内核PACKET_RX_RING 和PACKET_TX_RING已经分配的内存大小
 	for (rb = &po->rx_ring; rb <= &po->tx_ring; rb++) {
 		if (rb->pg_vec) {
 			expected_size += rb->pg_vec_len
@@ -3961,7 +3969,7 @@ static int packet_mmap(struct file *file, struct socket *sock,
 						* PAGE_SIZE;
 		}
 	}
-
+	//如果是0, 非法
 	if (expected_size == 0)
 		goto out;
 
@@ -3969,7 +3977,7 @@ static int packet_mmap(struct file *file, struct socket *sock,
 	size = vma->vm_end - vma->vm_start;
 	if (size != expected_size)
 		goto out;
-	//用户调用mmap申请的内存对应的虚拟地址
+	//用户调用mmap申请的内存对应的起始虚拟地址
 	start = vma->vm_start;
 	for (rb = &po->rx_ring; rb <= &po->tx_ring; rb++) {
 		if (rb->pg_vec == NULL)
@@ -3983,9 +3991,12 @@ static int packet_mmap(struct file *file, struct socket *sock,
 			//每个页面可能由多个PAGE_SIZE页面组成
 			//需要一个一个的映射
 			for (pg_num = 0; pg_num < rb->pg_vec_pages; pg_num++) {
-				//将物理地址转换成page指针
+				//将虚拟地址转换成page指针
 				page = pgv_to_page(kaddr);
 				//将单个物理页映射到指定的start虚拟地址
+				//映射到进程的虚拟地址空间中，这样用户空间才能直接访问
+				//注意kaddr 和进程的虚拟地址空间没有关系
+				//kaddr 和进程的虚拟地址空间不会重叠
 				//insert individual pages they've allocated into a user vma.
 				err = vm_insert_page(vma, start, page);
 				if (unlikely(err))

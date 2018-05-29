@@ -2041,11 +2041,15 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 		struct vm_area_struct *tmp;
 
 		tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
-
+		//vm_end 必须大于addr
 		if (tmp->vm_end > addr) {
+			//记录tmp
 			vma = tmp;
+			//如果vm_start 刚好小于addr
+			//说明addr 刚好在这个虚拟范围内
 			if (tmp->vm_start <= addr)
 				break;
+			//否则继续找
 			rb_node = rb_node->rb_left;
 		} else
 			rb_node = rb_node->rb_right;

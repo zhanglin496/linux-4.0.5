@@ -92,6 +92,7 @@ struct socket_wq {
 	struct rcu_head		rcu;
 } ____cacheline_aligned_in_smp;
 
+//可以理解为对标应用层的socket套接字
 /**
  *  struct socket - general BSD socket
  *  @state: socket state (%SS_CONNECTED, etc)

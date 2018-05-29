@@ -265,6 +265,12 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	 * use STACK_TOP because that can depend on attributes which aren't
 	 * configured yet.
 	 */
+	 //虚拟地址空间
+	 //不论是用户虚拟地址空间还是内核地址空间
+	 //对于32为架构，4GB的虚拟地址空间是共享的
+	 //用户空间为0~3G, 内核空间为3GB~4GB
+	 //只是限制了用户直接访问内核的虚拟地址空间
+	//也就是说用户空间和内核空间分配的虚拟地址是不会重叠的
 	BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
 	vma->vm_end = STACK_TOP_MAX;
 	vma->vm_start = vma->vm_end - PAGE_SIZE;
@@ -279,6 +285,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	mm->stack_vm = mm->total_vm = 1;
 	arch_bprm_mm_init(mm, vma);
 	up_write(&mm->mmap_sem);
+	//最后设置堆栈起始指针
 	bprm->p = vma->vm_end - sizeof(void *);
 	return 0;
 err:
@@ -1500,6 +1507,8 @@ static int do_execveat_common(int fd, struct filename *filename,
 		goto out_ret;
 
 	retval = -ENOMEM;
+	//分配linux_binprm 来管理这个可执行文件
+	//
 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
 	if (!bprm)
 		goto out_files;
@@ -1542,6 +1551,8 @@ static int do_execveat_common(int fd, struct filename *filename,
 	}
 	bprm->interp = bprm->filename;
 
+	//初始化内存管理数据结构
+	//分配mm_strcut 和分配一个vm_area_struct 数据结构
 	retval = bprm_mm_init(bprm);
 	if (retval)
 		goto out_unmark;
@@ -1553,7 +1564,8 @@ static int do_execveat_common(int fd, struct filename *filename,
 	bprm->envc = count(envp, MAX_ARG_STRINGS);
 	if ((retval = bprm->envc) < 0)
 		goto out;
-
+	//读取文件的前128  个字节
+	//对于ELF文件来说就是elf 的头部
 	retval = prepare_binprm(bprm);
 	if (retval < 0)
 		goto out;

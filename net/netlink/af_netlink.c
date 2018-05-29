@@ -317,7 +317,8 @@ static void *alloc_one_pg_vec_page(unsigned long order)
 	void *buffer;
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP | __GFP_ZERO |
 			  __GFP_NOWARN | __GFP_NORETRY;
-
+	
+	//分配物理页面，返回虚拟地址
 	buffer = (void *)__get_free_pages(gfp_flags, order);
 	if (buffer != NULL)
 		return buffer;

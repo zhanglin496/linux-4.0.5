@@ -485,7 +485,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 						//计数，就绪的文件描述符数量
 						retval++;
 						//这里为什么要设置_qproc为NULL
-						//是因为已近收集到了某个发生的事件
+						//是因为已经收集到了某个发生的事件
 						//不应该因为去等待未发生的事件去睡眠
 						//而是要返回通知到进程
 						//防止poll 将当前进程再加入到sock的等待队列中

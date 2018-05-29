@@ -21,7 +21,7 @@ struct linux_binprm {
 	struct page *page[MAX_ARG_PAGES];
 #endif
 	struct mm_struct *mm;
-//内存页最高低值
+//内存页最高地址
 //栈顶地址
 	unsigned long p; /* current top of mem */
 	unsigned int
