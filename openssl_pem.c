@@ -19,12 +19,12 @@ void PrintHex(unsigned char *str, unsigned int len)
 {  
 	int i;
 	for (i =0; i< len; i++) {  
-		if(i%4 == 0)
-		 	printf("0x");
+//		if(i%4 == 0)
+//		 	printf("0x");
 
 		printf("%02hhx",str[i]);  
-		if (i%4 == 3)
-			printf(" ");
+//		if (i%4 == 3)
+//			printf(" ");
 
 		if(i%16 == 15)
 			printf("\n");
