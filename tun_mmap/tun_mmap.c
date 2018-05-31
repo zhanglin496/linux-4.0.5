@@ -75,10 +75,29 @@
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
 
-union tpacket_uhdr {
-	struct tpacket_hdr  *h1;
-	struct tpacket2_hdr *h2;
-	struct tpacket3_hdr *h3;
+
+#define TUN_STATUS_KERNEL		      0
+#define TUN_STATUS_USER			(1 << 0)
+
+struct tun_packet_req {
+	unsigned int	tp_block_size;	/* Minimal size of contiguous block */
+	unsigned int	tp_block_nr;	/* Number of blocks */
+	unsigned int	tp_frame_size;	/* Size of frame */
+	unsigned int	tp_frame_nr;	/* Total number of frames */
+};
+
+struct tun_packet_hdr {
+	unsigned long	tp_status;
+	unsigned int	tp_len;
+	unsigned int	tp_snaplen;
+	unsigned short tp_mac;
+	unsigned short tp_net;
+	unsigned int	tp_sec;
+	unsigned int	tp_usec;
+};
+
+union tun_packet_uhdr {
+	struct tun_packet_hdr  *h1;
 	void *raw;
 };
 
@@ -86,7 +105,7 @@ struct pgv {
 	char *buffer;
 };
 
-struct packet_ring_buffer {
+struct tun_ring_buffer {
 	struct pgv		*pg_vec;
 
 	unsigned int		head;
@@ -99,10 +118,18 @@ struct packet_ring_buffer {
 	unsigned int		pg_vec_len;
 
 	unsigned int __percpu	*pending_refcnt;
-
-//	struct tpacket_kbdq_core	prb_bdqc;
 };
 
+enum tun_packet_versions {
+	TUN_PACKET_V1,
+};
+
+union tun_packet_req_u {
+	struct tun_packet_req req;
+};
+
+#define TUN_PACKET_RX_RING _IOW('T', 224, union tun_packet_req_u)
+#define TUN_PACKET_TX_RING _IOW('T', 225, union tun_packet_req_u)
 
 /* Uncomment to enable debugging */
 /* #define TUN_DEBUG 1 */
@@ -170,19 +197,12 @@ struct tun_file {
 	struct fasync_struct *fasync;
 
 	union  tpacket_stats_u	stats;
-	struct packet_ring_buffer	rx_ring;
-	struct packet_ring_buffer	tx_ring;
-	int			copy_thresh;
-	spinlock_t		bind_lock;
+	struct tun_ring_buffer	rx_ring;
+	struct tun_ring_buffer	tx_ring;
 	struct mutex		pg_vec_lock;
-	unsigned int		running:1,	/* prot_hook is attached*/
-				auxdata:1,
-				origdev:1,
-				has_vnet_hdr:1;
-	int			ifindex2;	/* bound device		*/
 	__be16			num;
 	atomic_t		mapped;
-	enum tpacket_versions	tp_version;
+	enum tun_packet_versions	tp_version;
 	unsigned int		tp_hdrlen;
 	unsigned int		tp_reserve;
 
@@ -243,83 +263,53 @@ struct tun_struct {
 };
 
 
-
 static inline __pure struct page *pgv_to_page(void *addr);
 static void *packet_lookup_frame(struct tun_file *po,
-		struct packet_ring_buffer *rb,
+		struct tun_ring_buffer *rb,
 		unsigned int position,
 		int status);
 static long tun_mmap_ioctl(struct file *file,
                           unsigned int cmd, unsigned long arg);
-static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tpacket_req_u *req_u,
+static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tun_packet_req_u *req_u,
 		int closing, int tx_ring);
-
 
 
 static int __packet_get_status(struct tun_file *po, void *frame)
 {
-	union tpacket_uhdr h;
+	union tun_packet_uhdr h;
 
 	smp_rmb();
 
 	h.raw = frame;
 	switch (po->tp_version) {
-	case TPACKET_V1:
+	case TUN_PACKET_V1:
 		flush_dcache_page(pgv_to_page(&h.h1->tp_status));
 		return h.h1->tp_status;
-	case TPACKET_V2:
-		flush_dcache_page(pgv_to_page(&h.h2->tp_status));
-		return h.h2->tp_status;
-	case TPACKET_V3:
 	default:
-		WARN(1, "TPACKET version not supported.\n");
+		WARN(1, "TUN_PACKET version not supported.\n");
 		BUG();
 		return 0;
 	}
 }
 
-
-
 static void *packet_lookup_frame(struct tun_file *po,
-		struct packet_ring_buffer *rb,
+		struct tun_ring_buffer *rb,
 		unsigned int position,
 		int status)
 {
 	unsigned int pg_vec_pos, frame_offset;
-	union tpacket_uhdr h;
+	union tun_packet_uhdr h;
 
 	pg_vec_pos = position / rb->frames_per_block;
 	frame_offset = position % rb->frames_per_block;
 
 	h.raw = rb->pg_vec[pg_vec_pos].buffer +
 		(frame_offset * rb->frame_size);
-//	printk("%s h.raw=%p,pg_vec_pos=%u,frame_offset=%u\n", __func__, h.raw, pg_vec_pos, frame_offset);
 	if (status != __packet_get_status(po, h.raw))
 		return NULL;
 
 	return h.raw;
 }
-
-static void *packet_lookup_frame2(struct tun_file *po,
-		struct packet_ring_buffer *rb,
-		unsigned int position,
-		int status)
-{
-	unsigned int pg_vec_pos, frame_offset;
-	union tpacket_uhdr h;
-
-	pg_vec_pos = position / rb->frames_per_block;
-	frame_offset = position % rb->frames_per_block;
-
-	h.raw = rb->pg_vec[pg_vec_pos].buffer +
-		(frame_offset * rb->frame_size);
-//	printk("h.raw=%p,h.h1->tp_sec=%08x,pg_vec_pos=%u,frame_offset=%u\n", h.raw, h.h1->tp_sec, pg_vec_pos, frame_offset);
-	if (status != __packet_get_status(po, h.raw))
-		return NULL;
-//	printk("status ====\n");
-	return h.raw;
-}
-
 
 static void *packet_current_rx_frame(struct tun_file *po,
 					    struct sk_buff *skb,
@@ -327,35 +317,31 @@ static void *packet_current_rx_frame(struct tun_file *po,
 {
 	char *curr = NULL;
 	switch (po->tp_version) {
-	case TPACKET_V1:
-	case TPACKET_V2:
+	case TUN_PACKET_V1:
 		curr = packet_lookup_frame(po, &po->rx_ring,
 					po->rx_ring.head, status);
 		return curr;
-	case TPACKET_V3:
 	default:
-		WARN(1, "TPACKET version not supported\n");
+		WARN(1, "TUN_PACKET version not supported\n");
 		BUG();
 		return NULL;
 	}
 }
 
-static void packet_increment_head(struct packet_ring_buffer *buff)
+static void packet_increment_head(struct tun_ring_buffer *buff)
 {
 	buff->head = buff->head != buff->frame_max ? buff->head+1 : 0;
 }
 
 
 static void packet_increment_rx_head(struct tun_file *po,
-					    struct packet_ring_buffer *rb)
+					    struct tun_ring_buffer *rb)
 {
 	switch (po->tp_version) {
-	case TPACKET_V1:
-	case TPACKET_V2:
+	case TUN_PACKET_V1:
 		return packet_increment_head(rb);
-	case TPACKET_V3:
 	default:
-		WARN(1, "TPACKET version not supported.\n");
+		WARN(1, "TUN_PACKET version not supported.\n");
 		BUG();
 		return;
 	}
@@ -363,21 +349,16 @@ static void packet_increment_rx_head(struct tun_file *po,
 
 static void __packet_set_status(struct tun_file *po, void *frame, int status)
 {
-	union tpacket_uhdr h;
+	union tun_packet_uhdr h;
 
 	h.raw = frame;
 	switch (po->tp_version) {
-	case TPACKET_V1:
+	case TUN_PACKET_V1:
 		h.h1->tp_status = status;
 		flush_dcache_page(pgv_to_page(&h.h1->tp_status));
 		break;
-	case TPACKET_V2:
-		h.h2->tp_status = status;
-		flush_dcache_page(pgv_to_page(&h.h2->tp_status));
-		break;
-	case TPACKET_V3:
 	default:
-		WARN(1, "TPACKET version not supported.\n");
+		WARN(1, "TUN_PACKET version not supported.\n");
 		BUG();
 	}
 
@@ -902,6 +883,91 @@ static int tun_net_close(struct net_device *dev)
 #ifdef CONFIG_RTK_OPENVPN_HW_CRYPTO
 extern int openvpn_fast_to_wan(struct sk_buff *skb);
 #endif
+
+static int tun_mmap_xmit(struct sk_buff *skb, struct tun_file *tfile)
+{
+	struct sock *sk = &tfile->sk;
+	union tun_packet_uhdr h;
+	unsigned int snaplen;
+	unsigned long status = TUN_STATUS_USER;
+	unsigned short macoff, netoff, hdrlen;
+	struct timespec ts;
+
+	snaplen = skb->len;
+
+	macoff = netoff = TPACKET_ALIGN(tfile->tp_hdrlen) + 16 +
+				 tfile->tp_reserve;
+
+	spin_lock(&sk->sk_receive_queue.lock);
+	h.raw = packet_current_rx_frame(tfile, skb,
+					TUN_STATUS_KERNEL, (macoff+snaplen));
+	if (!h.raw)
+		goto ring_is_full;
+	if (tfile->tp_version <= TUN_PACKET_V1)
+		packet_increment_rx_head(tfile, &tfile->rx_ring);
+
+	tfile->stats.stats1.tp_packets++;
+	spin_unlock(&sk->sk_receive_queue.lock);
+
+	if (macoff + snaplen > tfile->rx_ring.frame_size) {
+		snaplen = tfile->rx_ring.frame_size - macoff;
+		if ((int)snaplen < 0)
+			snaplen = 0;
+	}
+
+	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
+
+	switch (tfile->tp_version) {
+	case TUN_PACKET_V1:
+		h.h1->tp_len = skb->len;
+		h.h1->tp_snaplen = snaplen;
+		h.h1->tp_mac = macoff;
+		h.h1->tp_net = netoff;
+		{
+		static int i = 10;
+		h.h1->tp_sec = i++;
+		}
+		h.h1->tp_usec = ts.tv_nsec / NSEC_PER_USEC;
+		hdrlen = sizeof(*h.h1);
+		break;
+	default:
+		BUG();
+	}
+
+	smp_mb();
+#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE == 1
+	{
+		u8 *start, *end;
+
+		if (tfile->tp_version <= TUN_PACKET_V1) {
+			end = (u8 *)PAGE_ALIGN((unsigned long)h.raw
+				+ macoff + snaplen);
+			for (start = h.raw; start < end; start += PAGE_SIZE)
+				flush_dcache_page(pgv_to_page(start));
+		}
+		smp_wmb();
+	}
+#endif
+
+	if (tfile->tp_version <= TUN_PACKET_V1)
+		__packet_set_status(tfile, h.raw, status);
+	//			printk("%s %d tp_sec=%u,status=%u,tp_status=%u,h.raw=%p,len=%d\n", 
+	//				__func__, __LINE__, h.h1->tp_sec, status, h.h1->tp_status, h.raw, macoff + snaplen);
+	wake_up_interruptible_poll(&tfile->wq.wait, POLLIN |
+				  		POLLRDNORM | POLLRDBAND);
+drop_n_restore:
+	kfree_skb(skb);
+	rcu_read_unlock();
+	return NETDEV_TX_OK;
+
+ring_is_full:
+	tfile->stats.stats1.tp_drops++;
+	spin_unlock(&sk->sk_receive_queue.lock);
+	wake_up_interruptible_poll(&tfile->wq.wait, POLLIN |
+						POLLRDNORM | POLLRDBAND);
+	goto drop_n_restore;
+}
+
 /* Net device start xmit */
 static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -944,132 +1010,10 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_orphan(skb);
 
 	nf_reset(skb);
-	
-	{
-			struct sock *sk = &tfile->sk;
-			union tpacket_uhdr h;
-			u8 *skb_head = skb->data;
-			int skb_len = skb->len;
-			unsigned int snaplen, res;
-			unsigned long status = TP_STATUS_USER;
-			unsigned short macoff, netoff, hdrlen;
-			struct sk_buff *copy_skb = NULL;
-			struct timespec ts;
-			__u32 ts_status;
-		
-			snaplen = skb->len;
-	
-			macoff = netoff = TPACKET_ALIGN(tfile->tp_hdrlen) + 16 +
-						 tfile->tp_reserve;
-	
-			spin_lock(&sk->sk_receive_queue.lock);
-			h.raw = packet_current_rx_frame(tfile, skb,
-							TP_STATUS_KERNEL, (macoff+snaplen));
-			if (!h.raw)
-				goto ring_is_full;
-			if (tfile->tp_version <= TPACKET_V2) {
-				packet_increment_rx_head(tfile, &tfile->rx_ring);
-			/*
-			 * LOSING will be reported till you read the stats,
-			 * because it's COR - Clear On Read.
-			 * Anyways, moving it for V1/V2 only as V3 doesn't need this
-			 * at packet level.
-			 */
-				if (tfile->stats.stats1.tp_drops)
-					status |= TP_STATUS_LOSING;
-			}
-			tfile->stats.stats1.tp_packets++;
-			spin_unlock(&sk->sk_receive_queue.lock);
-		
-			skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
-			
-		
-			switch (tfile->tp_version) {
-			case TPACKET_V1:
-				h.h1->tp_len = skb->len;
-				h.h1->tp_snaplen = snaplen;
-				h.h1->tp_mac = macoff;
-				h.h1->tp_net = netoff;
-				{
-				static int i = 10;
-				h.h1->tp_sec = i++;
-				}
-				h.h1->tp_usec = ts.tv_nsec / NSEC_PER_USEC;
-				hdrlen = sizeof(*h.h1);
-				break;
-			case TPACKET_V2:
-				h.h2->tp_len = skb->len;
-				h.h2->tp_snaplen = snaplen;
-				h.h2->tp_mac = macoff;
-				h.h2->tp_net = netoff;
-				h.h2->tp_sec = ts.tv_sec;
-				h.h2->tp_nsec = ts.tv_nsec;
-//				if (skb_vlan_tag_present(skb)) {
-//					h.h2->tp_vlan_tci = skb_vlan_tag_get(skb);
-//					status |= TP_STATUS_VLAN_VALID;
-//				} else {
-					h.h2->tp_vlan_tci = 0;
-//				}
-				h.h2->tp_padding = 0;
-				hdrlen = sizeof(*h.h2);
-				break;
-			case TPACKET_V3:
-				/* tp_nxt_offset,vlan are already populated above.
-				 * So DONT clear those fields here
-				 */
-				h.h3->tp_status |= status;
-				h.h3->tp_len = skb->len;
-				h.h3->tp_snaplen = snaplen;
-				h.h3->tp_mac = macoff;
-				h.h3->tp_net = netoff;
-				h.h3->tp_sec  = ts.tv_sec;
-				h.h3->tp_nsec = ts.tv_nsec;
-				hdrlen = sizeof(*h.h3);
-				break;
-			default:
-				BUG();
-			}
-			
-			smp_mb();
-#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE == 1
-			{
-				u8 *start, *end;
-		
-				if (tfile->tp_version <= TPACKET_V2) {
-					end = (u8 *)PAGE_ALIGN((unsigned long)h.raw
-						+ macoff + snaplen);
-					for (start = h.raw; start < end; start += PAGE_SIZE)
-						flush_dcache_page(pgv_to_page(start));
-				}
-				smp_wmb();
-			}
-#endif
-//			printk("tp_status=%u\n", h.h1->tp_status);
-			if (tfile->tp_version <= TPACKET_V2)
-				__packet_set_status(tfile, h.raw, status);
-			smp_mb();
-//			printk("%s %d tp_sec=%u,status=%u,tp_status=%u,h.raw=%p,len=%d\n", 
-//				__func__, __LINE__, h.h1->tp_sec, status, h.h1->tp_status, h.raw, macoff + snaplen);
-			sk->sk_data_ready(sk, 0);
-		
-//			wake_up_interruptible_poll(&tfile->wq.wait, POLLIN |
-//					   POLLRDNORM | POLLRDBAND);
-		drop_n_restore:
-			kfree_skb(skb);
-			rcu_read_unlock();
-			return NETDEV_TX_OK;
 
-		ring_is_full:
-			tfile->stats.stats1.tp_drops++;
-			spin_unlock(&sk->sk_receive_queue.lock);
-			sk->sk_data_ready(sk, 0);
-//			wake_up_interruptible_poll(&tfile->wq.wait, POLLIN |
-//				   POLLRDNORM | POLLRDBAND);
-			goto drop_n_restore;
+	if (tfile->rx_ring.pg_vec)
+		return tun_mmap_xmit(skb, tfile);
 
-	}
-
-#if 0		
 	/* Enqueue packet */
 	skb_queue_tail(&tfile->socket.sk->sk_receive_queue, skb);
 
@@ -1081,7 +1025,6 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rcu_read_unlock();
 	return NETDEV_TX_OK;
-#endif
 
 drop:
 	dev->stats.tx_dropped++;
@@ -1223,22 +1166,21 @@ static void tun_net_init(struct net_device *dev)
 /* Character device part */
 
 static void *packet_previous_frame(struct tun_file *po,
-		struct packet_ring_buffer *rb,
+		struct tun_ring_buffer *rb,
 		int status)
 {
 	unsigned int previous = rb->head ? rb->head - 1 : rb->frame_max;
-	return packet_lookup_frame2(po, rb, previous, status);
+	return packet_lookup_frame(po, rb, previous, status);
 }
 
 static void *packet_previous_rx_frame(struct tun_file *po,
-					     struct packet_ring_buffer *rb,
+					     struct tun_ring_buffer *rb,
 					     int status)
 {
 	if (po->tp_version <= TPACKET_V2)
 		return packet_previous_frame(po, rb, status);
 	return NULL;
 }
-
 
 /* Poll */
 static unsigned int tun_chr_poll(struct file *file, poll_table *wait)
@@ -1259,18 +1201,15 @@ static unsigned int tun_chr_poll(struct file *file, poll_table *wait)
 
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	if (tfile->rx_ring.pg_vec) {
-//		printk("%s %d\n", __func__, __LINE__);
 		if (!packet_previous_rx_frame(tfile, &tfile->rx_ring,
-			TP_STATUS_KERNEL)) {
+			TUN_STATUS_KERNEL)) {
 			mask |= POLLIN | POLLRDNORM;
 		}
 	}
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
 
-	if (!skb_queue_empty(&sk->sk_receive_queue)) {
-		printk("queue\n");
+	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
-	}
 
 	if (sock_writeable(sk) ||
 	    (!test_and_set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags) &&
@@ -1598,6 +1537,169 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	return total_len;
 }
 
+static int inline tp_frame_len(struct tun_file *po, void *frame)
+{
+	int tp_len;
+	union tun_packet_uhdr ph;
+	ph.raw = frame;
+
+	switch (po->tp_version) {
+	case TUN_PACKET_V1:
+		tp_len = ph.h1->tp_len;
+		break;
+	default:
+		break;
+	}
+	return tp_len;
+}
+
+static void tun_packet_destruct_skb(struct sk_buff *skb)
+{
+	struct packet_sock *po = pkt_sk(skb->sk);
+
+	if (likely(po->tx_ring.pg_vec)) {
+		void *ph;
+//		__u32 ts;
+
+		ph = skb_shinfo(skb)->destructor_arg;
+		packet_dec_pending(&po->tx_ring);
+
+//		ts = __packet_set_timestamp(po, ph, skb);
+		__packet_set_status(po, ph, TP_STATUS_AVAILABLE);
+	}
+
+//	sock_wfree(skb);
+}
+
+static int tun_mmap_snd(struct tun_struct *tun, struct tun_file *po, int need_wait)
+{
+	struct sk_buff *skb;
+	struct net_device *dev;	
+	struct skb_shared_info *shinfo;
+	__be16 proto;
+	int err, reserve = 0;
+	void *ph;
+//	bool need_wait = !(msg->msg_flags & MSG_DONTWAIT);
+	int tp_len, size_max;
+	unsigned char *addr;
+	int len_sum = 0;
+	int status = TP_STATUS_AVAILABLE;
+	int hlen, tlen;
+
+	mutex_lock(&po->pg_vec_lock);
+
+	do {
+		ph = packet_current_frame(po, &po->tx_ring,
+					  TP_STATUS_SEND_REQUEST);
+		if (unlikely(ph == NULL)) {
+			if (need_wait && need_resched())
+				schedule();
+			continue;
+		}
+
+		if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV)
+			if (unlikely(tp_frame_len(po, ph) < ETH_HLEN))
+				goto out_status;
+
+		skb = alloc_skb_head(GFP_KERNEL);
+		if (skb == NULL)
+			goto err1;
+
+		skb->head_frag = 1;
+		skb->data = ph->
+		skb->tail = ;
+		skb->end = ph->
+
+		shinfo = skb_shinfo(skb);
+		memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
+		atomic_set(&shinfo->dataref, 1);
+
+		status = TP_STATUS_SEND_REQUEST;
+		hlen = LL_RESERVED_SPACE(dev);
+		tlen = dev->needed_tailroom;
+		skb = sock_alloc_send_skb(&po->sk,
+				hlen + tlen + sizeof(struct sockaddr_ll),
+				0, &err);
+
+		if (unlikely(skb == NULL))
+			goto out_status;
+
+		tp_len = tpacket_fill_skb(po, skb, ph, dev, size_max, proto,
+					  addr, hlen);
+		if (tp_len > dev->mtu + dev->hard_header_len) {
+			struct ethhdr *ehdr;
+			/* Earlier code assumed this would be a VLAN pkt,
+			 * double-check this now that we have the actual
+			 * packet in hand.
+			 */
+
+			skb_reset_mac_header(skb);
+			ehdr = eth_hdr(skb);
+			if (ehdr->h_proto != htons(ETH_P_8021Q))
+				tp_len = -EMSGSIZE;
+		}
+		if (unlikely(tp_len < 0)) {
+			if (po->tp_loss) {
+				__packet_set_status(po, ph,
+						TP_STATUS_AVAILABLE);
+				packet_increment_head(&po->tx_ring);
+				kfree_skb(skb);
+				continue;
+			} else {
+				status = TP_STATUS_WRONG_FORMAT;
+				err = tp_len;
+				goto out_status;
+			}
+		}
+
+		packet_pick_tx_queue(dev, skb);
+
+		skb->destructor = tun_packet_destruct_skb;
+		__packet_set_status(po, ph, TP_STATUS_SENDING);
+		packet_inc_pending(&po->tx_ring);
+
+		status = TP_STATUS_SEND_REQUEST;		
+		packet_increment_head(&po->tx_ring);
+		netif_rx_ni(skb);
+
+		#if 0
+		err = po->xmit(skb);
+		if (unlikely(err > 0)) {
+			err = net_xmit_errno(err);
+			if (err && __packet_get_status(po, ph) ==
+				   TP_STATUS_AVAILABLE) {
+				/* skb was destructed already */
+				skb = NULL;
+				goto out_status;
+			}
+			/*
+			 * skb was dropped but not destructed yet;
+			 * let's treat it like congestion or err < 0
+			 */
+			err = 0;
+		}
+		packet_increment_head(&po->tx_ring);
+		len_sum += tp_len;
+		#endif
+	} while (likely((ph != NULL) ||
+		/* Note: packet_read_pending() might be slow if we have
+		 * to call it as it's per_cpu variable, but in fast-path
+		 * we already short-circuit the loop with the first
+		 * condition, and luckily don't have to go that path
+		 * anyway.
+		 */
+		 (need_wait && packet_read_pending(&po->tx_ring))));
+
+ 	goto out;
+
+out_status:
+	__packet_set_status(po, ph, status);
+	kfree_skb(skb);
+out:
+	mutex_unlock(&po->pg_vec_lock);
+	return err;
+}
+
 static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 			      unsigned long count, loff_t pos)
 {
@@ -1611,7 +1713,10 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 
 	tun_debug(KERN_INFO, tun, "tun_chr_write %ld\n", count);
 
-	result = tun_get_user(tun, tfile, NULL, iv, iov_length(iv, count),
+	if (tfile->tx_ring.pg_vec)
+		result = tun_mmap_snd(tun, tfile, !(file->f_flags & O_NONBLOCK));
+	else
+		result = tun_get_user(tun, tfile, NULL, iv, iov_length(iv, count),
 			      count, file->f_flags & O_NONBLOCK);
 
 	tun_put(tun);
@@ -2550,7 +2655,6 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	INIT_LIST_HEAD(&tfile->next);
 
 	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
-	spin_lock_init(&tfile->bind_lock);
 	mutex_init(&tfile->pg_vec_lock);
 
 	return 0;
@@ -2560,7 +2664,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
 	struct net *net = tfile->net;
-	union tpacket_req_u req_u;
+	union tun_packet_req_u req_u;
 
 	if (tfile->rx_ring.pg_vec) {
 		memset(&req_u, 0, sizeof(req_u));
@@ -2610,7 +2714,7 @@ static inline __pure struct page *pgv_to_page(void *addr)
 	return virt_to_page(addr);
 }
 
-static unsigned int packet_read_pending(const struct packet_ring_buffer *rb)
+static unsigned int packet_read_pending(const struct tun_ring_buffer *rb)
 {
 	unsigned int refcnt = 0;
 	int cpu;
@@ -2676,7 +2780,7 @@ static char *alloc_one_pg_vec_page(unsigned long order)
 	return NULL;
 }
 
-static struct pgv *alloc_pg_vec(struct tpacket_req *req, int order)
+static struct pgv *alloc_pg_vec(struct tun_packet_req *req, int order)
 {
 	unsigned int block_nr = req->tp_block_nr;
 	struct pgv *pg_vec;
@@ -2702,18 +2806,16 @@ out_free_pgvec:
 	goto out;
 }
 
-static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tpacket_req_u *req_u,
+static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tun_packet_req_u *req_u,
 		int closing, int tx_ring)
 {
 	struct pgv *pg_vec = NULL;
-//	struct packet_sock *po = pkt_sk(sk);
-	int was_running, order = 0;
-	struct packet_ring_buffer *rb;
+	int order = 0;
+	struct tun_ring_buffer *rb;
 	struct sk_buff_head *rb_queue;
-	__be16 num;
 	int err = -EINVAL;
 	/* Added to avoid minimal code churn */
-	struct tpacket_req *req = &req_u->req;
+	struct tun_packet_req *req = &req_u->req;
 
 	/* Opening a Tx-ring is NOT supported in TPACKET_V3 */
 	if (!closing && tx_ring && (tfile->tp_version > TPACKET_V2)) {
@@ -2732,36 +2834,25 @@ static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tpacke
 			goto out;
 	}
 
-	printk("%d\n", __LINE__);
 	if (req->tp_block_nr) {
-		printk("%d\n", __LINE__);
 		/* Sanity tests and some calculations */
 		err = -EBUSY;
 		if (unlikely(rb->pg_vec))
 			goto out;
 
 		switch (tfile->tp_version) {
-		case TPACKET_V1:
+		case TUN_PACKET_V1:
 			tfile->tp_hdrlen = TPACKET_HDRLEN;
 			break;
-		case TPACKET_V2:
-			tfile->tp_hdrlen = TPACKET2_HDRLEN;
-			break;
-		case TPACKET_V3:
-			tfile->tp_hdrlen = TPACKET3_HDRLEN;
-			break;
+		default:
+			goto out;	
 		}
 
-		printk("%d\n", __LINE__);
 		err = -EINVAL;
 		if (unlikely((int)req->tp_block_size <= 0))
 			goto out;
 		if (unlikely(req->tp_block_size & (PAGE_SIZE - 1)))
 			goto out;
-//		if (tfile->tp_version >= TPACKET_V3 &&
-//		    (int)(req->tp_block_size -
-//			  BLK_PLUS_PRIV(req_u->req3.tp_sizeof_priv)) <= 0)
-//			goto out;
 		if (unlikely(req->tp_frame_size < tfile->tp_hdrlen +
 					tfile->tp_reserve))
 			goto out;
@@ -2775,26 +2866,12 @@ static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tpacke
 					req->tp_frame_nr))
 			goto out;
 
-		printk("%d\n", __LINE__);
 		err = -ENOMEM;
 		order = get_order(req->tp_block_size);
 		pg_vec = alloc_pg_vec(req, order);
 		if (unlikely(!pg_vec))
 			goto out;
-		switch (tfile->tp_version) {
-		case TPACKET_V3:
-		/* Transmit path is not supported. We checked
-		 * it above but just being paranoid
-		 */
-//			if (!tx_ring)
-//				init_prb_bdqc(po, rb, pg_vec, req_u, tx_ring);
-//				break;
-		default:
-			break;
-		}
-	}
-	/* Done */
-	else {
+	} else {
 		err = -EINVAL;
 		if (unlikely(req->tp_frame_nr))
 			goto out;
@@ -2817,7 +2894,6 @@ static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tpacke
 	err = -EBUSY;
 	mutex_lock(&tfile->pg_vec_lock);
 	if (closing || atomic_read(&tfile->mapped) == 0) {
-		printk("%d\n", __LINE__);
 		err = 0;
 		spin_lock_bh(&rb_queue->lock);
 		swap(rb->pg_vec, pg_vec);
@@ -2830,8 +2906,6 @@ static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tpacke
 		swap(rb->pg_vec_len, req->tp_block_nr);
 
 		rb->pg_vec_pages = req->tp_block_size/PAGE_SIZE;
-//		po->prot_hook.func = (po->rx_ring.pg_vec) ?
-//						tpacket_rcv : packet_rcv;
 		skb_queue_purge(rb_queue);
 		if (atomic_read(&tfile->mapped))
 			pr_err("packet_mmap: vma is busy: %d\n",
@@ -2848,11 +2922,6 @@ static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tpacke
 //		register_prot_hook(sk);
 //	}
 //	spin_unlock(&po->bind_lock);
-//	if (closing && (po->tp_version > TPACKET_V2)) {
-//		/* Because we don't support block-based V3 on tx-ring */
-//		if (!tx_ring)
-//			prb_shutdown_retire_blk_timer(po, tx_ring, rb_queue);
-//	}
 	release_sock(sk);
 
 	if (pg_vec)
@@ -2880,7 +2949,7 @@ static void packet_mm_close(struct vm_area_struct *vma)
 		atomic_dec(&tfile->mapped);
 }
 
-static const struct vm_operations_struct packet_mmap_ops = {
+static const struct vm_operations_struct tun_packet_mmap_ops = {
 	.open	=	packet_mm_open,
 	.close	=	packet_mm_close,
 };
@@ -2889,10 +2958,8 @@ static int packet_mmap(struct file *file,
 		struct vm_area_struct *vma)
 {
 	struct tun_file *tfile = file->private_data;
-	struct sock *sk = &tfile->sk;
-//	struct packet_sock *po = pkt_sk(sk);
 	unsigned long size, expected_size;
-	struct packet_ring_buffer *rb;
+	struct tun_ring_buffer *rb;
 	unsigned long start;
 	int err = -EINVAL;
 	int i;
@@ -2913,7 +2980,7 @@ static int packet_mmap(struct file *file,
 
 	if (expected_size == 0)
 		goto out;
-	printk("vm_end=%08x, vm_start=%08x\n", vma->vm_end,  vma->vm_start);
+	printk("vm_end=%08lx, vm_start=%08lx\n", vma->vm_end,  vma->vm_start);
 	size = vma->vm_end - vma->vm_start;
 	if (size != expected_size)
 		goto out;
@@ -2927,7 +2994,7 @@ static int packet_mmap(struct file *file,
 			struct page *page;
 			void *kaddr = rb->pg_vec[i].buffer;
 			int pg_num;
-			printk("mmap start=%08x, kaddr=%08x\n", start, kaddr);
+			printk("mmap start=%08lx, kaddr=%p\n", start, kaddr);
 			for (pg_num = 0; pg_num < rb->pg_vec_pages; pg_num++) {
 //				printk("mmap start=%08x, kaddr=%08x\n", start, kaddr);
 				page = pgv_to_page(kaddr);
@@ -2941,16 +3008,13 @@ static int packet_mmap(struct file *file,
 	}
 
 	atomic_inc(&tfile->mapped);
-	vma->vm_ops = &packet_mmap_ops;
+	vma->vm_ops = &tun_packet_mmap_ops;
 	err = 0;
 
 out:
 	mutex_unlock(&tfile->pg_vec_lock);
 	return err;
 }
-
-#define TUN_PACKET_RX_RING _IOW('T', 224, union tpacket_req_u)
-#define TUN_PACKET_TX_RING _IOW('T', 225, union tpacket_req_u)
 
 static long tun_mmap_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
@@ -2967,23 +3031,17 @@ static long tun_mmap_ioctl(struct file *file,
 	case TUN_PACKET_RX_RING:
 	case TUN_PACKET_TX_RING:
 	{
-		union tpacket_req_u req_u;
+		union tun_packet_req_u req_u;
 		int len;
 
 		switch (tfile->tp_version) {
-		case TPACKET_V1:
-		case TPACKET_V2:
+		case TUN_PACKET_V1:
 			len = sizeof(req_u.req);
 			break;
-		case TPACKET_V3:
 		default:
-			len = sizeof(req_u.req3);
-			break;
+			ret =  -EINVAL;
+			goto out;
 		}
-//		if (optlen < len)
-//			return -EINVAL;
-//		if (pkt_sk(sk)->has_vnet_hdr)
-//			return -EINVAL;
 		if (copy_from_user(&req_u.req, argp, len))
 			return -EFAULT;
 		ret = packet_set_ring(tfile, &tfile->sk, &req_u, 0,
@@ -2994,11 +3052,10 @@ static long tun_mmap_ioctl(struct file *file,
 		ret = -EINVAL;
 		break;
 	}
+out:
 	tun_put(tun);
 	return ret;
 }
-
-
 
 static struct miscdevice tun_miscdev = {
 	.minor = 240,

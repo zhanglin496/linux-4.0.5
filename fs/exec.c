@@ -265,10 +265,11 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	 * use STACK_TOP because that can depend on attributes which aren't
 	 * configured yet.
 	 */
+	 //内核空间虚拟地址是所有进程共享的
 	 //虚拟地址空间
 	 //不论是用户虚拟地址空间还是内核地址空间
-	 //对于32为架构，4GB的虚拟地址空间是共享的
 	 //用户空间为0~3G, 内核空间为3GB~4GB
+	 //每个应用程序使用独立的3GB地址空间，共享内核的1 GB 空间
 	 //只是限制了用户直接访问内核的虚拟地址空间
 	//也就是说用户空间和内核空间分配的虚拟地址是不会重叠的
 	BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);

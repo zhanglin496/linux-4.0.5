@@ -510,6 +510,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	//比如相同端口的UDP套接字过多
 	//如果count 大于10，看能不能使用hslot2
 	if (hslot->count > 10) {
+		//hslot2 使用了IP地址参与hash 计算
 		//目的端口和目的地址hash
 		hash2 = udp4_portaddr_hash(net, daddr, hnum);
 		slot2 = hash2 & udptable->mask;
@@ -523,6 +524,10 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 					  daddr, hnum, dif,
 					  hslot2, slot2);
 		if (!result) {
+			//这意味着，一个socket在执行bind的时候，
+			//不但要将其按照传统方式使用port作为hash加入到1st hash slot中，
+			//还要加入IP地址再算个hash，加入到2nd hash slot中，
+			//如果没有bind IP地址，就用INADDR_ANY来计算。
 			//全0 地址和目的端口hash
 			hash2 = udp4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
 			slot2 = hash2 & udptable->mask;
@@ -561,7 +566,7 @@ begin:
 				matches = 1;
 			}
 		//只有设置了reuseport才有机会均衡选择sk
-		//否侧对多个相同的endpoint 会选择到固定的sk
+		//否则对多个相同的endpoint 会选择到固定的sk
 		//比如设置了reuseaddr 的udp 套接字
 		} else if (score == badness && reuseport) {
 			matches++;

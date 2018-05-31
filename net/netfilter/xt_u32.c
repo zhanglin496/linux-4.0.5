@@ -37,7 +37,8 @@ static bool u32_match_it(const struct xt_u32 *data,
 
 		if (skb->len < 4 || pos > skb->len - 4)
 			return false;
-
+		//每次相对pos 位置拷贝4个字节
+		//因为skb->data指向ip 头部，所以只能匹配IP数据
 		if (skb_copy_bits(skb, pos, &n, sizeof(n)) < 0)
 			BUG();
 		val   = ntohl(n);
@@ -64,7 +65,7 @@ static bool u32_match_it(const struct xt_u32 *data,
 				if (at + 4 < at || skb->len < at + 4 ||
 				    pos > skb->len - at - 4)
 					return false;
-
+				//跳过at个字节
 				if (skb_copy_bits(skb, at + pos, &n,
 						    sizeof(n)) < 0)
 					BUG();
@@ -76,6 +77,8 @@ static bool u32_match_it(const struct xt_u32 *data,
 		/* Run over the "," and ":" operands */
 		nvals = ct->nvalues;
 		for (i = 0; i < nvals; ++i)
+			//在指定的范围内
+			//iptables  -I INPUT 1 -m u32 --u32 "0&0xffff=40:52" -j LOG
 			if (ct->value[i].min <= val && val <= ct->value[i].max)
 				break;
 
