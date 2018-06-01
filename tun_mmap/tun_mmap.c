@@ -71,10 +71,23 @@
 
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/ip.h>
 
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
 
+
+#ifndef NIPQUAD_FMT
+#define NIPQUAD_FMT "%u.%u.%u.%u"
+#endif
+
+#ifndef NIPQUAD
+#define NIPQUAD(addr) \
+	((unsigned char *)&addr)[0], \
+	((unsigned char *)&addr)[1], \
+	((unsigned char *)&addr)[2], \
+	((unsigned char *)&addr)[3]
+#endif
 
 #define TUN_STATUS_KERNEL		      0
 #define TUN_STATUS_USER			(1 << 0)
@@ -274,6 +287,47 @@ static int packet_set_ring(struct tun_file *tfile, struct sock *sk, union tun_pa
 		int closing, int tx_ring);
 
 
+static void packet_inc_pending(struct tun_ring_buffer *rb)
+{
+	this_cpu_inc(*rb->pending_refcnt);
+}
+
+static void packet_dec_pending(struct tun_ring_buffer *rb)
+{
+	this_cpu_dec(*rb->pending_refcnt);
+}
+
+static unsigned int packet_read_pending(const struct tun_ring_buffer *rb)
+{
+	unsigned int refcnt = 0;
+	int cpu;
+
+	/* We don't use pending refcount in rx_ring. */
+	if (rb->pending_refcnt == NULL)
+		return 0;
+
+	for_each_possible_cpu(cpu)
+		refcnt += *per_cpu_ptr(rb->pending_refcnt, cpu);
+
+	return refcnt;
+}
+
+static int packet_alloc_pending(struct tun_file *po)
+{
+	po->rx_ring.pending_refcnt = NULL;
+
+	po->tx_ring.pending_refcnt = alloc_percpu(unsigned int);
+	if (unlikely(po->tx_ring.pending_refcnt == NULL))
+		return -ENOBUFS;
+
+	return 0;
+}
+
+static void packet_free_pending(struct tun_file *po)
+{
+	free_percpu(po->tx_ring.pending_refcnt);
+}
+
 static int __packet_get_status(struct tun_file *po, void *frame)
 {
 	union tun_packet_uhdr h;
@@ -326,6 +380,13 @@ static void *packet_current_rx_frame(struct tun_file *po,
 		BUG();
 		return NULL;
 	}
+}
+
+static void *packet_current_frame(struct tun_file *po,
+		struct tun_ring_buffer *rb,
+		int status)
+{
+	return packet_lookup_frame(po, rb, rb->head, status);
 }
 
 static void packet_increment_head(struct tun_ring_buffer *buff)
@@ -1539,7 +1600,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 static int inline tp_frame_len(struct tun_file *po, void *frame)
 {
-	int tp_len;
+	int tp_len = 0;
 	union tun_packet_uhdr ph;
 	ph.raw = frame;
 
@@ -1555,7 +1616,7 @@ static int inline tp_frame_len(struct tun_file *po, void *frame)
 
 static void tun_packet_destruct_skb(struct sk_buff *skb)
 {
-	struct packet_sock *po = pkt_sk(skb->sk);
+	struct tun_file *po =  (void *)skb->sk;
 
 	if (likely(po->tx_ring.pg_vec)) {
 		void *ph;
@@ -1563,9 +1624,11 @@ static void tun_packet_destruct_skb(struct sk_buff *skb)
 
 		ph = skb_shinfo(skb)->destructor_arg;
 		packet_dec_pending(&po->tx_ring);
+		printk("%s free ph=%p\n", __func__, ph);
 
 //		ts = __packet_set_timestamp(po, ph, skb);
 		__packet_set_status(po, ph, TP_STATUS_AVAILABLE);
+		skb->head = NULL;
 	}
 
 //	sock_wfree(skb);
@@ -1574,114 +1637,82 @@ static void tun_packet_destruct_skb(struct sk_buff *skb)
 static int tun_mmap_snd(struct tun_struct *tun, struct tun_file *po, int need_wait)
 {
 	struct sk_buff *skb;
-	struct net_device *dev;	
 	struct skb_shared_info *shinfo;
-	__be16 proto;
-	int err, reserve = 0;
-	void *ph;
-//	bool need_wait = !(msg->msg_flags & MSG_DONTWAIT);
-	int tp_len, size_max;
-	unsigned char *addr;
-	int len_sum = 0;
-	int status = TP_STATUS_AVAILABLE;
-	int hlen, tlen;
+	int err = -ENOMEM;
+	union tun_packet_uhdr ph;
+	int tp_len = 0;
 
 	mutex_lock(&po->pg_vec_lock);
 
 	do {
-		ph = packet_current_frame(po, &po->tx_ring,
+		ph.raw = packet_current_frame(po, &po->tx_ring,
 					  TP_STATUS_SEND_REQUEST);
-		if (unlikely(ph == NULL)) {
+		if (unlikely(ph.raw == NULL)) {
 			if (need_wait && need_resched())
 				schedule();
-			continue;
+			goto out;
 		}
+		packet_increment_head(&po->tx_ring);
 
 		if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV)
-			if (unlikely(tp_frame_len(po, ph) < ETH_HLEN))
-				goto out_status;
+			if (unlikely(tp_frame_len(po, ph.raw) < ETH_HLEN))
+				goto out;
 
 		skb = alloc_skb_head(GFP_KERNEL);
 		if (skb == NULL)
-			goto err1;
+			goto out;
 
-		skb->head_frag = 1;
-		skb->data = ph->
-		skb->tail = ;
-		skb->end = ph->
+		printk("############ph->raw=%p, skb_shared_info=%u\n", ph.raw, sizeof(struct skb_shared_info));
+ 		skb->head = ph.raw;
+		skb->data = ph.raw + ph.h1->tp_mac;		
+		skb_reset_tail_pointer(skb);
+		skb->end = skb->tail + po->tx_ring.frame_size  - sizeof(struct skb_shared_info) - ph.h1->tp_mac;
+		skb_set_tail_pointer(skb, ph.h1->tp_len);
+		skb_set_network_header(skb, 0);
+		skb->len = ph.h1->tp_len;
+		skb->truesize += skb->len;
+		skb->sk = &po->sk;
 
 		shinfo = skb_shinfo(skb);
 		memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
 		atomic_set(&shinfo->dataref, 1);
 
-		status = TP_STATUS_SEND_REQUEST;
-		hlen = LL_RESERVED_SPACE(dev);
-		tlen = dev->needed_tailroom;
-		skb = sock_alloc_send_skb(&po->sk,
-				hlen + tlen + sizeof(struct sockaddr_ll),
-				0, &err);
-
-		if (unlikely(skb == NULL))
-			goto out_status;
-
-		tp_len = tpacket_fill_skb(po, skb, ph, dev, size_max, proto,
-					  addr, hlen);
-		if (tp_len > dev->mtu + dev->hard_header_len) {
-			struct ethhdr *ehdr;
-			/* Earlier code assumed this would be a VLAN pkt,
-			 * double-check this now that we have the actual
-			 * packet in hand.
-			 */
-
+		switch (tun->flags & TUN_TYPE_MASK) {
+		case TUN_TUN_DEV:
+			if (tun->flags & TUN_NO_PI) {
+				switch (skb->data[0] & 0xf0) {
+				case 0x40:
+					skb->protocol = htons(ETH_P_IP);
+					break;
+				case 0x60:
+					skb->protocol = htons(ETH_P_IPV6);
+					break;
+				default:
+					tun->dev->stats.rx_dropped++;
+					kfree_skb(skb);
+					goto out;
+				}
+			}
 			skb_reset_mac_header(skb);
-			ehdr = eth_hdr(skb);
-			if (ehdr->h_proto != htons(ETH_P_8021Q))
-				tp_len = -EMSGSIZE;
+			skb->dev = tun->dev;
+			break;
+		case TUN_TAP_DEV:
+			skb->protocol = eth_type_trans(skb, tun->dev);
+			break;
 		}
-		if (unlikely(tp_len < 0)) {
-			if (po->tp_loss) {
-				__packet_set_status(po, ph,
-						TP_STATUS_AVAILABLE);
-				packet_increment_head(&po->tx_ring);
-				kfree_skb(skb);
-				continue;
-			} else {
-				status = TP_STATUS_WRONG_FORMAT;
-				err = tp_len;
-				goto out_status;
-			}
+		{
+			struct iphdr *iph;
+			iph = ip_hdr(skb);
+			printk("saddr="NIPQUAD_FMT",daddr="NIPQUAD_FMT"\n", 
+					NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
 		}
-
-		packet_pick_tx_queue(dev, skb);
-
+ 		shinfo->destructor_arg = ph.raw;
 		skb->destructor = tun_packet_destruct_skb;
-		__packet_set_status(po, ph, TP_STATUS_SENDING);
+		__packet_set_status(po, ph.raw, TP_STATUS_SENDING);
 		packet_inc_pending(&po->tx_ring);
-
-		status = TP_STATUS_SEND_REQUEST;		
-		packet_increment_head(&po->tx_ring);
-		netif_rx_ni(skb);
-
-		#if 0
-		err = po->xmit(skb);
-		if (unlikely(err > 0)) {
-			err = net_xmit_errno(err);
-			if (err && __packet_get_status(po, ph) ==
-				   TP_STATUS_AVAILABLE) {
-				/* skb was destructed already */
-				skb = NULL;
-				goto out_status;
-			}
-			/*
-			 * skb was dropped but not destructed yet;
-			 * let's treat it like congestion or err < 0
-			 */
-			err = 0;
-		}
-		packet_increment_head(&po->tx_ring);
-		len_sum += tp_len;
-		#endif
-	} while (likely((ph != NULL) ||
+		printk("#### rx =%d\n", netif_rx_ni(skb));
+		tp_len += ph.h1->tp_len;
+	} while (likely((ph.raw != NULL) ||
 		/* Note: packet_read_pending() might be slow if we have
 		 * to call it as it's per_cpu variable, but in fast-path
 		 * we already short-circuit the loop with the first
@@ -1689,12 +1720,7 @@ static int tun_mmap_snd(struct tun_struct *tun, struct tun_file *po, int need_wa
 		 * anyway.
 		 */
 		 (need_wait && packet_read_pending(&po->tx_ring))));
-
- 	goto out;
-
-out_status:
-	__packet_set_status(po, ph, status);
-	kfree_skb(skb);
+	err = tp_len;
 out:
 	mutex_unlock(&po->pg_vec_lock);
 	return err;
@@ -2634,6 +2660,11 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 					    &tun_proto);
 	if (!tfile)
 		return -ENOMEM;
+	
+	if (packet_alloc_pending(tfile) < 0) {
+		printk("packet_alloc_pending error\n");
+		return -ENOMEM;
+	}
 	rcu_assign_pointer(tfile->tun, NULL);
 	tfile->net = get_net(current->nsproxy->net_ns);
 	tfile->flags = 0;
@@ -2676,6 +2707,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 		packet_set_ring(tfile, &tfile->sk, &req_u, 1, 1);
 	}
 
+	packet_free_pending(tfile);
 	tun_detach(tfile, true);
 	put_net(net);
 
@@ -2712,21 +2744,6 @@ static inline __pure struct page *pgv_to_page(void *addr)
 	if (is_vmalloc_addr(addr))
 		return vmalloc_to_page(addr);
 	return virt_to_page(addr);
-}
-
-static unsigned int packet_read_pending(const struct tun_ring_buffer *rb)
-{
-	unsigned int refcnt = 0;
-	int cpu;
-
-	/* We don't use pending refcount in rx_ring. */
-	if (rb->pending_refcnt == NULL)
-		return 0;
-
-	for_each_possible_cpu(cpu)
-		refcnt += *per_cpu_ptr(rb->pending_refcnt, cpu);
-
-	return refcnt;
 }
 
 static void free_pg_vec(struct pgv *pg_vec, unsigned int order,

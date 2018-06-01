@@ -350,6 +350,16 @@ static inline struct sock *__inet_lookup(struct net *net,
 					 const int dif)
 {
 	u16 hnum = ntohs(dport);
+//问题出在下面的两个细节上：
+
+//TCP连接主动断开后会进入timewait状态，该状态的连接依然在establish hash中；
+//TCP可以支持双向打开，没有Listener的情况下同时发送syn包建立连接。
+//在查询Listener hash之前先查询establish hash正是为了支持上述两种场景的，具体的支持方法如下：
+
+//如果一个syn包命中了timewait状态的连接，必须检查其timestamp确认连接可重用，要么允许建立连接要么重置；
+//如果一个syn包命中了一个已经发送过syn包的连接，则执行“同时打开”握手流程。
+//嗯，结论就是这样，即在为一个TCP数据包查询socket的时候，必须首先查询establish hash表，然后再查Listener hash表。
+
 	struct sock *sk = __inet_lookup_established(net, hashinfo,
 				saddr, sport, daddr, hnum, dif);
 
