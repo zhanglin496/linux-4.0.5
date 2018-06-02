@@ -4016,6 +4016,11 @@ static int packet_mmap(struct file *file, struct socket *sock,
 			//需要一个一个的映射
 			for (pg_num = 0; pg_num < rb->pg_vec_pages; pg_num++) {
 				//将虚拟地址转换成page指针
+				//这个函数可以将通过__get_free_pages分配的地址
+				//在其中任意合法的地址转换成对应的page地址
+				//不需要是分配的首地址
+				//__get_free_pages是以PAGE_SIZE为单位来分配的
+				//所以每个页面得到的page地址都不一样
 				page = pgv_to_page(kaddr);
 				//将单个物理页映射到指定的start虚拟地址
 				//映射到进程的虚拟地址空间中，这样用户空间才能直接访问
