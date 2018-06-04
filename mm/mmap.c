@@ -342,6 +342,10 @@ set_brk:
 	mm->brk = brk;
 	populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
 	up_write(&mm->mmap_sem);
+	//如果页面不允许换出
+	//那么需要立即分配物理页
+	//否则只是记录分配的虚拟页
+	//对应的物理页在do_page_fault中分配
 	if (populate)
 		mm_populate(oldbrk, newbrk - oldbrk);
 	return brk;
@@ -1404,6 +1408,10 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 	unsigned long retval = -EBADF;
 
 	if (!(flags & MAP_ANONYMOUS)) {
+		//如果没有设置MAP_ANONYMOUS
+		//那么表示要映射到对应的文件描述符
+		//这里并不一定是指文件系统实际存在的文件
+		//也可能是设备节点
 		audit_mmap_fd(fd, flags);
 		file = fget(fd);
 		if (!file)
@@ -1437,7 +1445,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 	}
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
+	//实际的映射工作
 	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff);
 out_fput:
 	if (file)
@@ -1575,6 +1583,7 @@ munmap_back:
 	if (vma)
 		goto out;
 
+	//每个虚拟的地址空间都需要一个vm_area_struct来表示
 	/*
 	 * Determine the object being mapped and call the appropriate
 	 * specific mapper. the address has already been validated, but
@@ -1611,6 +1620,8 @@ munmap_back:
 		 * and map writably if VM_SHARED is set. This usually means the
 		 * new file must not have been exposed to user-space, yet.
 		 */
+		 //调用文件的映射接口
+		 //这里虚拟的vma 已经分配好
 		vma->vm_file = get_file(file);
 		error = file->f_op->mmap(file, vma);
 		if (error)
@@ -1999,7 +2010,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 	unsigned long error = arch_mmap_check(addr, len, flags);
 	if (error)
 		return error;
-
+	//不超过TASK_SIZE
 	/* Careful about overflows.. */
 	if (len > TASK_SIZE)
 		return -ENOMEM;
@@ -2011,8 +2022,10 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 	if (IS_ERR_VALUE(addr))
 		return addr;
 
+	//addr + len 不超过TASK_SIZE
 	if (addr > TASK_SIZE - len)
 		return -ENOMEM;
+	//分配的地址必须是PAGE_SIZE 对齐
 	if (addr & ~PAGE_MASK)
 		return -EINVAL;
 
@@ -2049,7 +2062,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 			//说明addr 刚好在这个虚拟范围内
 			if (tmp->vm_start <= addr)
 				break;
-			//否则继续找
+			//因为这个vma可能不是最接近addr的，所以还要继续找
 			rb_node = rb_node->rb_left;
 		} else
 			rb_node = rb_node->rb_right;
@@ -2689,6 +2702,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	fput(file);
 out:
 	up_write(&mm->mmap_sem);
+	//populate非0，立即分配实际的物理页面
 	if (populate)
 		mm_populate(ret, populate);
 	if (!IS_ERR_VALUE(ret))

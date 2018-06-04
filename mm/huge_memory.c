@@ -800,6 +800,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pgtable = pte_alloc_one(mm, haddr);
 		if (unlikely(!pgtable))
 			return VM_FAULT_OOM;
+		//如果是只读，共享一个全0 页面
 		zero_page = get_huge_zero_page();
 		if (unlikely(!zero_page)) {
 			pte_free(mm, pgtable);
