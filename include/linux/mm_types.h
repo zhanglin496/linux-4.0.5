@@ -349,7 +349,11 @@ struct mm_rss_stat {
 
 struct kioctx_table;
 struct mm_struct {
+	//当前所分配的虚拟地址空间	
+	//这个结构只是表示了对页面的需求
+	//不保证对应的物理页面已经映射到该虚拟地址空间中
 	struct vm_area_struct *mmap;		/* list of VMAs */
+	//用来加速vma的查找过程
 	struct rb_root mm_rb;
 	u32 vmacache_seqnum;                   /* per-thread vmacache */
 #ifdef CONFIG_MMU
@@ -361,8 +365,15 @@ struct mm_struct {
 	unsigned long mmap_legacy_base;         /* base of mmap area in bottom-up allocations */
 	unsigned long task_size;		/* size of task vm space */
 	unsigned long highest_vm_end;		/* highest vma end address */
+<<<<<<< HEAD
 	//page global directory
 	//全局页目录项
+=======
+	//指向页目录项
+	//mmu使用这个条目来完成虚拟地址到物理地址的转换工作
+//内核要运行一个新进程时读取pgd转换成物理地址再写到CR3寄存器
+//MMU再从CR3 中取得当前的页目录项指针
+>>>>>>> 676ebe985ffde41792abdc1be72429e222aa8992
 	pgd_t * pgd;
 	atomic_t mm_users;			/* How many users with user space? */
 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
