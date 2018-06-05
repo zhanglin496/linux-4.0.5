@@ -1354,7 +1354,7 @@ struct task_struct {
 	struct plist_node pushable_tasks;
 	struct rb_node pushable_dl_tasks;
 #endif
-
+	//指向当前进程的内存管理项
 	struct mm_struct *mm, *active_mm;
 #ifdef CONFIG_COMPAT_BRK
 	unsigned brk_randomized:1;
