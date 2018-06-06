@@ -297,6 +297,9 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 		ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
 				    &populate);
 		up_write(&mm->mmap_sem);
+		//populate非0，表示要进行实际的物理页面分配
+		//do_mmap_pgoff 只是分配了vm_area_struct 虚存空间
+		//实际的物理页面推迟到了缺页异常中去分配
 		if (populate)
 			mm_populate(ret, populate);
 	}

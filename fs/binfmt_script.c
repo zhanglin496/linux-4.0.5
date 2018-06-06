@@ -21,7 +21,7 @@ static int load_script(struct linux_binprm *bprm)
 	struct file *file;
 	char interp[BINPRM_BUF_SIZE];
 	int retval;
-
+	//对于脚本，必须是#!开头
 	if ((bprm->buf[0] != '#') || (bprm->buf[1] != '!'))
 		return -ENOEXEC;
 
@@ -49,20 +49,29 @@ static int load_script(struct linux_binprm *bprm)
 	*cp = '\0';
 	while (cp > bprm->buf) {
 		cp--;
+		//循环去掉尾部的空格和制表符
 		if ((*cp == ' ') || (*cp == '\t'))
 			*cp = '\0';
 		else
 			break;
 	}
+	//跳过#!
+	//
 	for (cp = bprm->buf+2; (*cp == ' ') || (*cp == '\t'); cp++);
 	if (*cp == '\0') 
 		return -ENOEXEC; /* No interpreter name found */
+
+	//取到解释器的名称
 	i_name = cp;
 	i_arg = NULL;
+	//查看是否有参数
 	for ( ; *cp && (*cp != ' ') && (*cp != '\t'); cp++)
 		/* nothing */ ;
 	while ((*cp == ' ') || (*cp == '\t'))
 		*cp++ = '\0';
+	//取得参数
+	//比如#!/bin/sh acb
+	//cp 指向acb
 	if (*cp)
 		i_arg = cp;
 	strcpy (interp, i_name);

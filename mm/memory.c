@@ -78,6 +78,7 @@
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 /* use the per-pgdat data instead for discontigmem - mbligh */
 unsigned long max_mapnr;
+//指向page 数组，数组每项大小为sizeof(struct page)
 struct page *mem_map;
 
 EXPORT_SYMBOL(max_mapnr);
