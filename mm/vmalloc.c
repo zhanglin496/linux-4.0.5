@@ -1563,10 +1563,12 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
 	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
 
+	//右移PAGE_SHIFT，计算需要多杀个page
 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
 	array_size = (nr_pages * sizeof(struct page *));
 
 	area->nr_pages = nr_pages;
+	//分配nr_pages个指针数组
 	/* Please note that the recursion is strictly bounded. */
 	if (array_size > PAGE_SIZE) {
 		pages = __vmalloc_node(array_size, 1, nested_gfp|__GFP_HIGHMEM,
@@ -1584,7 +1586,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 
 	for (i = 0; i < area->nr_pages; i++) {
 		struct page *page;
-
+		
+		//每次只分配一个page
 		if (node == NUMA_NO_NODE)
 			page = alloc_page(alloc_mask);
 		else
@@ -1595,11 +1598,13 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 			area->nr_pages = i;
 			goto fail;
 		}
+		//记录page
 		area->pages[i] = page;
 		if (gfp_mask & __GFP_WAIT)
 			cond_resched();
 	}
 
+	//建立页表完成虚拟地址到物理地址的映射
 	if (map_vm_area(area, prot, pages))
 		goto fail;
 	return area->addr;
