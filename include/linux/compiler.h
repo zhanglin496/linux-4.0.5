@@ -464,6 +464,12 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  *
  * If possible use READ_ONCE/ASSIGN_ONCE instead.
  */
+
+//这里的内存访问不要优化
+//不要将多次内存访问合并，
+//也不要将一次内存访问分拆成多次
+//ACCESS_ONCE本身的实现就是增加了volatile这个关键字
+//它确保编译器每次访问变量x都是从内存中获取
 #define __ACCESS_ONCE(x) ({ \
 	 __maybe_unused typeof(x) __var = (__force typeof(x)) 0; \
 	(volatile typeof(x) *)&(x); })

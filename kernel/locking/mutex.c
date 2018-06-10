@@ -347,6 +347,10 @@ static bool mutex_optimistic_spin(struct mutex *lock,
 				break;
 		}
 
+		//在这个例子中，ACCESS_ONCE被c code
+		//用来告知编译器在编译的时候，
+		//不要因为优化而将多次内存访问合并称为一次。
+		//对lock->owner这个memory的访问要确保每个循环都access once。
 		/*
 		 * If there's an owner, wait for it to either
 		 * release the lock or go to sleep.
