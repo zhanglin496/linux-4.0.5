@@ -1652,7 +1652,6 @@ static int tun_mmap_snd(struct tun_struct *tun, struct tun_file *po, int need_wa
 				schedule();
 			goto out;
 		}
-		packet_increment_head(&po->tx_ring);
 
 		if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV)
 			if (unlikely(tp_frame_len(po, ph.raw) < ETH_HLEN))
@@ -1664,7 +1663,7 @@ static int tun_mmap_snd(struct tun_struct *tun, struct tun_file *po, int need_wa
 
 		printk("############ph->raw=%p, skb_shared_info=%u\n", ph.raw, sizeof(struct skb_shared_info));
  		skb->head = ph.raw;
-		skb->data = ph.raw + ph.h1->tp_mac;		
+		skb->data = ph.raw + ph.h1->tp_mac;
 		skb_reset_tail_pointer(skb);
 		skb->end = skb->tail + po->tx_ring.frame_size  - sizeof(struct skb_shared_info) - ph.h1->tp_mac;
 		skb_set_tail_pointer(skb, ph.h1->tp_len);
@@ -1710,6 +1709,7 @@ static int tun_mmap_snd(struct tun_struct *tun, struct tun_file *po, int need_wa
 		skb->destructor = tun_packet_destruct_skb;
 		__packet_set_status(po, ph.raw, TP_STATUS_SENDING);
 		packet_inc_pending(&po->tx_ring);
+		packet_increment_head(&po->tx_ring);
 		printk("#### rx =%d\n", netif_rx_ni(skb));
 		tp_len += ph.h1->tp_len;
 	} while (likely((ph.raw != NULL) ||
