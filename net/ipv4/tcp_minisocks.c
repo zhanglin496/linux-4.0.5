@@ -762,6 +762,8 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	 * ESTABLISHED STATE. If it will be dropped after
 	 * socket is created, wait for troubles.
 	 */
+	 //icsk_af_ops == ipv4_specific
+	 //创建新的sock
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
 	if (child == NULL)
 		goto listen_overflow;

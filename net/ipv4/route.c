@@ -2168,6 +2168,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 		//如果设置了FLOWI_FLAG_ANYSRC，不需要对源地址验证
 		//表示可以选择任意一个源地址
 		//包括伪造的源地址，可以发起攻击
+		//主要用于透明代理，IP_TRANSPARENT 选项
 		if (!(fl4->flowi4_flags & FLOWI_FLAG_ANYSRC)) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
 			if (!__ip_dev_find(net, fl4->saddr, false))

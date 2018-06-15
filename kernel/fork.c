@@ -312,7 +312,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	tsk = alloc_task_struct_node(node);
 	if (!tsk)
 		return NULL;
-
+	//分配内核栈
 	ti = alloc_thread_info_node(tsk, node);
 	if (!ti)
 		goto free_tsk;
@@ -320,7 +320,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	err = arch_dup_task_struct(tsk, orig);
 	if (err)
 		goto free_ti;
-
+	//指向thread_info
 	tsk->stack = ti;
 #ifdef CONFIG_SECCOMP
 	/*
@@ -577,7 +577,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
 		mm->flags = default_dump_filter;
 		mm->def_flags = 0;
 	}
-
+	//分配pgd_t 页表
 	if (mm_alloc_pgd(mm))
 		goto fail_nopgd;
 

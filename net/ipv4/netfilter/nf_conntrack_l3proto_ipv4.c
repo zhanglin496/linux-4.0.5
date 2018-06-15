@@ -272,6 +272,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 
 	//通过conntrack 拿取原始的目的IP地址和端口
 	memset(&tuple, 0, sizeof(tuple));
+	//通过sock 取得保存的5元组信息
 	//本地IP地址
 	tuple.src.u3.ip = inet->inet_rcv_saddr;
 	//本地端口

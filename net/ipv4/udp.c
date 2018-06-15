@@ -1354,6 +1354,7 @@ try_again:
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	/* Copy the address. */
+	//拷贝对端的目的地址和端口
 	if (sin) {
 		sin->sin_family = AF_INET;
 		sin->sin_port = udp_hdr(skb)->source;

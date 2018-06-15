@@ -1472,6 +1472,7 @@ struct task_struct {
 	unsigned long last_switch_count;
 #endif
 /* CPU-specific state of this task */
+	/*包含主要寄存器信息，在进程上下文切换时使用*/
 	struct thread_struct thread;
 /* filesystem information */
 	struct fs_struct *fs;
@@ -2310,6 +2311,7 @@ void yield(void);
  */
 extern struct exec_domain	default_exec_domain;
 
+//每个进程的内核栈
 union thread_union {
 	struct thread_info thread_info;
 	unsigned long stack[THREAD_SIZE/sizeof(long)];

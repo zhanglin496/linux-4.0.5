@@ -328,11 +328,13 @@ tproxy_tg4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 	//因此要将数据导向本地接收进程
 	//还需要添加额外的路由规则
 	//同时应用层必须先设置套接字的IP_TRANSPARENT 选项
-
+	//应用层通过SO_ORIGINAL_DST  nf_getsockopt getorigdst 获取原始的目的
+	//ip地址和端口
 	/* NOTE: assign_sock consumes our sk reference */
 	if (sk && tproxy_sk_is_transparent(sk)) {
 		/* This should be in a separate target, but we don't do multiple
 		   targets on the same rule yet */
+		   //数据包打mark, 通过策略路由的方式截获流量
 		skb->mark = (skb->mark & ~mark_mask) ^ mark_value;
 
 		pr_debug("redirecting: proto %hhu %pI4:%hu -> %pI4:%hu, mark: %x\n",
