@@ -261,6 +261,7 @@ struct vm_area_struct {
 					   within vm_mm. */
 
 	/* linked list of VM areas per task, sorted by address */
+	//按起始地址升序排列
 	struct vm_area_struct *vm_next, *vm_prev;
 
 	struct rb_node vm_rb;

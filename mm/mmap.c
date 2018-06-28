@@ -561,12 +561,15 @@ static int find_vma_links(struct mm_struct *mm, unsigned long addr,
 
 	while (*__rb_link) {
 		struct vm_area_struct *vma_tmp;
-
+		//记住上一个父节点
 		__rb_parent = *__rb_link;
+		//取得vma
 		vma_tmp = rb_entry(__rb_parent, struct vm_area_struct, vm_rb);
 
+		//找到一个大于addr的区域
 		if (vma_tmp->vm_end > addr) {
 			/* Fail if an existing vma overlaps the area */
+			//不允许出现重叠区域
 			if (vma_tmp->vm_start < end)
 				return -ENOMEM;
 			__rb_link = &__rb_parent->rb_left;
@@ -2025,7 +2028,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 	//addr + len 不超过TASK_SIZE
 	if (addr > TASK_SIZE - len)
 		return -ENOMEM;
-	//分配的地址必须是PAGE_SIZE 对齐
+	//get_area 返回的地址必须是PAGE_SIZE 对齐
 	if (addr & ~PAGE_MASK)
 		return -EINVAL;
 
@@ -2086,10 +2089,14 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
 
 	vma = find_vma(mm, addr);
 	if (vma) {
+		//通过链表返回上一个vma
 		*pprev = vma->vm_prev;
 	} else {
 		struct rb_node *rb_node = mm->mm_rb.rb_node;
 		*pprev = NULL;
+		//如果没有找到合适的vma
+		//说明当前没有大于addr的vma
+		//直接返回最右分支的vma
 		while (rb_node) {
 			*pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
 			rb_node = rb_node->rb_right;
@@ -2734,6 +2741,8 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
 	pgoff_t pgoff = addr >> PAGE_SHIFT;
 	int error;
 
+	//长度按页对齐
+	//最小分配一页
 	len = PAGE_ALIGN(len);
 	if (!len)
 		return addr;
