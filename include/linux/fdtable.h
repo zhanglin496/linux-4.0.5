@@ -22,11 +22,13 @@
 #define NR_OPEN_DEFAULT BITS_PER_LONG
 
 struct fdtable {
+	//max_fds 是指当前可以容纳的最大文件描述数量
 	unsigned int max_fds;
 	struct file __rcu **fd;      /* current fd array */
-	//设置了close_on_exec 的文件描述符位图
+	//设置了close_on_exec 的文件描述符位图数组
+	//开始指向close_on_exec_init
 	unsigned long *close_on_exec;
-	//文件描述符位图
+	//打开的文件描述符位图数组
 	unsigned long *open_fds;
 	struct rcu_head rcu;
 };
@@ -51,6 +53,8 @@ struct files_struct {
    * read mostly part
    */
 	atomic_t count;
+  //fdt 开始时指向fdtab，等文件描述符大于NR_OPEN_DEFAULT
+  //就会重新分配fdtable
 	struct fdtable __rcu *fdt;
 	struct fdtable fdtab;
   /*
@@ -58,6 +62,7 @@ struct files_struct {
    */
 	spinlock_t file_lock ____cacheline_aligned_in_smp;
 	int next_fd;
+	//为什么是数组1，是为了方便取地址
 	unsigned long close_on_exec_init[1];
 	unsigned long open_fds_init[1];
 	struct file __rcu * fd_array[NR_OPEN_DEFAULT];

@@ -477,7 +477,9 @@ retry:
 	}
 	s->s_type = type;
 	strlcpy(s->s_id, type->name, sizeof(s->s_id));
+	//所有分配的超级块都记录到super_blocks中
 	list_add_tail(&s->s_list, &super_blocks);
+	//记录到file_system_type 中
 	hlist_add_head(&s->s_instances, &type->fs_supers);
 	spin_unlock(&sb_lock);
 	get_filesystem(type);

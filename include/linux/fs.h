@@ -1873,11 +1873,14 @@ struct file_system_type {
 #define FS_USERNS_MOUNT		8	/* Can be mounted by userns root */
 #define FS_USERNS_DEV_MOUNT	16 /* A userns mount does not imply MNT_NODEV */
 #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move() during rename() internally. */
+	//用于从底层介质读取超级块的内容
+	//并在内存中创建新的super_block 和dentry 结构体
 	struct dentry *(*mount) (struct file_system_type *, int,
 		       const char *, void *);
 	void (*kill_sb) (struct super_block *);
 	struct module *owner;
 	struct file_system_type * next;
+	//记录同一个类型文件系统的super_block
 	struct hlist_head fs_supers;
 
 	struct lock_class_key s_lock_key;

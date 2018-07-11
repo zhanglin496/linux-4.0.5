@@ -222,6 +222,9 @@ static inline void __clear_open_fd(int fd, struct fdtable *fdt)
 	__clear_bit(fd, fdt->open_fds);
 }
 
+//这里计算的并不是实际打开了多少文件
+//而是打开的最大文件描述符占用的空间
+//max_fds 是指当前可以容纳的最大文件描述数量
 static int count_open_files(struct fdtable *fdt)
 {
 	int size = fdt->max_fds;
@@ -229,6 +232,7 @@ static int count_open_files(struct fdtable *fdt)
 
 	/* Find the last open fd */
 	for (i = size / BITS_PER_LONG; i > 0; ) {
+		//非0 ，说明有打开的文件描述符
 		if (fdt->open_fds[--i])
 			break;
 	}
@@ -259,9 +263,11 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	//初始化默认值
 	newf->next_fd = 0;
 	new_fdt = &newf->fdtab;
+	//初始值为long
 	new_fdt->max_fds = NR_OPEN_DEFAULT;
 	new_fdt->close_on_exec = newf->close_on_exec_init;
 	new_fdt->open_fds = newf->open_fds_init;
+	//fd 初始指向内置的fd_array
 	new_fdt->fd = &newf->fd_array[0];
 
 	spin_lock(&oldf->file_lock);
