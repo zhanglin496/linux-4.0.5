@@ -1081,11 +1081,11 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 		__sk_filter_release(fp);
 		return -ENOMEM;
 	}
-
 	old_fp = rcu_dereference_protected(sk->sk_filter,
 					   sock_owned_by_user(sk));
 	rcu_assign_pointer(sk->sk_filter, fp);
 
+	//ÊÍ·Å¾ÉµÄfilter
 	if (old_fp)
 		sk_filter_uncharge(sk, old_fp);
 

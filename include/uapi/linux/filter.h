@@ -28,7 +28,9 @@ struct sock_filter {	/* Filter block */
 };
 
 struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
+	//filer数组的大小
 	unsigned short		len;	/* Number of filter blocks */
+	//指向filter数组
 	struct sock_filter __user *filter;
 };
 
