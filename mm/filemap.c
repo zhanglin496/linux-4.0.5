@@ -2271,6 +2271,9 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
 
 	if (!isblk) {
 		/* FIXME: this is for backwards compatibility with 2.4 */
+
+		//如果是APPEND模式，需要读取当前文件大小后更新pos位置
+		//而不是传入的pos位置，这是APPEND 模式可以保证原子写的原因
 		if (file->f_flags & O_APPEND)
                         *pos = i_size_read(inode);
 

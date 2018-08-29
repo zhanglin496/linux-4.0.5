@@ -636,11 +636,19 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 		size_t, count)
 {
 	//fdget_pos 会获取f_pos_lock 锁
-	//保证对同一个fd 写的原子性
+	//保证对同一个fd 写的原子性,也就是共享file 的情况下
+	//比如多线程，file结构体的锁保证共享fil·e 结构体的线程和进程
+	//write  不交叉不重叠
 	//但是对不同进程的fd 没有保证
-	//
+	//只是在inode或者file层面上保证一次写操作的原子性，
+	//但无法保证用户需要写入的数据的一次肯定被写完
 	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
+	//不同进程写同一个文件需要用APPEND 模式
+	//APPEND模式通过锁inode，保证每次写操作均在inode中获取的文件size后追加数据到末尾，写完后释放锁；
+	//非APPEND模式通过锁file结构体后获取file结构体的pos字段，并将数据追加到pos后，写完更新pos字段后释放锁。
+	//非APPEND模式同样要锁inode，只是不会去更新传入的pos位置
+	//由此可见，APPEND模式提供了文件层面的全局写安全，而非APPEND模式则提供了针对共享file结构体的进程/线程之间的写安全。
 
 	if (f.file) {
 		loff_t pos = file_pos_read(f.file);
