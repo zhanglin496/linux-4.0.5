@@ -33,7 +33,10 @@ struct netns_ipv4 {
 	struct ctl_table_header *route_hdr;
 	struct ctl_table_header *xfrm4_hdr;
 #endif
+	//全局配置，对应/proc/sys/net/ipv4/conf/all/,全局变量ipv4_devconf
 	struct ipv4_devconf	*devconf_all;
+	//默认配置，对应/proc/sys/net/ipv4/conf/default/,全局变量ipv4_devconf_dflt
+	//创建的接口都继承自默认配置
 	struct ipv4_devconf	*devconf_dflt;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;

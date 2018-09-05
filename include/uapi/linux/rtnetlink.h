@@ -197,7 +197,7 @@ enum {
 	RTN_UNSPEC,
 	//非本机配置的单播IP地址
 	RTN_UNICAST,		/* Gateway or direct route	*/
-	//如果IP 地址是本机配置的IP地址，包括127网段的所有地址，则都是local类型的
+	//如果IP 地址是本机配置的IP地址，该ip地址属于一个本地接口，包括127网段的所有地址，则都是local类型的
 	RTN_LOCAL,		/* Accept locally		*/
 	//如果IP 地址是广播地址或者本机配置的IP地址子网广播地址或者
 	//0网段地址，比如0.139.2.69

@@ -191,6 +191,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		//则不需要转发
 		skb2 = skb;
 		/* Do not forward the packet since it's local. */
+		//不需要走L2转发
 		skb = NULL;
 	}
 	//入口帧和出口帧分别调用了不同的处理函数
