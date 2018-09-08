@@ -314,7 +314,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	struct hlist_node *tmp;
 	int ret = 0;
 	bool flag_exist = flags & IPSET_FLAG_EXIST;
-	bool new_elem = false;
+	bool new_elem = true;
 	u32 key, multi = 0;
 
 	if (SET_WITH_TIMEOUT(set) && h->elements >= h->maxelem)
@@ -339,6 +339,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			if (flag_exist ||
 			    (SET_WITH_TIMEOUT(set) &&
 				ip_set_timeout_expired(ext_timeout(data, h)))) {
+				new_elem = false;
 				break;
 			} else {
 				ret = -IPSET_ERR_EXIST;
@@ -346,6 +347,13 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			}
 		} else if (SET_WITH_TIMEOUT(set) &&
 				ip_set_timeout_expired(ext_timeout(data, h))) {
+			hlist_del(&data->node);
+			/*free the timeout node */
+			t->elements_size -= h->dsize + data->len + data->free;
+			h->elements--;
+			kfree(data);
+			#if 0
+			// must check the same node is eexist, so can't reuse the node
 			hlist_del(&data->node);
 			if (d->len <= data->len + data->free) {
 				/*reuse the node */
@@ -361,10 +369,11 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				h->elements--;
 				kfree(data);
 			}
+			#endif
 		}
 	}
 
-	if (!data) {
+	if (new_elem) {
 		data = kzalloc(h->dsize + d->len + 1, GFP_ATOMIC);
 		if (!data) {
 			ret = -ENOMEM;
@@ -375,7 +384,6 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		memcpy((void *)data + data->offset, (void *)d + d->offset, d->len);		
 		t->elements_size += h->dsize + d->len;
 		h->elements++;
-		new_elem = true;
 	}
 
 	data->dns_match = d->dns_match;

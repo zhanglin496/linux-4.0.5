@@ -1605,6 +1605,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	}
 
 	//建立页表完成虚拟地址到物理地址的映射
+	//可以看出区别，vmalloc每次都要建立页表映射
+	//而kmalloc不需要
 	if (map_vm_area(area, prot, pages))
 		goto fail;
 	return area->addr;
