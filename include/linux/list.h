@@ -152,6 +152,7 @@ static inline void list_replace(struct list_head *old,
 //要求new必须是一个空链表
 //old:A
 //new1:D<->B<->C
+//如果old为空，则替换后old 和new 都为空
 static inline void list_replace_init(struct list_head *old,
 					struct list_head *new)
 {
