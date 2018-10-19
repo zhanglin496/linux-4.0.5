@@ -783,6 +783,8 @@ __releases(&files->file_lock)
 	tofree = fdt->fd[fd];
 	if (!tofree && fd_is_open(fd, fdt))
 		goto Ebusy;
+
+	//增加引用计数
 	get_file(file);
 	rcu_assign_pointer(fdt->fd[fd], file);
 	__set_open_fd(fd, fdt);
@@ -792,6 +794,8 @@ __releases(&files->file_lock)
 		__clear_close_on_exec(fd, fdt);
 	spin_unlock(&files->file_lock);
 
+	//如果原先tofree是打开的状态
+	//则关闭掉
 	if (tofree)
 		filp_close(tofree, files);
 
@@ -840,7 +844,9 @@ SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 		return -EBADF;
 
 	spin_lock(&files->file_lock);
+	//检查文件描述符表，以保证能容纳指定的newfd
 	err = expand_files(files, newfd);
+	//检查oldfd是否有效
 	file = fcheck(oldfd);
 	if (unlikely(!file))
 		goto Ebadf;
@@ -863,7 +869,8 @@ SYSCALL_DEFINE2(dup2, unsigned int, oldfd, unsigned int, newfd)
 	if (unlikely(newfd == oldfd)) { /* corner case */
 		struct files_struct *files = current->files;
 		int retval = oldfd;
-
+		//如果newfd == oldfd， 只检查oldfd是否有效，
+		//这种情况下不会增加oldfd 的引用计数
 		rcu_read_lock();
 		if (!fcheck_files(files, oldfd))
 			retval = -EBADF;
@@ -876,9 +883,11 @@ SYSCALL_DEFINE2(dup2, unsigned int, oldfd, unsigned int, newfd)
 SYSCALL_DEFINE1(dup, unsigned int, fildes)
 {
 	int ret = -EBADF;
+	//如果fildes 有效，增加file 引用计数
 	struct file *file = fget_raw(fildes);
 
 	if (file) {
+		//获取一个空闲的fd，指向file
 		ret = get_unused_fd_flags(0);
 		if (ret >= 0)
 			fd_install(ret, file);
