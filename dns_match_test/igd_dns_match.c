@@ -153,7 +153,7 @@ static struct dns_tree *dns_tree_match(struct dns_tree_head *root, struct dns_tr
 
 	list_for_each_entry(r, &root->node, list) {
 #ifdef NEW_DOMAIN_MATCH
-		if (test_bit(DNS_TREE_COMPLETE_MATCH , &r->flags)) {
+		if (test_bit(DNS_TREE_COMPLETE_MATCH, &r->flags)) {
 			if (level != 0 || res->match_len != r->comm.len ||
 				memcmp(res->org, r->comm.name, r->comm.len))
 				continue;
@@ -166,6 +166,10 @@ static struct dns_tree *dns_tree_match(struct dns_tree_head *root, struct dns_tr
 		if (res->match(r, res->data, res->data_len))
 			continue;
 
+		if (test_bit(TREE_ALL_MATCH , &r->flags) && level!=0) {
+			continue;
+		}
+
 #ifdef NEW_DOMAIN_MATCH
 		if (res->max_len < (int)r->comm.len) {
 			DEBUG("res->max_len=%d, res->match_len=%d, r->comm.len=%d\n",res->max_len, res->match_len, r->comm.len);
@@ -173,13 +177,6 @@ static struct dns_tree *dns_tree_match(struct dns_tree_head *root, struct dns_tr
 			DEBUG("res->max_len=%d, res->match_len=%d, r->comm.len=%d\n",res->max_len, res->match_len, r->comm.len);
 			res->dst = r;
 		}
-#endif
-
-		if (test_bit(TREE_ALL_MATCH , &r->flags) && level!=0) {
-			continue;
-		}
-	
-#ifdef NEW_DOMAIN_MATCH
 		break;
 #else
 		return r;
@@ -191,7 +188,7 @@ static struct dns_tree *dns_tree_match(struct dns_tree_head *root, struct dns_tr
 		return NULL;
 	/*  doesn't need check index=0, because root->child[0]=NULL*/
 	if (!root->child[index]) {
-		DEBUG("root->child[%d]== NULL\n", index);
+		DEBUG("root->child[%d]== NULL, res len=%d\n", index, res->len);
 #ifdef NEW_DOMAIN_MATCH
 		return res->dst;
 #else
@@ -201,8 +198,10 @@ static struct dns_tree *dns_tree_match(struct dns_tree_head *root, struct dns_tr
 	hash = dns_tree_hash(&res->cur[1], index);
 	res->len -= index + 1;
 	res->cur += index + 1;
-	if (res->len < 0)
+	if (res->len < 0) {
+		DEBUG("res len error\n");
 		return NULL;
+	}
 	next = root->child[index];
 	next = next + hash;
 
@@ -578,6 +577,8 @@ int main(int argc, char **argv)
 	add_url_item("baidu.com.cn", 0);
 	add_url_item("168.0.1", 0);
 	add_url_item("weixin.qq.com", 0);
+	add_url_item("weixin.qq.cam", 0);
+	add_url_item("weixin.qq.cam", 0);
 	add_url_item("weixin.qq.com.cn", 0);
 	add_url_item("weixin.qq", 0);
 	add_url_item("weixin", 0);
