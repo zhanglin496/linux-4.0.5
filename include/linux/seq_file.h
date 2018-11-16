@@ -45,6 +45,9 @@ struct seq_file {
 
 struct seq_operations {
 	//返回值作为stop\show\next的第二个参数
+	//start 和stop函数是配对使用的
+	//调完start 必定会调用stop函数
+	//通常在start 函数加速，stop函数中解锁
 	void * (*start) (struct seq_file *m, loff_t *pos);
 	void (*stop) (struct seq_file *m, void *v);
 	//返回值作为show的第二个参数
