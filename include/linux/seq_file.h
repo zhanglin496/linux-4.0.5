@@ -51,6 +51,7 @@ struct seq_operations {
 	void * (*start) (struct seq_file *m, loff_t *pos);
 	void (*stop) (struct seq_file *m, void *v);
 	//返回值作为show的第二个参数
+	//pos 作为index 供函数实现者使用
 	void * (*next) (struct seq_file *m, void *v, loff_t *pos);
 	//填充数据
 	int (*show) (struct seq_file *m, void *v);
