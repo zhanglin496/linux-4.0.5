@@ -159,6 +159,9 @@ repeat:
 #endif
 			if (verdict != NF_REPEAT)
 				return verdict;
+			//如果是repeat，再次重复调用该hook
+			//因此写hook函数时要注意不要一直返回repeat
+			//否侧会导致死循环
 			goto repeat;
 		}
 	}
