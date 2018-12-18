@@ -590,6 +590,13 @@ void tasklet_init(struct tasklet_struct *t,
 }
 EXPORT_SYMBOL(tasklet_init);
 
+//对于tasklet_struct 微任务，一般是静态嵌入到宿主结构里
+//tasklet 的实现机制保证同一个tasklet_struct 同一时刻只能在一个CPU上运行
+//所谓同一个就是指的是否是同一个tasklet_struct
+//tasklet和软中断的区别就是软中断是静态定义的，不能动态添加
+//而tasklet 只不过在软中断里面再加入了一个调度层，可以动态添加
+//仍然是在软中断环境里执行，这样方便扩展
+//本质上没什么区别
 void tasklet_kill(struct tasklet_struct *t)
 {
 	if (in_interrupt())

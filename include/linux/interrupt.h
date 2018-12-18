@@ -504,7 +504,7 @@ static inline void tasklet_unlock(struct tasklet_struct *t)
 	smp_mb__before_atomic();
 	clear_bit(TASKLET_STATE_RUN, &(t)->state);
 }
-
+//等待指定tasklet 的TASKLET_STATE_RUN 标示被clear
 static inline void tasklet_unlock_wait(struct tasklet_struct *t)
 {
 	while (test_bit(TASKLET_STATE_RUN, &(t)->state)) { barrier(); }
@@ -546,6 +546,7 @@ static inline void tasklet_hi_schedule_first(struct tasklet_struct *t)
 }
 
 
+//增加count 的值，tasklet 只有在conut为0时才会执行
 static inline void tasklet_disable_nosync(struct tasklet_struct *t)
 {
 	atomic_inc(&t->count);
