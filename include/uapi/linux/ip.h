@@ -93,6 +93,11 @@ struct iphdr {
 #error	"Please fix <asm/byteorder.h>"
 #endif
 	__u8	tos;
+	//tot_len代表的是当前报文的长度，对于分片报文也是如此
+	//因此对于接收到分片报文，是无法判断整个实际报文的
+	//大小，只有等到报文重组成功后才知道实际的大小
+	//因此分片报文对于接收端而言是一种负担
+	//接收端根据源IP地址、目的IP地址、id和L4协议来重组IP分片报文
 	__be16	tot_len;
 	__be16	id;
 	__be16	frag_off;
