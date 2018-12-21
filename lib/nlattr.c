@@ -94,11 +94,14 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (attrlen == 0)
 			break;
 	default:
+		//如果设置了最小长度要求
 		if (pt->len)
 			minlen = pt->len;
+		//不等于默认类型,NLA_UNSPEC 值是0
+		//取得内置类型的最小长度要求
 		else if (pt->type != NLA_UNSPEC)
 			minlen = nla_attr_minlen[pt->type];
-
+		//最小长度检查
 		if (attrlen < minlen)
 			return -ERANGE;
 	}
@@ -190,7 +193,11 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	//因此调用者需要自己验证数据包是否包含指定的属性
 	nla_for_each_attr(nla, head, len, rem) {
 		u16 type = nla_type(nla);
-
+		//验证tlv属性
+		//注意这里对type 等于0 的没做检查
+		//这就是为什么属性值定义时要从1 开始
+		//maxtype取的等于情况，
+		//所以定义nla_policy 数组时大小是maxtype + 1
 		if (type > 0 && type <= maxtype) {
 			if (policy) {
 				err = validate_nla(nla, maxtype, policy);
