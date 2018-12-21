@@ -9,6 +9,12 @@
 #include <stdio.h>  
 #include <stdlib.h>
 
+//生成私钥：
+//openssl genrsa -out private.key 2048
+
+//生成公钥：
+//openssl rsa -in private.key -pubout > public.key
+
 //公钥加密
 //openssl rsautl -encrypt -in test -out test.enc -inkey asn1pub.pem -pubin
 //私钥解密
