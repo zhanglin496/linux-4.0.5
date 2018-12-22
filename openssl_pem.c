@@ -9,15 +9,15 @@
 #include <stdio.h>  
 #include <stdlib.h>
 
-//ç”Ÿæˆç§é’¥ï¼š
+//Éú³ÉË½Ô¿£º
 //openssl genrsa -out private.key 2048
 
-//ç”Ÿæˆå…¬é’¥ï¼š
+//Éú³É¹«Ô¿£º
 //openssl rsa -in private.key -pubout > public.key
 
-//å…¬é’¥åŠ å¯†
+//¹«Ô¿¼ÓÃÜ
 //openssl rsautl -encrypt -in test -out test.enc -inkey asn1pub.pem -pubin
-//ç§é’¥è§£å¯†
+//Ë½Ô¿½âÃÜ
 //openssl rsautl -decrypt -in test.enc -out test.dec -inkey asn1enc.pem
 
 
