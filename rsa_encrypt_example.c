@@ -9,6 +9,9 @@
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 //Éú³ÉË½Ô¿
 //openssl genrsa -out private.key 2048
 
@@ -300,6 +303,7 @@ int main(int argc, char **argv)
 	int ch;
 	RSA *rsa;
 	char name2[1024];
+	struct stat stat;
 
 	while ((ch = getopt(argc, argv, "f:dep:r:")) != -1) {
 		switch (ch) {
@@ -322,29 +326,39 @@ int main(int argc, char **argv)
 	}
 	if (!name)
 		return -1;
-	data = malloc(1024*1024);
-	if (!data)
-		return -1;
 	rfp = fopen(name,  "r");
 	if (!rfp)
-		return -1;
+		goto out;
+	
+	if (fstat(fileno(rfp), &stat) < 0)
+		goto out;
+	if (!S_ISREG(stat.st_mode))
+		goto out;
+	if (stat.st_size > 10*1024*1024)
+		goto out;
+
+	data = malloc(stat.st_size);
+	if (!data)
+		goto out;
+
 	snprintf(name2, sizeof(name2), "%s", name);
 	if (en)
 		strcat(name2, ".enc");
 	else if (de)
 		strcat(name2, ".dec");
 	else
-		return -1;
+		goto out;
 
 	wfp = fopen(name2,  "w");
 	if (!wfp)
-		return -1;
+		goto out;
 	ptr = data;
 	while ((len = fread(ptr, 1, 4096, rfp)) > 0) {
 		ptr += len;
 	}
 	if (!feof(rfp))
-		return -1;
+		goto out;
+	
 	len = ptr -data;
 
 	if (pub_key)
@@ -352,22 +366,22 @@ int main(int argc, char **argv)
 	else if (pri_key)
 		rsa = create_rsa_by_file(pri_key, 0);
 	else
-		return -1;
+		goto out;
 	if (!rsa)
-		return -1;
+		goto out;
 
 	if (pub_key) {
 		if (en) {
 			to = rsa_public_encrypt_fast(rsa, data, &len, RSA_PKCS1_PADDING);
 			if (!to)
-				return -1;
+				goto out;
 			fwrite(to, len, 1, wfp);
 			fclose(rfp);
 			fclose(wfp);
 		} else {
 			to = rsa_public_decrypt_fast(rsa, data, &len, RSA_PKCS1_PADDING);
 			if (!to)
-				return -1;
+				goto out;
 			fwrite(to, len, 1, wfp);
 			fclose(rfp);
 			fclose(wfp);
@@ -376,18 +390,21 @@ int main(int argc, char **argv)
 		if (en) {
 			to = rsa_private_encrypt_fast(rsa, data, &len, RSA_PKCS1_PADDING);
 			if (!to)
-				return -1;
+				goto out;
 			fwrite(to, len, 1, wfp);
 			fclose(rfp);
 			fclose(wfp);
 		} else {
 			to = rsa_private_decrypt_fast(rsa, data, &len, RSA_PKCS1_PADDING);
 			if (!to)
-				return -1;
+				goto out;
 			fwrite(to, len, 1, wfp);
 			fclose(rfp);
 			fclose(wfp);
 		}
 	}
 	return 0;
+
+out:
+	return -1;
 }
