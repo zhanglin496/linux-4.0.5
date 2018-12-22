@@ -8,17 +8,18 @@
 #include <openssl/err.h>
 #include <stdio.h>  
 #include <stdlib.h>
-
-//生成私钥：
+//鐢熸垚绉侀挜
 //openssl genrsa -out private.key 2048
 
-//生成公钥：
+//鐢熸垚鍏挜
 //openssl rsa -in private.key -pubout > public.key
 
-//公钥加密
+//鍏挜鍔犲瘑
 //openssl rsautl -encrypt -in test -out test.enc -inkey asn1pub.pem -pubin
-//私钥解密
+//绉侀挜瑙ｅ瘑
 //openssl rsautl -decrypt -in test.enc -out test.dec -inkey asn1enc.pem
+
+
 
 
 void PrintHex(unsigned char *str, unsigned int len)  
