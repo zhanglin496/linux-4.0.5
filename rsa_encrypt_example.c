@@ -9,6 +9,16 @@
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
+//生成私钥
+//openssl genrsa -out private.key 2048
+
+//生成公钥
+//openssl rsa -in private.key -pubout > public.key
+
+//公钥加密
+//openssl rsautl -encrypt -in test -out test.enc -inkey asn1pub.pem -pubin
+//私钥解密
+//openssl rsautl -decrypt -in test.enc -out test.dec -inkey asn1enc.pem
 
 #define ALIGN(x, a)	(((x) + (a) - 1) & ~((a) - 1))
 
@@ -272,7 +282,7 @@ static char PriveKey[] =  "-----BEGIN RSA PRIVATE KEY-----\n"
 //
 //./rsa_encrypt_example -d -f opk.tgz.enc  -r private.key
 //私钥加密
-//./rsa_encrypt_example -e -f opk.tgz.enc  -r private.key
+//./rsa_encrypt_example -e -f opk.tgz  -r private.key
 //公钥解密
 //./rsa_encrypt_example -d -f opk.tgz.enc  -p public.key
 
@@ -293,19 +303,19 @@ int main(int argc, char **argv)
 
 	while ((ch = getopt(argc, argv, "f:dep:r:")) != -1) {
 		switch (ch) {
-		case 'f':
+		case 'f': //加解密文件
 			name = strdup(optarg);
 			break;
-		case 'd':
+		case 'd': //解密
 			de = 1;
 			break;
-		case 'e':
+		case 'e': // 加密
 			en = 1;
 			break;
-		case 'p':
+		case 'p': //公钥
 			pub_key = strdup(optarg);
 			break;
-		case 'r':
+		case 'r': //私钥
 			pri_key = strdup(optarg);
 			break;
 		}
