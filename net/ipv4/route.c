@@ -2123,7 +2123,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			 RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
 	rcu_read_lock();
-	//如果客服端没有绑定原地址，那么在第一次连接时应该为空，
+	//如果客户端没有绑定原地址，那么在第一次连接时应该为空，
 	//如果客户端绑定了一个源地址，或者不是第一个发起连接的数据包
 	if (fl4->saddr) {
 		//客户端指定了源地址，那么需要对源地址做健康检查

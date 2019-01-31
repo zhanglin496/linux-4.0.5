@@ -491,6 +491,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (sk->sk_state != TCP_CLOSE || inet->inet_num)
 		goto out_release_sock;
 
+	//记录用户设置 的源地址
 	inet->inet_rcv_saddr = inet->inet_saddr = addr->sin_addr.s_addr;
 	//多播和广播使用0 IP 地址
 	if (chk_addr_ret == RTN_MULTICAST || chk_addr_ret == RTN_BROADCAST)

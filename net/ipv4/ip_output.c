@@ -411,6 +411,9 @@ int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 		 * keep trying until route appears or the connection times
 		 * itself out.
 		 */
+		 //如果套接字绑定了源地址
+		 //则inet->inet_saddr 不为0, 
+		//如果没有绑定，在查找路由时会选择一个合适的源地址
 		rt = ip_route_output_ports(sock_net(sk), fl4, sk,
 					   daddr, inet->inet_saddr,
 					   inet->inet_dport,
@@ -440,7 +443,7 @@ packet_routed:
 		iph->frag_off = 0;
 	iph->ttl      = ip_select_ttl(inet, &rt->dst);
 	iph->protocol = sk->sk_protocol;
-	// 设置IP原地址和目的地址
+	// 设置数据包的IP 源地址和目的地址
 	ip_copy_addrs(iph, fl4);
 
 	/* Transport layer set skb->h.foo itself. */
