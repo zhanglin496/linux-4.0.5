@@ -306,7 +306,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	if (h) {
 		struct sockaddr_in sin;
 		struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
-		//拷贝原始的请求目的地址
+		//拷贝原始的请求目的地址和目的端口
 		sin.sin_family = AF_INET;
 		sin.sin_port = ct->tuplehash[IP_CT_DIR_ORIGINAL]
 			.tuple.dst.u.tcp.port;
