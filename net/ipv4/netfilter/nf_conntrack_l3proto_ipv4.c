@@ -288,7 +288,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	//只有一个socket
 	//没办法对应到唯一的conntrack
 	//一般tcp 使用REDIRECT模块后，调用这个方法拿到原始的目的地址
-	//udp 如果使用代理，一般使用TPPTOXY 模块，这个模块不会更改
+	//udp 如果使用代理，一般使用TPROXY 模块，这个模块不会更改
 	//原始的目的地址
 	/* We only do TCP and SCTP at the moment: is there a better way? */
 	if (sk->sk_protocol != IPPROTO_TCP && sk->sk_protocol != IPPROTO_SCTP) {
@@ -306,7 +306,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	if (h) {
 		struct sockaddr_in sin;
 		struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
-
+		//拷贝原始的请求目的地址
 		sin.sin_family = AF_INET;
 		sin.sin_port = ct->tuplehash[IP_CT_DIR_ORIGINAL]
 			.tuple.dst.u.tcp.port;

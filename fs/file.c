@@ -689,7 +689,7 @@ static unsigned long __fget_light(unsigned int fd, fmode_t mask)
 {
 	struct files_struct *files = current->files;
 	struct file *file;
-
+	//如果只有一个进程在使用，那就不需要增加引用计数了
 	if (atomic_read(&files->count) == 1) {
 		file = __fcheck_files(files, fd);
 		if (!file || unlikely(file->f_mode & mask))
