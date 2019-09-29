@@ -806,7 +806,9 @@ struct file {
 		struct llist_node	fu_llist;
 		struct rcu_head 	fu_rcuhead;
 	} f_u;
+	//指向对应的目录项
 	struct path		f_path;
+	//指向对应的索引节点
 	struct inode		*f_inode;	/* cached value */
 	//对应文件描述符的操作集合
 	const struct file_operations	*f_op;
