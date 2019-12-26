@@ -421,8 +421,9 @@ static bool find_symbol_in_section(const struct symsearch *syms,
 	//使用二分查找
 	//内核模块对于SHN_UNDEF未定义的符号为什么
 	//不能strip掉.strtab中的信息
-	//因为对于SHN_UNDEF的引用是通过符号名称来查找的
-	//如果没有符号名就无法解析引用的符号
+	//因为对于SHN_UNDEF的引用是通过符号名称来查找
+	//引用地址
+	//如果没有符号名就无法解析引用的符号地址
 	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
 			sizeof(struct kernel_symbol), cmp_name);
 
@@ -1963,6 +1964,7 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			/* Ignore common symbols */
 			if (!strncmp(name, "__gnu_lto", 9))
 				break;
+			//-fno-common选项来禁止将未初始化的全局变量放入到common段
 			//不支持common 符号类型
 			/* We compiled with -fno-common.  These are not
 			   supposed to happen.  */
