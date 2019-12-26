@@ -2062,7 +2062,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 			//记录tmp
 			vma = tmp;
 			//如果vm_start 刚好小于addr
-			//说明addr 刚好在这个虚拟范围内
+			//说明addr 刚好在这个虚拟地址范围内
 			if (tmp->vm_start <= addr)
 				break;
 			//因为这个vma可能不是最接近addr的，所以还要继续找

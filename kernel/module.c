@@ -1983,7 +1983,7 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 			ksym = resolve_symbol_wait(mod, info, name);
 			/* Ok if resolved.  */
 			//为什么要导出符号表
-			//原因是不导致符号表
+			//原因是不导出符号表
 			//就解析不 了符号
 			//也就是说模块引用的符号
 			//在内核中若未导出的话
