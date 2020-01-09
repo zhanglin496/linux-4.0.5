@@ -1,2 +1,4 @@
 //查看当前证书信息
 openssl x509 -in GeoTrust_Global_CA.crt -noout -text
+//本地校验证书，需要提供完整的证书链，包括中间证书
+openssl verify -CApath /home online.cer 
