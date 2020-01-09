@@ -1,0 +1,2 @@
+//查看当前证书信息
+openssl x509 -in GeoTrust_Global_CA.crt -noout -text
