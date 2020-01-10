@@ -1,8 +1,10 @@
 //查看当前证书信息
 openssl x509 -in GeoTrust_Global_CA.crt -noout -text
 //本地校验证书，需要提供完整的证书链，包括中间证书
-openssl verify -CApath /home online.cer 
+openssl verify -no-CAfile -no-CApath -CApath  /home/ca_root/ -untrusted 中间证书 需要验证的证书
 //查看pem格式证书信息
 openssl x509 -in certificate.pem -noout -text
 //将der格式的证书转换pem格式
 openssl x509 -inform der -in certificate.cer -out certificate.pem
+///本地校验证书，需要提供完整的证书链，包括中间证书
+
