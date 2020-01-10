@@ -6,5 +6,15 @@ openssl verify -no-CAfile -no-CApath -CApath  /home/ca_root/ -untrusted 中间�
 openssl x509 -in certificate.pem -noout -text
 //将der格式的证书转换pem格式
 openssl x509 -inform der -in certificate.cer -out certificate.pem
-///本地校验证书，需要提供完整的证书链，包括中间证书
+//生成私钥
+//openssl genrsa -out private.key 2048
+
+//生成公钥
+//openssl rsa -in private.key -pubout > public.key
+
+//公钥加密
+openssl rsautl -encrypt -in test -out test.enc -inkey asn1pub.pem -pubin
+//私钥解密
+openssl rsautl -decrypt -in test.enc -out test.dec -inkey asn1enc.pem
+
 
