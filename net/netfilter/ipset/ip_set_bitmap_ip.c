@@ -298,7 +298,9 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		last_ip |= ~ip_set_hostmask(netmask);
 	}
 	//计算elements 需要分配的空间大小
+	//这里要保证每个不同的IP要映射到不同的bit位上
 	if (netmask == 32) {
+		//子网掩码为32的情况
 		hosts = 1;
 		elements = (u64)last_ip - first_ip + 1;
 	} else {

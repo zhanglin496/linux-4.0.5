@@ -53,6 +53,7 @@ enum nf_inet_hooks {
 };
 
 enum {
+	//NFPROTO_UNSPEC 这理代指通配的意思
 	NFPROTO_UNSPEC =  0,
 	NFPROTO_INET   =  1,
 	NFPROTO_IPV4   =  2,
