@@ -923,7 +923,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			elf_prot |= PROT_EXEC;
 
 		elf_flags = MAP_PRIVATE | MAP_DENYWRITE | MAP_EXECUTABLE;
-
+		//程序链接时分配的虚拟地址
 		vaddr = elf_ppnt->p_vaddr;
 		//如果是可执行文件，设置MAP_FIXED位，
 		//则必须映射到指定的地址
@@ -933,6 +933,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		if (loc->elf_ex.e_type == ET_EXEC || load_addr_set) {
 			elf_flags |= MAP_FIXED;
 		} else if (loc->elf_ex.e_type == ET_DYN) {
+		//该代码路径最多进入一次
+		//计算出load_bias
 			/* Try and get dynamic programs out of the way of the
 			 * default mmap base, as well as whatever program they
 			 * might try to exec.  This is because the brk will
@@ -950,6 +952,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			else
 				load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);
 #else
+			//ELF_ET_DYN_BASE == TASK_SIZE/3 * 2
+			//一般TASK_SIZE是3GB, 所以ELF_ET_DYN_BASE 是2GB
+			//ELF_PAGESTART把地址按页对齐
 			load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);
 #endif
 			total_size = total_mapping_size(elf_phdata,
@@ -962,7 +967,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 		//映射文件到指定的虚拟地址load_bias + vaddr
 		//如果不是MAP_FIXED，实际映射后的地址不一定等于load_bias + vaddr
-		//error 地址一般是按页对齐
+		//返回实际分配的虚拟error 地址是按页对齐的
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
 				elf_prot, elf_flags, total_size);
 		if (BAD_ADDR(error)) {
@@ -973,6 +978,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 
 		if (!load_addr_set) {
+			//设置load_addr_set
+			//后面的PT_LOAD 类型的地址映射都按照MAP_FIXED方式来映射
+			//load_addr 也只初始化一次
 			load_addr_set = 1;
 			load_addr = (elf_ppnt->p_vaddr - elf_ppnt->p_offset);
 			if (loc->elf_ex.e_type == ET_DYN) {
