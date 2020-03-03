@@ -230,6 +230,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	 */
 	ARCH_DLINFO;
 #endif
+	//构造elf info信息，传递给ld 动态加载器
+	//ld 动态加载器需要这些信息才能工作
 	NEW_AUX_ENT(AT_HWCAP, ELF_HWCAP);
 	NEW_AUX_ENT(AT_PAGESZ, ELF_EXEC_PAGESIZE);
 	NEW_AUX_ENT(AT_CLKTCK, CLOCKS_PER_SEC);
@@ -564,6 +566,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 			map_addr = elf_map(interpreter, load_addr + vaddr,
 					eppnt, elf_prot, elf_type, total_size);
 			total_size = 0;
+			//设置实际的映射地址
 			if (!*interp_map_addr)
 				*interp_map_addr = map_addr;
 			error = map_addr;
@@ -687,10 +690,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		retval = -ENOMEM;
 		goto out_ret;
 	}
-	
+
+	//拷贝头
 	/* Get the exec-header */
 	loc->elf_ex = *((struct elfhdr *)bprm->buf);
 
+	//检查解释器的合法性
 	retval = -ENOEXEC;
 	/* First of all, some simple consistency checks */
 	if (memcmp(loc->elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
@@ -702,7 +707,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		goto out;
 	if (!bprm->file->f_op->mmap)
 		goto out;
-
+	//读取整个程序头表
+	//可以用命令readelf -l elffile 查看
 	elf_phdata = load_elf_phdrs(&loc->elf_ex, bprm->file);
 	if (!elf_phdata)
 		goto out;
@@ -715,14 +721,17 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	end_code = 0;
 	start_data = 0;
 	end_data = 0;
-
+	
+	//遍历程序头
 	for (i = 0; i < loc->elf_ex.e_phnum; i++) {
+		//查看程序是否需要动态解释器
 		if (elf_ppnt->p_type == PT_INTERP) {
 			/* This is the program interpreter used for
 			 * shared libraries - for now assume that this
 			 * is an a.out format binary
 			 */
 			retval = -ENOEXEC;
+			//长度至少1个字节加一个空字符
 			if (elf_ppnt->p_filesz > PATH_MAX || 
 			    elf_ppnt->p_filesz < 2)
 				goto out_free_ph;
@@ -732,7 +741,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 						  GFP_KERNEL);
 			if (!elf_interpreter)
 				goto out_free_ph;
-
+			//读取解释器路径
 			retval = kernel_read(bprm->file, elf_ppnt->p_offset,
 					     elf_interpreter,
 					     elf_ppnt->p_filesz);
@@ -743,9 +752,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			}
 			/* make sure path is NULL terminated */
 			retval = -ENOEXEC;
+			//解释器路径必须是空字符结束
 			if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0')
 				goto out_free_interp;
-
+			//打开解释器文件
 			interpreter = open_exec(elf_interpreter);
 			retval = PTR_ERR(interpreter);
 			if (IS_ERR(interpreter))
@@ -757,7 +767,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			 * permissions.
 			 */
 			would_dump(bprm, interpreter);
-
+			//读取解释器头
 			retval = kernel_read(interpreter, 0, bprm->buf,
 					     BINPRM_BUF_SIZE);
 			if (retval != BINPRM_BUF_SIZE) {
@@ -766,6 +776,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 				goto out_free_dentry;
 			}
 
+			//本地拷贝
 			/* Get the exec headers */
 			loc->interp_elf_ex = *((struct elfhdr *)bprm->buf);
 			break;
@@ -773,6 +784,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		elf_ppnt++;
 	}
 
+	//重置程序头指针，再次遍历
 	elf_ppnt = elf_phdata;
 	for (i = 0; i < loc->elf_ex.e_phnum; i++, elf_ppnt++)
 		switch (elf_ppnt->p_type) {
@@ -793,21 +805,25 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		}
 
 	/* Some simple consistency checks for the interpreter */
+	//解释器存在
 	if (elf_interpreter) {
 		retval = -ELIBBAD;
 		/* Not an ELF interpreter */
+		//合法性校验
 		if (memcmp(loc->interp_elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
 			goto out_free_dentry;
 		/* Verify the interpreter has a valid arch */
 		if (!elf_check_arch(&loc->interp_elf_ex))
 			goto out_free_dentry;
 
+		//读取解释器的程序头表
 		/* Load the interpreter program headers */
 		interp_elf_phdata = load_elf_phdrs(&loc->interp_elf_ex,
 						   interpreter);
 		if (!interp_elf_phdata)
 			goto out_free_dentry;
 
+		//遍历程序头表
 		/* Pass PT_LOPROC..PT_HIPROC headers to arch code */
 		elf_ppnt = interp_elf_phdata;
 		for (i = 0; i < loc->interp_elf_ex.e_phnum; i++, elf_ppnt++)
@@ -845,10 +861,15 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
 		current->flags |= PF_RANDOMIZE;
 
+	//arch_pick_mmap_layout 设置内存映射的基地址mmap_base
+	//函数实现会考虑地址随机化的问题
+	//最总会调用vm_unmapped_area Search for an unmapped address range.
 	setup_new_exec(bprm);
 
 	/* Do this so that we can load the interpreter, if need be.  We will
 	   change some of these later */
+	//扩展栈空间，后面需要设置环境变量
+	//为调用做准备
 	retval = setup_arg_pages(bprm, randomize_stack_top(STACK_TOP),
 				 executable_stack);
 	if (retval < 0)
@@ -858,12 +879,13 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 	/* Now we do a little grungy work by mmapping the ELF image into
 	   the correct location in memory. */
+	//再次遍历程序头
 	for(i = 0, elf_ppnt = elf_phdata;
 	    i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {
 		int elf_prot = 0, elf_flags;
 		unsigned long k, vaddr;
 		unsigned long total_size = 0;
-
+		//可装载的才需要被映射
 		if (elf_ppnt->p_type != PT_LOAD)
 			continue;
 
@@ -903,6 +925,11 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		elf_flags = MAP_PRIVATE | MAP_DENYWRITE | MAP_EXECUTABLE;
 
 		vaddr = elf_ppnt->p_vaddr;
+		//如果是可执行文件，设置MAP_FIXED位，
+		//则必须映射到指定的地址
+		//如果load_addr_set已经设置，
+		//表示是数据段，数据段必须紧跟在代码段之后
+		//因此必须是MAP_FIXED映射
 		if (loc->elf_ex.e_type == ET_EXEC || load_addr_set) {
 			elf_flags |= MAP_FIXED;
 		} else if (loc->elf_ex.e_type == ET_DYN) {
@@ -933,6 +960,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			}
 		}
 
+		//映射文件到指定的虚拟地址load_bias + vaddr
+		//如果不是MAP_FIXED，实际映射后的地址不一定等于load_bias + vaddr
+		//error 地址一般是按页对齐
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
 				elf_prot, elf_flags, total_size);
 		if (BAD_ADDR(error)) {
@@ -940,6 +970,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 				PTR_ERR((void*)error) : -EINVAL;
 			goto out_free_dentry;
 		}
+
 
 		if (!load_addr_set) {
 			load_addr_set = 1;
@@ -982,7 +1013,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		if (k > elf_brk)
 			elf_brk = k;
 	}
-
+	//修正入口地址
+	//代码段、数据段等地址范围
 	loc->elf_ex.e_entry += load_bias;
 	elf_bss += load_bias;
 	elf_brk += load_bias;
@@ -1003,7 +1035,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		retval = -EFAULT; /* Nobody gets to see this, but.. */
 		goto out_free_dentry;
 	}
-
+	//如果有解释器，那么映射解释器并跳转到解释器
 	if (elf_interpreter) {
 		unsigned long interp_map_addr = 0;
 
@@ -1049,6 +1081,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 #endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
 
 	install_exec_creds(bprm);
+	//创建环境变量等启动信息
 	retval = create_elf_tables(bprm, &loc->elf_ex,
 			  load_addr, interp_load_addr);
 	if (retval < 0)

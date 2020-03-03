@@ -274,6 +274,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	//也就是说用户空间和内核空间分配的虚拟地址是不会重叠的
 	BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
 	vma->vm_end = STACK_TOP_MAX;
+	//这里只映射了PAGE_SIZE
 	vma->vm_start = vma->vm_end - PAGE_SIZE;
 	vma->vm_flags = VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
@@ -282,7 +283,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	err = insert_vm_struct(mm, vma);
 	if (err)
 		goto err;
-
+	//标记只映射了一页
 	mm->stack_vm = mm->total_vm = 1;
 	arch_bprm_mm_init(mm, vma);
 	up_write(&mm->mmap_sem);
@@ -1122,6 +1123,7 @@ EXPORT_SYMBOL(would_dump);
 
 void setup_new_exec(struct linux_binprm * bprm)
 {
+	//调用体系架构相关，设置内存布局
 	arch_pick_mmap_layout(current->mm);
 
 	/* This is the point of no return */

@@ -2018,9 +2018,13 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 	if (len > TASK_SIZE)
 		return -ENOMEM;
 
+	//get_unmapped_area是和体系架构相关的实现
 	get_area = current->mm->get_unmapped_area;
 	if (file && file->f_op->get_unmapped_area)
 		get_area = file->f_op->get_unmapped_area;
+	//获取一个满足条件的虚拟内存
+	//arch_get_unmapped_area
+	//TASK_UNMAPPED_BASE
 	addr = get_area(file, addr, len, pgoff, flags);
 	if (IS_ERR_VALUE(addr))
 		return addr;
