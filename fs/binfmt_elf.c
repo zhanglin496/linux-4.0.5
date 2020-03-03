@@ -1036,6 +1036,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	 * mapping in the interpreter, to make sure it doesn't wind
 	 * up getting placed where the bss needs to go.
 	 */
+	 //设置堆的起始和结束地址
+	 //同时站位，以确保interpreter 它不会被放置在bss需要去的地方
 	retval = set_brk(elf_bss, elf_brk);
 	if (retval)
 		goto out_free_dentry;
