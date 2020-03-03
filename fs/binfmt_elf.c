@@ -858,12 +858,15 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	if (elf_read_implies_exec(loc->elf_ex, executable_stack))
 		current->personality |= READ_IMPLIES_EXEC;
 
+	//randomize_va_space非0
+	//设置地址空间随机化标志
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
 		current->flags |= PF_RANDOMIZE;
 
 	//arch_pick_mmap_layout 设置内存映射的基地址mmap_base
 	//函数实现会考虑地址随机化的问题
-	//最总会调用vm_unmapped_area Search for an unmapped address range.
+	//最终会调用vm_unmapped_area Search for an unmapped address range.
+	//get_unmapped_area
 	setup_new_exec(bprm);
 
 	/* Do this so that we can load the interpreter, if need be.  We will
@@ -968,6 +971,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		//映射文件到指定的虚拟地址load_bias + vaddr
 		//如果不是MAP_FIXED，实际映射后的地址不一定等于load_bias + vaddr
 		//返回实际分配的虚拟error 地址是按页对齐的
+		//如果请求的是MAP_FIXED地址，检查地址是否合法，然后按页对齐分配
+		//如果请求的地址是0并且不是MAP_FIXED, 内核会查找一块合适的虚拟地址
+		//如果请求的地址是非0，内核会检查请求的地址是否合法
+		//并建立相应的vma结构
+		//如果请求的地址是0 并且是MAP_FIXED,则error 返回0地址也是合法的
+		//只要个区域之前没有被占用
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
 				elf_prot, elf_flags, total_size);
 		if (BAD_ADDR(error)) {

@@ -1245,6 +1245,8 @@ static const struct kernel_symbol *resolve_symbol(struct module *mod,
 	 */
 	sched_annotate_sleep();
 	mutex_lock(&module_mutex);
+	//如果缺少MODULE_LICENSE, 内核会被污染TAINT_PROPRIETARY_MODULE
+	//这样模块会无法使用内核导出的GPL_ONLY 的函数
 	sym = find_symbol(name, &owner, &crc,
 			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
 	if (!sym)

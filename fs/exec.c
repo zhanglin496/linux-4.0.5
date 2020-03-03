@@ -1124,6 +1124,9 @@ EXPORT_SYMBOL(would_dump);
 void setup_new_exec(struct linux_binprm * bprm)
 {
 	//调用体系架构相关，设置内存布局
+	//设置get_unmapped_area 函数指针
+	//并且如果启用了PF_RANDOMIZE，会随机一个random_factor值
+	//加入到mmap_base 基地址中，这就是所谓的虚拟地址映射随机化
 	arch_pick_mmap_layout(current->mm);
 
 	/* This is the point of no return */
