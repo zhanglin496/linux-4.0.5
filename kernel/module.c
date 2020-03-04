@@ -374,8 +374,10 @@ static bool check_symbol(const struct symsearch *syms,
 				 unsigned int symnum, void *data)
 {
 	struct find_symbol_arg *fsa = data;
-
+	//如果装载的模块不是使用的GPL 证书	
 	if (!fsa->gplok) {
+		//而引用的函数是GPL ONLY 类型
+		//则不允许加载该模块
 		if (syms->licence == GPL_ONLY)
 			return false;
 		if (syms->licence == WILL_BE_GPL_ONLY && fsa->warn) {

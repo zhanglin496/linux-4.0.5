@@ -992,6 +992,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			//load_addr 也只初始化一次
 			load_addr_set = 1;
 			load_addr = (elf_ppnt->p_vaddr - elf_ppnt->p_offset);
+			//如果是非ET_DYN 类型，load_bias的值始终是0
 			if (loc->elf_ex.e_type == ET_DYN) {
 				load_bias += error -
 				             ELF_PAGESTART(load_bias + vaddr);
@@ -1057,7 +1058,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	//如果有解释器，那么映射解释器并跳转到解释器
 	if (elf_interpreter) {
 		unsigned long interp_map_addr = 0;
-
+		//将解释器映射到当前准备运行的进程虚拟地址空间中
 		elf_entry = load_elf_interp(&loc->interp_elf_ex,
 					    interpreter,
 					    &interp_map_addr,
