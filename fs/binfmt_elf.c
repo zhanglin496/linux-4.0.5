@@ -828,6 +828,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		elf_ppnt = interp_elf_phdata;
 		for (i = 0; i < loc->interp_elf_ex.e_phnum; i++, elf_ppnt++)
 			switch (elf_ppnt->p_type) {
+				//处理器相关的类型
+				//由各个架构自己处理
 			case PT_LOPROC ... PT_HIPROC:
 				retval = arch_elf_pt_proc(&loc->interp_elf_ex,
 							  elf_ppnt, interpreter,
@@ -937,7 +939,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			elf_flags |= MAP_FIXED;
 		} else if (loc->elf_ex.e_type == ET_DYN) {
 		//该代码路径最多进入一次
-		//计算出load_bias
+		//计算出load_bias 偏移量
 			/* Try and get dynamic programs out of the way of the
 			 * default mmap base, as well as whatever program they
 			 * might try to exec.  This is because the brk will
@@ -1059,6 +1061,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	if (elf_interpreter) {
 		unsigned long interp_map_addr = 0;
 		//将解释器映射到当前准备运行的进程虚拟地址空间中
+		//最后执行解释器来进行实际的重定位工作
 		elf_entry = load_elf_interp(&loc->interp_elf_ex,
 					    interpreter,
 					    &interp_map_addr,
