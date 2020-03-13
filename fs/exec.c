@@ -273,9 +273,13 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	 //只是限制了用户直接访问内核的虚拟地址空间
 	//也就是说用户空间和内核空间分配的虚拟地址是不会重叠的
 	BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
+	//这里进行初始用户栈分配
 	vma->vm_end = STACK_TOP_MAX;
-	//这里只映射了PAGE_SIZE
+	//这里只映射了一个PAGE_SIZE
 	vma->vm_start = vma->vm_end - PAGE_SIZE;
+	//设置VM_STACK_FLAGS，表示这是一个栈区
+	//do_page_fault中会检查该标志是否存在
+	//以允许进行栈扩展
 	vma->vm_flags = VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
