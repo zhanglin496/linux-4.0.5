@@ -207,6 +207,8 @@ do {									\
 	(void)__vpp_verify;						\
 } while (0)
 
+
+//per_cpu_ptr,this_cpu_ptr 都没有禁止内核抢占
 #ifdef CONFIG_SMP
 
 /*
@@ -265,6 +267,7 @@ do {									\
 	this_cpu_ptr(&var);						\
 }))
 
+//以下api会禁止内核抢占
 /*
  * The weird & is necessary because sparse considers (void)(var) to be
  * a direct dereference of percpu variable (var).

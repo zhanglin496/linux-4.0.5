@@ -2349,6 +2349,8 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 	if (!fstype)
 		return -EINVAL;
 
+	//根据名称获取内核支持的文件系统类型
+	//file_system_type  必须在挂载之前注册
 	type = get_fs_type(fstype);
 	if (!type)
 		return -ENODEV;
