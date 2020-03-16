@@ -2268,10 +2268,12 @@ int expand_downwards(struct vm_area_struct *vma,
 	 */
 
 	/* Somebody else might have raced and expanded it already */
+	//扩展该vma对应的区域
 	if (address < vma->vm_start) {
 		unsigned long size, grow;
 
 		size = vma->vm_end - address;
+		//以页为单位计算需要增加多少页
 		grow = (vma->vm_start - address) >> PAGE_SHIFT;
 
 		error = -ENOMEM;
@@ -2291,6 +2293,7 @@ int expand_downwards(struct vm_area_struct *vma,
 				 */
 				spin_lock(&vma->vm_mm->page_table_lock);
 				anon_vma_interval_tree_pre_update_vma(vma);
+				//vm_start起始地址都是PAGE_SIZE对齐的
 				vma->vm_start = address;
 				vma->vm_pgoff -= grow;
 				anon_vma_interval_tree_post_update_vma(vma);
@@ -2359,6 +2362,7 @@ int expand_stack(struct vm_area_struct *vma, unsigned long address)
 		//如果上一个区不是栈
 		//表示没有空闲的虚拟内存用于分配
 		//检查是否有足够的gap 可以使用
+		//因为后面将合并该区域，所以要保证属性一致
 		if (!(prev->vm_flags & VM_GROWSDOWN))
 			return -ENOMEM;
 	}
