@@ -2358,6 +2358,7 @@ int expand_stack(struct vm_area_struct *vma, unsigned long address)
 		//地址刚好落在上一个区
 		//如果上一个区不是栈
 		//表示没有空闲的虚拟内存用于分配
+		//检查是否有足够的gap 可以使用
 		if (!(prev->vm_flags & VM_GROWSDOWN))
 			return -ENOMEM;
 	}
