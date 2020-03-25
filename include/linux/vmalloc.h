@@ -28,6 +28,7 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
 #define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
 #endif
 
+//¿‡À∆mm_struct 
 struct vm_struct {
 	struct vm_struct	*next;
 	void			*addr;
@@ -39,6 +40,7 @@ struct vm_struct {
 	const void		*caller;
 };
 
+//¿‡À∆vm_area_struct 
 struct vmap_area {
 	unsigned long va_start;
 	unsigned long va_end;

@@ -2277,7 +2277,10 @@ int expand_downwards(struct vm_area_struct *vma,
 		grow = (vma->vm_start - address) >> PAGE_SHIFT;
 
 		error = -ENOMEM;
+		//初始化vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT
+		//这里vma->vm_start 减少了，grow应该小于vma->vm_pgoff
 		if (grow <= vma->vm_pgoff) {
+			//栈资源统计和限制
 			error = acct_stack_growth(vma, size, grow);
 			if (!error) {
 				/*
@@ -2682,9 +2685,13 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	start = start & PAGE_MASK;
 	size = size & PAGE_MASK;
 
+	//检查值是否回绕
+	//size 不能为0
 	if (start + size <= start)
 		return ret;
 
+	//检查值是否回绕
+	//这里保证size 不为0，所以是小于pgoff
 	/* Does pgoff wrap? */
 	if (pgoff + (size >> PAGE_SHIFT) < pgoff)
 		return ret;

@@ -341,6 +341,10 @@ static void purge_vmap_area_lazy(void);
  * Allocate a region of KVA of the specified size and alignment, within the
  * vstart and vend.
  */
+
+//这里实际上是在对VMALLOC_START ~ VMALLOC_END 
+//虚拟地址空间分配进行跟踪和管理
+//跟vm_area_struct 的作用类似
 static struct vmap_area *alloc_vmap_area(unsigned long size,
 				unsigned long align,
 				unsigned long vstart, unsigned long vend,
@@ -401,24 +405,28 @@ nocache:
 
 	} else {
 		addr = ALIGN(vstart, align);
+		//请求的地址溢出
 		if (addr + size < addr)
 			goto overflow;
 
 		n = vmap_area_root.rb_node;
 		first = NULL;
-
+		//遍历红黑树
 		while (n) {
 			struct vmap_area *tmp;
 			tmp = rb_entry(n, struct vmap_area, rb_node);
 			if (tmp->va_end >= addr) {
 				first = tmp;
+				//找到重叠区域
 				if (tmp->va_start <= addr)
 					break;
 				n = n->rb_left;
 			} else
 				n = n->rb_right;
 		}
-
+		//如果没找到重叠的区域
+		//说明可以满足分配请求
+		//直接分配
 		if (!first)
 			goto found;
 	}
@@ -1324,6 +1332,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 	if (unlikely(!area))
 		return NULL;
 
+	//增加一个保护页
 	if (!(flags & VM_NO_GUARD))
 		size += PAGE_SIZE;
 
@@ -1563,7 +1572,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
 	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
 
-	//右移PAGE_SHIFT，计算需要多杀个page
+	//右移PAGE_SHIFT，计算需要多少个page
 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
 	array_size = (nr_pages * sizeof(struct page *));
 
@@ -1577,13 +1586,14 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	} else {
 		pages = kmalloc_node(array_size, nested_gfp, node);
 	}
+	//设置指针
 	area->pages = pages;
 	if (!area->pages) {
 		remove_vm_area(area->addr);
 		kfree(area);
 		return NULL;
 	}
-
+	//实际的物理页面分配
 	for (i = 0; i < area->nr_pages; i++) {
 		struct page *page;
 		
@@ -1598,7 +1608,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 			area->nr_pages = i;
 			goto fail;
 		}
-		//记录page
+		//记录当前分配page
+		//所以映射的物理地址是不连续
 		area->pages[i] = page;
 		if (gfp_mask & __GFP_WAIT)
 			cond_resched();
@@ -1648,11 +1659,12 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
 	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
 		goto fail;
 
+	//按要求分配一块合适的虚拟地址
 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNINITIALIZED |
 				vm_flags, start, end, node, gfp_mask, caller);
 	if (!area)
 		goto fail;
-
+	//虚拟地址对应到实际的物理页面分配
 	addr = __vmalloc_area_node(area, gfp_mask, prot, node);
 	if (!addr)
 		return NULL;
