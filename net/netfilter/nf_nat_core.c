@@ -397,8 +397,8 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 			//根据netfilter 的NAT 实现，TCP也是可以的映射到同一个IP地址和端口
 			//只要协议栈支持用同一个IP地址和端口向不同的目的地址
-			//和端口发送数据包
-			//内核支持SO_REUSEPORT，设置SO_REUSEPORT选项即可
+			//或端口发送数据包
+			//内核支持SO_REUSEPORT，设置SO_REUSEPORT选项即可bind到同一个地址和端口
 			//只要保证tcp的五元组不一样即可
 		} else if (find_appropriate_src(net, zone, l3proto, l4proto,
 						orig_tuple, tuple, range)) {
