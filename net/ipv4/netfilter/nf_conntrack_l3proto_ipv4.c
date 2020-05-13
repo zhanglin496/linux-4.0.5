@@ -155,6 +155,7 @@ static unsigned int ipv4_conntrack_in(const struct nf_hook_ops *ops,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
+	//设备所属的网络命名空间
 	return nf_conntrack_in(dev_net(in), PF_INET, ops->hooknum, skb);
 }
 

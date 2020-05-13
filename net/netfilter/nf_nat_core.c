@@ -998,7 +998,8 @@ static int __init nf_nat_init(void)
 		printk(KERN_ERR "nf_nat_core: Unable to register extension\n");
 		return ret;
 	}
-
+	//注册命名空间子系统
+	//对于创建每一个命名空间都需要分配不同的资源时需要调用该API初始化自己的私有实例
 	ret = register_pernet_subsys(&nf_nat_net_ops);
 	if (ret < 0)
 		goto cleanup_extend;

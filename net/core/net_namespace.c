@@ -131,6 +131,7 @@ static void ops_exit_list(const struct pernet_operations *ops,
 {
 	struct net *net;
 	if (ops->exit) {
+		//对每个命名空间调用退出函数
 		list_for_each_entry(net, net_exit_list, exit_list)
 			ops->exit(net);
 	}
@@ -666,6 +667,7 @@ static int __register_pernet_operations(struct list_head *list,
 	list_add_tail(&ops->list, list);
 	if (ops->init || (ops->id && ops->size)) {
 		for_each_net(net) {
+			//对每个命名空间调用初始化函数
 			error = ops_init(ops, net);
 			if (error)
 				goto out_undo;
