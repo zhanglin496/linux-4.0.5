@@ -390,6 +390,8 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 
 	spin_lock(lock);
 
+	//tcp 实现不允许相同的五元组出现
+	//
 	sk_nulls_for_each(sk2, node, &head->chain) {
 		if (sk2->sk_hash != hash)
 			continue;

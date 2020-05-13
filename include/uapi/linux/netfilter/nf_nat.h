@@ -22,7 +22,7 @@
 //随机生成端口偏移值，影响端口选择
 #define NF_NAT_RANGE_PROTO_RANDOM		(1 << 2)
 //主要影响find_best_ips_proto IP地址选择时的算法
-//具体现在还没弄清楚
+//相同的源IP地址都会映射到同一个IP地址
 #define NF_NAT_RANGE_PERSISTENT			(1 << 3)
 //调用prandom_u32函数随机一个off值，影响端口选择
 #define NF_NAT_RANGE_PROTO_RANDOM_FULLY		(1 << 4)
