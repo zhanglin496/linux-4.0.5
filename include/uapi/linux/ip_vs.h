@@ -127,6 +127,7 @@
  *	The struct ip_vs_service_user and struct ip_vs_dest_user are
  *	used to set IPVS rules through setsockopt.
  */
+ //用户空间的虚拟服务信息
 struct ip_vs_service_user {
 	/* virtual service addresses */
 	__u16		protocol;
@@ -141,7 +142,7 @@ struct ip_vs_service_user {
 	__be32			netmask;	/* persistent netmask */
 };
 
-
+//用户空间的真实服务器信息
 struct ip_vs_dest_user {
 	/* destination server address */
 	__be32			addr;
@@ -160,6 +161,7 @@ struct ip_vs_dest_user {
 /*
  *	IPVS statistics object (for user space)
  */
+ //用户空间的统计信息
 struct ip_vs_stats_user {
 	__u32                   conns;          /* connections scheduled */
 	__u32                   inpkts;         /* incoming packets */
@@ -176,6 +178,7 @@ struct ip_vs_stats_user {
 
 
 /* The argument to IP_VS_SO_GET_INFO */
+//用户空间的获取信息结构
 struct ip_vs_getinfo {
 	/* version number */
 	unsigned int		version;
@@ -189,6 +192,7 @@ struct ip_vs_getinfo {
 
 
 /* The argument to IP_VS_SO_GET_SERVICE */
+//用户空间的服务规则项信息
 struct ip_vs_service_entry {
 	/* which service: user fills in these */
 	__u16		protocol;
@@ -209,7 +213,7 @@ struct ip_vs_service_entry {
 	struct ip_vs_stats_user stats;
 };
 
-
+//用户空间的服务器项信息
 struct ip_vs_dest_entry {
 	__be32			addr;		/* destination address */
 	__be16			port;
@@ -229,6 +233,7 @@ struct ip_vs_dest_entry {
 
 
 /* The argument to IP_VS_SO_GET_DESTS */
+//用户空间的获取服务器项信息
 struct ip_vs_get_dests {
 	/* which service: user fills in these */
 	__u16		protocol;
@@ -245,6 +250,7 @@ struct ip_vs_get_dests {
 
 
 /* The argument to IP_VS_SO_GET_SERVICES */
+//用户空间的获取虚拟服务项信息
 struct ip_vs_get_services {
 	/* number of virtual services */
 	unsigned int		num_services;
@@ -255,6 +261,7 @@ struct ip_vs_get_services {
 
 
 /* The argument to IP_VS_SO_GET_TIMEOUT */
+//用户空间的获取超时信息结构
 struct ip_vs_timeout_user {
 	int			tcp_timeout;
 	int			tcp_fin_timeout;
@@ -263,6 +270,7 @@ struct ip_vs_timeout_user {
 
 
 /* The argument to IP_VS_SO_GET_DAEMON */
+//用户空间的获取IPVS内核守护进程信息结构
 struct ip_vs_daemon_user {
 	/* sync daemon state (master/backup) */
 	int			state;

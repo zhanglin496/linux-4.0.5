@@ -537,6 +537,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	   a cache_bypass connection entry */
 	ipvs = net_ipvs(net);
 	if (ipvs->sysctl_cache_bypass && svc->fwmark && unicast) {
+		//创建bypass条目
 		int ret;
 		struct ip_vs_conn *cp;
 		unsigned int flags = (svc->flags & IP_VS_SVC_F_ONEPACKET &&
@@ -1169,6 +1170,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 				return verdict;
 		}
 
+	//是否支持该L4协议
 	pd = ip_vs_proto_data_get(net, iph.protocol);
 	if (unlikely(!pd))
 		return NF_ACCEPT;
@@ -1966,6 +1968,7 @@ static int __net_init __ip_vs_init(struct net *net)
 	/* Counters used for creating unique names */
 	ipvs->gen = atomic_read(&ipvs_netns_cnt);
 	atomic_inc(&ipvs_netns_cnt);
+	//分配当前net 命名空间ipvs记录
 	net->ipvs = ipvs;
 
 	if (ip_vs_estimator_net_init(net) < 0)
@@ -2053,8 +2056,10 @@ static int __init ip_vs_init(void)
 		goto exit;
 	}
 
+	//注册支持的协议，如TCP,UDP等
 	ip_vs_protocol_init();
 
+	//分配连接ip_vs_conn hash表
 	ret = ip_vs_conn_init();
 	if (ret < 0) {
 		pr_err("can't setup connection table.\n");
@@ -2069,6 +2074,7 @@ static int __init ip_vs_init(void)
 	if (ret < 0)
 		goto cleanup_sub;
 
+	//注册conntrack ops
 	ret = nf_register_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	if (ret < 0) {
 		pr_err("can't register hooks.\n");

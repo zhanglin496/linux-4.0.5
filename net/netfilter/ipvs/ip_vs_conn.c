@@ -1375,6 +1375,7 @@ int __init ip_vs_conn_init(void)
 	/*
 	 * Allocate the connection hash table and initialize its list heads
 	 */
+	 //分配连接hash表
 	ip_vs_conn_tab = vmalloc(ip_vs_conn_tab_size * sizeof(*ip_vs_conn_tab));
 	if (!ip_vs_conn_tab)
 		return -ENOMEM;

@@ -409,6 +409,7 @@ struct ip_vs_app;
 struct sk_buff;
 struct ip_vs_proto_data;
 
+//这个结构用来描述IPVS支持的IP协议
 struct ip_vs_protocol {
 	struct ip_vs_protocol	*next;
 	char			*name;
@@ -429,29 +430,30 @@ struct ip_vs_protocol {
 			     int *verdict, struct ip_vs_conn **cpp,
 			     struct ip_vs_iphdr *iph);
 
+	//查找in方向的IPVS连接
 	struct ip_vs_conn *
 	(*conn_in_get)(int af,
 		       const struct sk_buff *skb,
 		       const struct ip_vs_iphdr *iph,
 		       int inverse);
-
+	//查找out方向的IPVS连接
 	struct ip_vs_conn *
 	(*conn_out_get)(int af,
 			const struct sk_buff *skb,
 			const struct ip_vs_iphdr *iph,
 			int inverse);
-
+	//源NAT和目的NAT操作
 	int (*snat_handler)(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			    struct ip_vs_conn *cp, struct ip_vs_iphdr *iph);
 
 	int (*dnat_handler)(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			    struct ip_vs_conn *cp, struct ip_vs_iphdr *iph);
-
+	//协议校验和计算
 	int (*csum_check)(int af, struct sk_buff *skb,
 			  struct ip_vs_protocol *pp);
 
 	const char *(*state_name)(int state);
-
+	//协议状态迁移
 	void (*state_transition)(struct ip_vs_conn *cp, int direction,
 				 const struct sk_buff *skb,
 				 struct ip_vs_proto_data *pd);
@@ -466,11 +468,13 @@ struct ip_vs_protocol {
 			     const struct sk_buff *skb,
 			     int offset,
 			     const char *msg);
-
+	//调整超时
 	void (*timeout_change)(struct ip_vs_proto_data *pd, int flags);
 };
 
 /* protocol data per netns */
+//每个网络命名空间一个实例
+//注册到netns_ipvs proto_data_table
 struct ip_vs_proto_data {
 	struct ip_vs_proto_data	*next;
 	struct ip_vs_protocol	*pp;
@@ -498,20 +502,31 @@ struct ip_vs_conn_param {
 };
 
 /* IP_VS structure allocated for each dynamically scheduled connection */
+//这个结构用来描述IPVS的连接。IPVS的连接和netfilter定义的连接类似
 struct ip_vs_conn {
+	//HASH链表
 	struct hlist_node	c_list;         /* hashed list heads */
 	/* Protocol, addresses and port numbers */
+	//客户机地址
 	__be16                  cport;
+	//real服务器实际端口
 	__be16                  dport;
+	//虚拟服务器端口
 	__be16                  vport;
 	u16			af;		/* address family */
+	//客服端地址
 	union nf_inet_addr      caddr;          /* client address */
+	//虚拟服务器地址
 	union nf_inet_addr      vaddr;          /* virtual address */
+	//real 服务器地址
 	union nf_inet_addr      daddr;          /* destination address */
+	//状态标志
 	volatile __u32          flags;          /* status flags */
+	//L4 协议
 	__u16                   protocol;       /* Which protocol (TCP/UDP) */
 	__u16			daf;		/* Address family of the dest */
 #ifdef CONFIG_NET_NS
+	//属于哪个网络命名空间
 	struct net              *net;           /* Name space */
 #endif
 
@@ -531,6 +546,7 @@ struct ip_vs_conn {
 	unsigned long		sync_endtime;	/* jiffies + sent_retries */
 
 	/* Control members */
+	//属于哪个主链接，类似netfiler的master 链接
 	struct ip_vs_conn       *control;       /* Master control connection */
 	atomic_t                n_control;      /* Number of controlled ones */
 	struct ip_vs_dest       *dest;          /* real server */
@@ -541,6 +557,7 @@ struct ip_vs_conn {
 	 * otherwise this must be changed to a sk_buff **.
 	 * NF_ACCEPT can be returned when destination is local.
 	 */
+	 //发送函数
 	int (*packet_xmit)(struct sk_buff *skb, struct ip_vs_conn *cp,
 			   struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
 
@@ -548,7 +565,9 @@ struct ip_vs_conn {
 	 * in order to save more space, and the following members are
 	 * only used in VS/NAT anyway
 	 */
+	 //ipvs 应用
 	struct ip_vs_app        *app;           /* bound ip_vs_app object */
+	//ipvs 应用私有数据
 	void                    *app_data;      /* Application private data */
 	struct ip_vs_seq        in_seq;         /* incoming seq. struct */
 	struct ip_vs_seq        out_seq;        /* outgoing seq. struct */
@@ -594,6 +613,8 @@ static inline int ip_vs_conn_net_eq(const struct ip_vs_conn *cp,
  * options, but unfortunately, we also need to keep the old definitions to
  * maintain userspace backwards compatibility for the setsockopt interface.
  */
+ //内核虚拟服务配置信息
+ //和用户空间ip_vs_service_user相对应
 struct ip_vs_service_user_kern {
 	/* virtual service addresses */
 	u16			af;
@@ -610,7 +631,8 @@ struct ip_vs_service_user_kern {
 	__be32			netmask;	/* persistent netmask or plen */
 };
 
-
+//内核真实服务器配置信息
+//和用户空间ip_vs_dest_user相对应
 struct ip_vs_dest_user_kern {
 	/* destination server address */
 	union nf_inet_addr	addr;
@@ -633,28 +655,40 @@ struct ip_vs_dest_user_kern {
  * The information about the virtual service offered to the net and the
  * forwarding entries.
  */
+ //这个结构用来描述IPVS对外的虚拟服务器信息
 struct ip_vs_service {
+	//按普通协议,地址,端口进行HASH的链表
 	struct hlist_node	s_list;   /* for normal service table */
+	//按nfmark进行HASH的链表
 	struct hlist_node	f_list;   /* for fwmark-based service table */
 	atomic_t		refcnt;   /* reference counter */
-
+	//地址族 ipv4 ipv6
 	u16			af;       /* address family */
+	// L4协议
 	__u16			protocol; /* which protocol (TCP/UDP) */
+	// 地址
 	union nf_inet_addr	addr;	  /* IP address for virtual service */
+	//端口
 	__be16			port;	  /* port number for the service */
+	//SKB 的nfmark
 	__u32                   fwmark;   /* firewall mark of the service */
 	unsigned int		flags;	  /* service status flags */
 	unsigned int		timeout;  /* persistent timeout in ticks */
 	__be32			netmask;  /* grouping granularity, mask/plen */
 	struct net		*net;
 
+	//真实服务器的地址链表
 	struct list_head	destinations;  /* real server d-linked list */
+	//设置的真实服务器数量
 	__u32			num_dests;     /* number of servers */
+	//服务统计信息
 	struct ip_vs_stats      stats;         /* statistics for the service */
 
 	/* for scheduling */
+	//调度指针，选择real服务器算法
 	struct ip_vs_scheduler __rcu *scheduler; /* bound scheduler object */
 	spinlock_t		sched_lock;    /* lock sched_data */
+	//调度器私有数据
 	void			*sched_data;   /* scheduler application data */
 
 	/* alternate persistence engine */
@@ -674,15 +708,22 @@ struct ip_vs_dest_dst {
 /* The real server destination forwarding entry with ip address, port number,
  * and so on.
  */
+//这个结构用来描述具体的真实服务器的信息
 struct ip_vs_dest {
+	//链接到ip_vs_service destinations
+	//n_list必须在第一位，
 	struct list_head	n_list;   /* for the dests in the service */
+	//链接到netns_ipvs->rs_table real server hash表
 	struct hlist_node	d_list;   /* for table with all the dests */
 
 	u16			af;		/* address family */
+	//后端真实服务器的端口
 	__be16			port;		/* port number of the server */
+	//后端真实服务器的IP地址
 	union nf_inet_addr	addr;		/* IP address of the server */
 	volatile unsigned int	flags;		/* dest status flags */
 	atomic_t		conn_flags;	/* flags to copy to conn */
+	//真实服务器的权重值
 	atomic_t		weight;		/* server weight */
 
 	atomic_t		refcnt;		/* reference counter */
@@ -698,9 +739,11 @@ struct ip_vs_dest {
 
 	/* for destination cache */
 	spinlock_t		dst_lock;	/* lock of dst_cache */
+	//路由信息cache
 	struct ip_vs_dest_dst __rcu *dest_dst;	/* cached dst info */
 
 	/* for virtual service */
+	//属于哪个虚拟服务器
 	struct ip_vs_service __rcu *svc;	/* service it belongs to */
 	__u16			protocol;	/* which protocol (TCP/UDP) */
 	__be16			vport;		/* virtual port number */
@@ -712,6 +755,7 @@ struct ip_vs_dest {
 };
 
 /* The scheduler object */
+//这个结构用来描述IPVS调度算法，目前调度方法包括rr，wrr，lc, wlc, lblc, lblcr, dh, sh等
 struct ip_vs_scheduler {
 	struct list_head	n_list;		/* d-linked list head */
 	char			*name;		/* scheduler name */
@@ -736,6 +780,7 @@ struct ip_vs_scheduler {
 };
 
 /* The persistence engine object */
+//描述持久连接对象
 struct ip_vs_pe {
 	struct list_head	n_list;		/* d-linked list head */
 	char			*name;		/* scheduler name */
@@ -832,6 +877,7 @@ struct ipvs_master_sync_state {
 /* IPVS in network namespace */
 struct netns_ipvs {
 	int			gen;		/* Generation */
+	//是否注册了虚拟服务器，1表示添加了
 	int			enable;		/* enable like nf_hooks do */
 	/* Hash table: for real service lookups */
 	#define IP_VS_RTAB_BITS 4

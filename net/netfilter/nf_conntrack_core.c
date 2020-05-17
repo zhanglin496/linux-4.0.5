@@ -1023,7 +1023,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 	if (!exp) {
 		//不是期待连接,  查找该连接是否有匹配的helper函数
-		//指派helper函数，并在ipv4_help 调用helper函数创建期待连接
+		//指派helper函数，并在ipv4_helper 调用helper函数创建期待连接
 		//也就是构建struct nf_conntrack_expect 结构，并加入到expect_hash表中，
 		//若没有helper函数，则不会分配help扩展区
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);

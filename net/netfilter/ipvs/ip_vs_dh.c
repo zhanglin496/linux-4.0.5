@@ -110,22 +110,32 @@ ip_vs_dh_reassign(struct ip_vs_dh_state *s, struct ip_vs_service *svc)
 	b = &s->buckets[0];
 	p = &svc->destinations;
 	empty = list_empty(p);
+	//把当前的服务器按续加入hash表
+	//每个hash桶只记录一个dest
+	//这里保证要么所有的hash桶都为空，要么都指向有效的dest
 	for (i=0; i<IP_VS_DH_TAB_SIZE; i++) {
+		//原先已存在
+		//递减引用计数
 		dest = rcu_dereference_protected(b->dest, 1);
 		if (dest)
 			ip_vs_dest_put(dest);
+		//如果empty不是空
+		//这里会保证hash桶都指向一个有效的dest
+		//假设dest只有一个
+		//那么所有的hash桶都指向同一个dest
 		if (empty)
 			RCU_INIT_POINTER(b->dest, NULL);
 		else {
 			if (p == &svc->destinations)
 				p = p->next;
-
+			//重新设置dest服务器
 			dest = list_entry(p, struct ip_vs_dest, n_list);
 			ip_vs_dest_hold(dest);
 			RCU_INIT_POINTER(b->dest, dest);
 
 			p = p->next;
 		}
+		//b指向下一个hash桶
 		b++;
 	}
 	return 0;
@@ -223,6 +233,7 @@ ip_vs_dh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
 	s = (struct ip_vs_dh_state *) svc->sched_data;
+	//这里根据目的地址hash选择一个dest
 	dest = ip_vs_dh_get(svc->af, s, &iph->daddr);
 	if (!dest
 	    || !(dest->flags & IP_VS_DEST_F_AVAILABLE)

@@ -22,6 +22,7 @@
 #include <net/ip_vs.h>
 
 /* Weighted Fail Over Module */
+//选择一个最高权重值的服务器
 static struct ip_vs_dest *
 ip_vs_fo_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		  struct ip_vs_iphdr *iph)

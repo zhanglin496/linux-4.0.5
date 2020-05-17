@@ -54,6 +54,8 @@ static int ip_vs_rr_del_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest)
 /*
  * Round-Robin Scheduling
  */
+ //轮转调度算法
+ //每来一个连接就依次选择一个服务器
 static struct ip_vs_dest *
 ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		  struct ip_vs_iphdr *iph)
@@ -72,10 +74,16 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		list_for_each_entry_continue_rcu(dest,
 						 &svc->destinations,
 						 n_list) {
+			//检查服务器是否超载
+			//检查服务器的权重值是否为0 
+			//用户可以配置weight为0来临时禁止使用该服务器
+			//ipvsadm -A -t 192.168.121.130:80 -s rr
+			//ipvsadm -a -t 192.168.121.130:80 -r 192.168.121.131:80 -w 1 -m
 			if (!(dest->flags & IP_VS_DEST_F_OVERLOAD) &&
 			    atomic_read(&dest->weight) > 0)
 				/* HIT */
 				goto out;
+			//所有节点已经遍历完毕，未找到合适的服务器
 			if (dest == last)
 				goto stop;
 		}
@@ -83,6 +91,8 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		/* Previous dest could be unlinked, do not loop forever.
 		 * If we stay at head there is no need for 2nd pass.
 		 */
+		 //要遍历的两次的原因是last 和 dest 会指向中间节点
+		 //为了保证把所有的节点都能遍历一遍
 	} while (pass < 2 && p != &svc->destinations);
 
 stop:
@@ -90,7 +100,8 @@ stop:
 	ip_vs_scheduler_err(svc, "no destination available");
 	return NULL;
 
-  out:
+out:
+  	//记住下次从哪个节点开始遍历
 	svc->sched_data = &dest->n_list;
 	spin_unlock_bh(&svc->sched_lock);
 	IP_VS_DBG_BUF(6, "RR: server %s:%u "

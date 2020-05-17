@@ -325,6 +325,7 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 
 	IP_VS_DBG(6, "ip_vs_sh_schedule(): Scheduling...\n");
 
+	//是否加入原端口作为hash key
 	if (svc->flags & IP_VS_SVC_F_SCHED_SH_PORT)
 		port = ip_vs_sh_get_port(skb, iph);
 

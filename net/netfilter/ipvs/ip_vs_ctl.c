@@ -256,6 +256,7 @@ ip_vs_use_count_dec(void)
 /* the service table hashed by <protocol, addr, port> */
 static struct hlist_head ip_vs_svc_table[IP_VS_SVC_TAB_SIZE];
 /* the service table hashed by fwmark */
+//根据fwmark标记的虚拟服务
 static struct hlist_head ip_vs_svc_fwm_table[IP_VS_SVC_TAB_SIZE];
 
 
@@ -405,6 +406,7 @@ __ip_vs_svc_fwm_find(struct net *net, int af, __u32 fwmark)
 }
 
 /* Find service, called under RCU lock */
+//查找虚拟服务规则
 struct ip_vs_service *
 ip_vs_service_find(struct net *net, int af, __u32 fwmark, __u16 protocol,
 		   const union nf_inet_addr *vaddr, __be16 vport)
@@ -425,6 +427,7 @@ ip_vs_service_find(struct net *net, int af, __u32 fwmark, __u16 protocol,
 	 *	Check the table hashed by <protocol,addr,port>
 	 *	for "full" addressed entries
 	 */
+	 //精确匹配
 	svc = __ip_vs_service_find(net, af, protocol, vaddr, vport);
 
 	if (svc == NULL
@@ -440,6 +443,7 @@ ip_vs_service_find(struct net *net, int af, __u32 fwmark, __u16 protocol,
 
 	if (svc == NULL
 	    && atomic_read(&ipvs->nullsvc_counter)) {
+	    //模糊匹配，配置的虚拟服务器端口为0的情况
 		/*
 		 * Check if the catch-all port (port zero) exists
 		 */
@@ -1225,6 +1229,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	spin_lock_init(&svc->stats.lock);
 
 	/* Bind the scheduler */
+	//设置调度算法
 	ret = ip_vs_bind_scheduler(svc, sched);
 	if (ret)
 		goto out_err;
@@ -2355,8 +2360,10 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		goto out_unlock;
 	}
 
+	//添加虚拟服务器规则和添加真实服务器规则命令是分开的
 	switch (cmd) {
 	case IP_VS_SO_SET_ADD:
+		//添加虚拟服务器规则
 		if (svc != NULL)
 			ret = -EEXIST;
 		else
@@ -2374,6 +2381,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		ret = ip_vs_zero_service(svc);
 		break;
 	case IP_VS_SO_SET_ADDDEST:
+		//添加真实服务器规则
 		ret = ip_vs_add_dest(svc, &udest);
 		break;
 	case IP_VS_SO_SET_EDITDEST:
@@ -3744,6 +3752,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	ipvs->sysctl_tbl = tbl;
 	/* Schedule defense work */
 	INIT_DELAYED_WORK(&ipvs->defense_work, defense_work_handler);
+	//挂一个定时操作，根据系统当前负载情况定时调整系统参数
 	schedule_delayed_work(&ipvs->defense_work, DEFENSE_TIMER_PERIOD);
 
 	return 0;
@@ -3830,12 +3839,15 @@ int __init ip_vs_register_nl_ioctl(void)
 {
 	int ret;
 
+	//注册sockopt 命令
+	////登记ipvs的sockopt控制,这样用户空间可通过setsockopt函数来和ipvs进行通信，看下面控制接口实现
 	ret = nf_register_sockopt(&ip_vs_sockopts);
 	if (ret) {
 		pr_err("cannot register sockopt.\n");
 		goto err_sock;
 	}
-
+	
+	//注册gen netlink 命令
 	ret = ip_vs_genl_register();
 	if (ret) {
 		pr_err("cannot register Generic Netlink interface.\n");
@@ -3861,7 +3873,7 @@ int __init ip_vs_control_init(void)
 	int ret;
 
 	EnterFunction(2);
-
+	//初始化hash表
 	/* Initialize svc_table, ip_vs_svc_fwm_table */
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
 		INIT_HLIST_HEAD(&ip_vs_svc_table[idx]);
@@ -3870,6 +3882,7 @@ int __init ip_vs_control_init(void)
 
 	smp_wmb();	/* Do we really need it now ? */
 
+	//注册网络通知链
 	ret = register_netdevice_notifier(&ip_vs_dst_notifier);
 	if (ret < 0)
 		return ret;

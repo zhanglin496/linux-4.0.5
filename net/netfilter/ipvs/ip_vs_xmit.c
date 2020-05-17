@@ -920,6 +920,8 @@ static inline int __tun_gso_type_mask(int encaps_af, int orig_af)
  *
  *   Used for ANY protocol
  */
+ //TUNNEL发送是把原来的IP部分再加在一个IPIP协议头后发出去,新头的目的IP是真实目的服务器,源IP是真实客户端IP,
+//该包是可以路由的,服务器的回应包将直接路由回去而不经过IPVS.
 int
 ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		  struct ip_vs_protocol *pp, struct ip_vs_iphdr *ipvsh)
