@@ -1188,6 +1188,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET)
 #endif
+		//ÊÕ¼¯IP·ÖÆ¬
 		if (unlikely(ip_is_fragment(ip_hdr(skb)) && !pp->dont_defrag)) {
 			if (ip_vs_gather_frags(skb,
 					       ip_vs_defrag_user(hooknum)))

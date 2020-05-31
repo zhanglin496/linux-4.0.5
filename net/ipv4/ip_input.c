@@ -195,11 +195,13 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 
 	rcu_read_lock();
 	{
+		//获取L4协议
 		int protocol = ip_hdr(skb)->protocol;
 		const struct net_protocol *ipprot;
 		int raw;
 
 	resubmit:
+		//原始套接字位于L4层
 		raw = raw_local_deliver(skb, protocol);
 
 		ipprot = rcu_dereference(inet_protos[protocol]);
