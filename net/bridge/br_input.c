@@ -42,6 +42,8 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	 * packet is allowed except in promisc modue when someone
 	 * may be running packet capture.
 	 */
+	 //如果brdev 设置了混杂模式，无条件接收流量
+	 //否则再检查对应的vlan id 是否允许接收
 	pv = br_get_vlan_info(br);
 	if (!(brdev->flags & IFF_PROMISC) &&
 	    !br_allowed_egress(br, pv, skb)) {

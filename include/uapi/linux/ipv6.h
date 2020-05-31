@@ -111,6 +111,7 @@ struct ipv6_destopt_hao {
  *	are glued to priority now, forming "class".
  */
 
+// 40 bytes
 struct ipv6hdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8			priority:4,

@@ -242,7 +242,7 @@ static int arp_constructor(struct neighbour *neigh)
 	__neigh_parms_put(neigh->parms);
 	neigh->parms = neigh_parms_clone(parms);
 	rcu_read_unlock();
-	//不需要L3到L2 的映射
+	//不需要L3到L2 的映射, 也就是产生的数据帧不需要构建L2头部
 	if (!dev->header_ops) {
 		neigh->nud_state = NUD_NOARP;
 		neigh->ops = &arp_direct_ops;
@@ -302,7 +302,7 @@ static int arp_constructor(struct neighbour *neigh)
 		} else if (dev->flags & (IFF_NOARP | IFF_LOOPBACK)) {
 			neigh->nud_state = NUD_NOARP;
 			memcpy(neigh->ha, dev->dev_addr, dev->addr_len);
-		//如果是广播，直接映射成广播地址
+		//如果是广播或者是点对点地址，直接映射成广播地址
 		//比如IP 地址是255.255.255.255或者子网广播地址
 		} else if (neigh->type == RTN_BROADCAST ||
 			   (dev->flags & IFF_POINTOPOINT)) {
@@ -532,7 +532,7 @@ static inline int arp_fwd_proxy(struct in_device *in_dev,
 	if (!IN_DEV_PROXY_ARP(in_dev))
 		return 0;
 	imi = IN_DEV_MEDIUM_ID(in_dev);
-	//关闭介质ID
+	//关闭介质ID验证
 	if (imi == 0)
 		return 1;
 	// ARP 代理关闭
@@ -544,7 +544,7 @@ static inline int arp_fwd_proxy(struct in_device *in_dev,
 	out_dev = __in_dev_get_rcu(rt->dst.dev);
 	if (out_dev)
 		omi = IN_DEV_MEDIUM_ID(out_dev);
-	//介质ID不相等，同时出口介质ID 没有关闭arp代理
+	//介质ID不相等(表示在不同的lan中)，同时出口介质ID 没有关闭arp代理
 	//那么可以代理该arp请求
 	return omi != imi && omi != -1;
 }
@@ -829,7 +829,7 @@ static int arp_process(struct sk_buff *skb)
  *	Check for bad requests for 127.x.x.x and requests for multicast
  *	addresses.  If this is one such, delete it.
  */
- //tip 是多播的情况是不需要动态映射到L2
+ //tip 是多播或广播的情况是不需要动态映射到L2
  //直接按照静态转换规则完成，所以直接丢弃多播报文
 	if (ipv4_is_multicast(tip) ||
 	    (!IN_DEV_ROUTE_LOCALNET(in_dev) && ipv4_is_loopback(tip)))
@@ -889,6 +889,8 @@ static int arp_process(struct sk_buff *skb)
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n) {
 					//回复接收到arp报文的设备MAC地址
+					//这意味着linux 认为IP属于主机而不是接口
+					//如果再
 					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
 						 dev, tip, sha, dev->dev_addr,
 						 sha);
@@ -975,6 +977,7 @@ static int arp_process(struct sk_buff *skb)
 		/* Broadcast replies and request packets
 		   do not assert neighbour reachability.
 		 */
+		 //pkt_type不是单播 或者不是arp响应包
 		if (arp->ar_op != htons(ARPOP_REPLY) ||
 		    skb->pkt_type != PACKET_HOST)
 			state = NUD_STALE;

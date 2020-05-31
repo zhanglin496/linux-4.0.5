@@ -94,7 +94,7 @@ ip_vs_sed_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	/*
 	 *    Find the destination with the least load.
 	 */
-  nextstage:
+nextstage:
 	list_for_each_entry_continue_rcu(dest, &svc->destinations, n_list) {
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;

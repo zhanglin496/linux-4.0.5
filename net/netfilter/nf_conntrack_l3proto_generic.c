@@ -62,7 +62,7 @@ static int generic_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 }
 
 
-struct nf_conntrack_l3proto nf_conntrack_l3proto_generic __read_mostly = {
+struct nf_conntrack_l3proto nf_conntrack_l3proto_generic = {
 	.l3proto	 = PF_UNSPEC,
 	.name		 = "unknown",
 	.pkt_to_tuple	 = generic_pkt_to_tuple,

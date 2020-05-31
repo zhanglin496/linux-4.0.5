@@ -382,7 +382,7 @@ int eth_validate_addr(struct net_device *dev)
 }
 EXPORT_SYMBOL(eth_validate_addr);
 
-const struct header_ops eth_header_ops ____cacheline_aligned = {
+const struct header_ops eth_header_ops  = {
 	.create		= eth_header,
 	.parse		= eth_header_parse,
 	.rebuild	= eth_rebuild_header,

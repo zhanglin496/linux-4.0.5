@@ -27,6 +27,8 @@
  */
 
 static LIST_HEAD(pernet_list);
+//first_device表示第一个调用register_pernet_device的节点
+//指向pernet_operations 的list
 static struct list_head *first_device = &pernet_list;
 DEFINE_MUTEX(net_mutex);
 
@@ -817,6 +819,13 @@ EXPORT_SYMBOL_GPL(unregister_pernet_subsys);
  *	are called in the reverse of the order with which they were
  *	registered.
  */
+
+//head-->submod0-->submod1-->submod2-->subdev0
+————————————————
+//next如上图所示，如果链表中已经插入了一个device子模块（subdev0），
+//之后插入的subsys子模块（submod2）将插入在subdev0之前。
+//first_device记住第一个插入的dev
+//后面所有的插入都在first_device之前
 int register_pernet_device(struct pernet_operations *ops)
 {
 	int error;

@@ -69,7 +69,7 @@ EXPORT_SYMBOL(ip_vs_conn_put);
 EXPORT_SYMBOL(ip_vs_get_debug_level);
 #endif
 
-static int ip_vs_net_id __read_mostly;
+static int ip_vs_net_id ;//__read_mostly;
 /* netns cnt used for uniqueness */
 static atomic_t ipvs_netns_cnt = ATOMIC_INIT(0);
 
@@ -302,6 +302,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		}
 	}
 
+	//检查模板是否存在
 	/* Check if a template already exists */
 	ct = ip_vs_ct_in_get(&param);
 	if (!ct || !ip_vs_check_template(ct)) {
@@ -313,6 +314,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 * return *ignored=0 i.e. ICMP and NF_DROP
 		 */
 		sched = rcu_dereference(svc->scheduler);
+		//选择一个dest
 		dest = sched->schedule(svc, skb, iph);
 		if (!dest) {
 			IP_VS_DBG(1, "p-schedule: no dest found.\n");
@@ -328,6 +330,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 * This adds param.pe_data to the template,
 		 * and thus param.pe_data will be destroyed
 		 * when the template expires */
+		//创建模板
 		ct = ip_vs_conn_new(&param, dest->af, &dest->addr, dport,
 				    IP_VS_CONN_F_TEMPLATE, dest, skb->mark);
 		if (ct == NULL) {
@@ -339,6 +342,8 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		ct->timeout = svc->timeout;
 	} else {
 		/* set destination with the found template */
+		//模板已经存在
+		//将新连接调度到上一次选中的dest
 		dest = ct->dest;
 		kfree(param.pe_data);
 	}
@@ -354,6 +359,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/*
 	 *    Create a new connection according to the template
 	 */
+	//创建一个新连接记录
 	ip_vs_conn_fill_param(svc->net, svc->af, iph->protocol, &iph->saddr,
 			      src_port, &iph->daddr, dst_port, &param);
 
@@ -368,7 +374,9 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/*
 	 *    Add its control
 	 */
+	 //记录主链接
 	ip_vs_control_add(cp, ct);
+	//更新主链接的超时时间
 	ip_vs_conn_put(ct);
 
 	ip_vs_conn_stats(cp, svc);
@@ -1589,6 +1597,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	struct netns_ipvs *ipvs;
 
 	/* Already marked as IPVS request or reply? */
+	//标记是ipvs发出去的数据包，放行
+	//避免循环
 	if (skb->ipvs_property)
 		return NF_ACCEPT;
 
@@ -1669,6 +1679,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 		 */
 		int v;
 
+		//调度数据包，选择一个合适的服务器
+		//查找数据包是否命中了配置的虚拟服务器规则
 		/* Schedule and create new connection entry into &cp */
 		if (!pp->conn_schedule(af, skb, pd, &v, &cp, &iph))
 			return v;
@@ -1690,6 +1702,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 
 	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Incoming packet");
 	/* Check the server status */
+	//真实服务器是否可用
 	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		/* the destination server is not available */
 
@@ -1845,7 +1858,7 @@ ip_vs_forward_icmp_v6(const struct nf_hook_ops *ops, struct sk_buff *skb,
 #endif
 
 
-static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
+static struct nf_hook_ops ip_vs_ops[]  = {
 	/* After packet filtering, change source only for VS/NAT */
 	{
 		.hook		= ip_vs_reply4,

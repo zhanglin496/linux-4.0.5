@@ -417,6 +417,7 @@ ip_vs_service_find(struct net *net, int af, __u32 fwmark, __u16 protocol,
 	/*
 	 *	Check the table hashed by fwmark first
 	 */
+	 //skb->mark不为0的情况
 	if (fwmark) {
 		svc = __ip_vs_svc_fwm_find(net, af, fwmark);
 		if (svc)
@@ -659,6 +660,8 @@ static void __ip_vs_dst_cache_reset(struct ip_vs_dest *dest)
  *  continue, and the counting information of the dest is also useful for
  *  scheduling.
  */
+ //dest_trash 表示那些从真实服务器移除的节点
+ //但是因为还有连接在使用它，所以把它放到dest_trash链表中
 static struct ip_vs_dest *
 ip_vs_trash_get_dest(struct ip_vs_service *svc, int dest_af,
 		     const union nf_inet_addr *daddr, __be16 dport)
@@ -803,6 +806,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		 */
 		ip_vs_rs_hash(ipvs, dest);
 	}
+	//conn_flags 当前IP_VS_CONN_F_INACTIVE状态
 	atomic_set(&dest->conn_flags, conn_flags);
 
 	/* bind the service */
@@ -818,6 +822,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	}
 
 	/* set the dest status flags */
+	//标记服务器当前可用
 	dest->flags |= IP_VS_DEST_F_AVAILABLE;
 
 	if (udest->u_threshold == 0 || udest->u_threshold > dest->u_threshold)
@@ -1044,6 +1049,7 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest,
 		mod_timer(&ipvs->dest_trash_timer,
 			  jiffies + (IP_VS_DEST_TRASH_PERIOD >> 1));
 	/* dest lives in trash without reference */
+	//移动到dest_trash链表
 	list_add(&dest->t_list, &ipvs->dest_trash);
 	dest->idle_start = 0;
 	spin_unlock_bh(&ipvs->dest_trash_lock);
@@ -1058,6 +1064,7 @@ static void __ip_vs_unlink_dest(struct ip_vs_service *svc,
 				struct ip_vs_dest *dest,
 				int svcupd)
 {
+	//标记服务器不可用
 	dest->flags &= ~IP_VS_DEST_F_AVAILABLE;
 
 	/*
@@ -1115,6 +1122,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	return 0;
 }
 
+//回收dest
 static void ip_vs_dest_trash_expire(unsigned long data)
 {
 	struct net *net = (struct net *) data;
@@ -1126,6 +1134,7 @@ static void ip_vs_dest_trash_expire(unsigned long data)
 	list_for_each_entry_safe(dest, next, &ipvs->dest_trash, t_list) {
 		if (atomic_read(&dest->refcnt) > 0)
 			continue;
+		//把dest在dest_trash保留一段时间，以备再次使用
 		if (dest->idle_start) {
 			if (time_before(now, dest->idle_start +
 					     IP_VS_DEST_TRASH_PERIOD))
@@ -1242,6 +1251,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	/* Update the virtual service counters */
 	if (svc->port == FTPPORT)
 		atomic_inc(&ipvs->ftpsvc_counter);
+	//0端口只能配置在 -p 持久连接上
 	else if (svc->port == 0)
 		atomic_inc(&ipvs->nullsvc_counter);
 
@@ -2348,9 +2358,11 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	/* Lookup the exact service by <protocol, addr, port> or fwmark */
 	rcu_read_lock();
 	if (usvc.fwmark == 0)
+		//fwmark为0，ip_vs_svc_table查找虚拟服务器规则
 		svc = __ip_vs_service_find(net, usvc.af, usvc.protocol,
 					   &usvc.addr, usvc.port);
 	else
+		//fwmark非0，ip_vs_svc_fwm_table查找虚拟服务器规则
 		svc = __ip_vs_svc_fwm_find(net, usvc.af, usvc.fwmark);
 	rcu_read_unlock();
 
@@ -2364,15 +2376,18 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	switch (cmd) {
 	case IP_VS_SO_SET_ADD:
 		//添加虚拟服务器规则
+		//ipvsadm -A -t 192.168.121.130:80 -p -s rr
 		if (svc != NULL)
 			ret = -EEXIST;
 		else
 			ret = ip_vs_add_service(net, &usvc, &svc);
 		break;
 	case IP_VS_SO_SET_EDIT:
+		//修改虚拟服务器规则
 		ret = ip_vs_edit_service(svc, &usvc);
 		break;
 	case IP_VS_SO_SET_DEL:
+		//删除虚拟服务器规则
 		ret = ip_vs_del_service(svc);
 		if (!ret)
 			goto out_unlock;
@@ -2385,9 +2400,11 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		ret = ip_vs_add_dest(svc, &udest);
 		break;
 	case IP_VS_SO_SET_EDITDEST:
+		//修改真实服务器规则
 		ret = ip_vs_edit_dest(svc, &udest);
 		break;
 	case IP_VS_SO_SET_DELDEST:
+		//删除真实服务器规则
 		ret = ip_vs_del_dest(svc, &udest);
 		break;
 	default:

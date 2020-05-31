@@ -80,8 +80,10 @@ static inline bool rt_is_output_route(const struct rtable *rt)
 
 static inline __be32 rt_nexthop(const struct rtable *rt, __be32 daddr)
 {
+	//如果是不在同一个子网内，使用rt_gateway
 	if (rt->rt_gateway)
 		return rt->rt_gateway;
+	//否则表示在同一个子网内，直接使用L3目的地址
 	return daddr;
 }
 

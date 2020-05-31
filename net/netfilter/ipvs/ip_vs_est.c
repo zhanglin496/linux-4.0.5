@@ -108,6 +108,7 @@ static void estimation_timer(unsigned long arg)
 		s = container_of(e, struct ip_vs_stats, est);
 
 		spin_lock(&s->lock);
+		//统计每个CPU的流量信息
 		ip_vs_read_cpu_stats(&s->ustats, s->cpustats);
 		n_conns = s->ustats.conns;
 		n_inpkts = s->ustats.inpkts;

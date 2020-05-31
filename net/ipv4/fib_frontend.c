@@ -267,6 +267,9 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	net = dev_net(dev);
 	if (fib_lookup(net, &fl4, &res))
 		goto last_resort;
+	//正常期望是RTN_UNICAST 类型的
+	//如果是RTN_LOCAL类型的，表示本机配置的某个IP和数据包的源IP相同
+	//进一步检查accept_local是否为真，如果为真，表示允许这种行为
 	if (res.type != RTN_UNICAST &&
 //	Change fib_validate_source() to accept packets with a local source address when
 //    the "accept_local" sysctl is set for the incoming inet device. Combined with the

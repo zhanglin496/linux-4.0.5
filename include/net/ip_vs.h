@@ -547,7 +547,10 @@ struct ip_vs_conn {
 
 	/* Control members */
 	//属于哪个主链接，类似netfiler的master 链接
+	//比如根据模板连接创建的新连接
+	//新连接的control 指向模板连接
 	struct ip_vs_conn       *control;       /* Master control connection */
+	//记录有多少个子链接
 	atomic_t                n_control;      /* Number of controlled ones */
 	struct ip_vs_dest       *dest;          /* real server */
 	atomic_t                in_pkts;        /* incoming packet counter */
@@ -571,8 +574,9 @@ struct ip_vs_conn {
 	void                    *app_data;      /* Application private data */
 	struct ip_vs_seq        in_seq;         /* incoming seq. struct */
 	struct ip_vs_seq        out_seq;        /* outgoing seq. struct */
-
+	//描述持久连接
 	const struct ip_vs_pe	*pe;
+	//持久连接私有对象
 	char			*pe_data;
 	__u8			pe_data_len;
 
@@ -685,7 +689,7 @@ struct ip_vs_service {
 	struct ip_vs_stats      stats;         /* statistics for the service */
 
 	/* for scheduling */
-	//调度指针，选择real服务器算法
+	//用户请求的调度器，描述选择真实服务器的算法(struct ip_vs_dest)
 	struct ip_vs_scheduler __rcu *scheduler; /* bound scheduler object */
 	spinlock_t		sched_lock;    /* lock sched_data */
 	//调度器私有数据
@@ -723,7 +727,7 @@ struct ip_vs_dest {
 	union nf_inet_addr	addr;		/* IP address of the server */
 	volatile unsigned int	flags;		/* dest status flags */
 	atomic_t		conn_flags;	/* flags to copy to conn */
-	//真实服务器的权重值
+	//真实服务器的权重值，权重值<=0表示服务器不可用
 	atomic_t		weight;		/* server weight */
 
 	atomic_t		refcnt;		/* reference counter */

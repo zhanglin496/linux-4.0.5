@@ -156,7 +156,7 @@ struct neighbour {
 	const struct neigh_ops	*ops;
 	struct rcu_head		rcu;
 	struct net_device	*dev;
-	//ipv4地址或ipv6地址
+	//ipv4地址或ipv6地址,具体长度由arp_tbl->key_len来指定
 	u8			primary_key[0];
 };
 

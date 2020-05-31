@@ -272,6 +272,7 @@ bool br_allowed_egress(struct net_bridge *br,
 		return false;
 
 	br_vlan_get_tag(skb, &vid);
+	//对应的vlan id是否允许
 	if (test_bit(vid, v->vlan_bitmap))
 		return true;
 

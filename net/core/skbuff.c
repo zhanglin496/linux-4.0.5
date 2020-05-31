@@ -4352,6 +4352,7 @@ EXPORT_SYMBOL_GPL(skb_gso_transport_seglen);
 
 static struct sk_buff *skb_reorder_vlan_header(struct sk_buff *skb)
 {
+	//让skb数据区可写
 	if (skb_cow(skb, skb_headroom(skb)) < 0) {
 		kfree_skb(skb);
 		return NULL;
@@ -4385,6 +4386,7 @@ struct sk_buff *skb_vlan_untag(struct sk_buff *skb)
 	vhdr = (struct vlan_hdr *)skb->data;
 	vlan_tci = ntohs(vhdr->h_vlan_TCI);
 	//skb->vlan_tci 打标记VLAN_TAG_PRESENT	
+	//skb->protocol为ETH_P_8021Q 或ETH_P_8021AD
 	__vlan_hwaccel_put_tag(skb, skb->protocol, vlan_tci);
 
 	//调整skb->data指向L3

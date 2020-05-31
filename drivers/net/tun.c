@@ -346,6 +346,7 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 	if (tun->numqueues == 1 || tfile->detached)
 		goto unlock;
 	//如果有多个队列，创建tun_flow_entry
+	//tun_flow_entry的目的是把同一条流映射到同一个queue中
 	e = tun_flow_find(head, rxhash);
 	if (likely(e)) {
 		/* TODO: keep queueing to old queue until it's empty? */
@@ -567,6 +568,8 @@ static int tun_attach(struct tun_struct *tun, struct file *file, bool skip_filte
 		goto out;
 
 	err = -EBUSY;
+	//是否打开了多队列支持
+	//支持使用多线程和多进程 提高并发处理数据包的效率
 	if (!(tun->flags & IFF_MULTI_QUEUE) && tun->numqueues == 1)
 		goto out;
 
@@ -769,6 +772,7 @@ static int tun_net_close(struct net_device *dev)
 static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
+	//netdev_pick_tx中设置队列号
 	int txq = skb->queue_mapping;
 	struct tun_file *tfile;
 	u32 numqueues = 0;
@@ -1458,7 +1462,7 @@ static int tun_validate(struct nlattr *tb[], struct nlattr *data[])
 	return -EINVAL;
 }
 
-static struct rtnl_link_ops tun_link_ops __read_mostly = {
+static struct rtnl_link_ops tun_link_ops  = {
 	.kind		= DRV_NAME,
 	.priv_size	= sizeof(struct tun_struct),
 	.setup		= tun_setup,

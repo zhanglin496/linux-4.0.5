@@ -77,7 +77,12 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 #define IN_DEV_ANDCONF(in_dev, attr) \
 	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr) && \
 	 IN_DEV_CONF_GET((in_dev), attr))
-
+
+//取/proc/sys/net/ipv4/conf/all/
+//proc/sys/net/ipv4/conf/eth0/的或关系
+//两者任意一个满足都为真
+///conf/all 是全局配置
+// conf/eth0 是每个接口的私有配置
 #define IN_DEV_NET_ORCONF(in_dev, net, attr) \
 	(IPV4_DEVCONF_ALL(net, attr) || \
 	 IN_DEV_CONF_GET((in_dev), attr))

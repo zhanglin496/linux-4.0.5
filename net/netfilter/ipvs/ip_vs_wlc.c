@@ -56,6 +56,7 @@ ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		if (!(dest->flags & IP_VS_DEST_F_OVERLOAD) &&
 		    atomic_read(&dest->weight) > 0) {
 			least = dest;
+			//统计连接数
 			loh = ip_vs_dest_conn_overhead(least);
 			goto nextstage;
 		}
@@ -71,6 +72,7 @@ ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;
 		doh = ip_vs_dest_conn_overhead(dest);
+		//选取负载最小的dest
 		if ((__s64)loh * atomic_read(&dest->weight) >
 		    (__s64)doh * atomic_read(&least->weight)) {
 			least = dest;

@@ -418,10 +418,11 @@ static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 	//如果邻居项现在可用，构造二层首部然后调用dev_queue_xmit
 	//如果是NUD_CONNECTED，包括NUD_NOARP 状态，比如点对点的设备，不需要发送arp报文
 	//直接输出报文
+	//hh L2帧头首部可用
 	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
 		return neigh_hh_output(hh, skb);
 	else
-		//第一次进入该函数时hh->hh_len为0，直接调用output函数，
+		//第一次进入该函数时hh->hh_len为0(还未缓存L2帧头首部)，直接调用output函数，
 		//如果设备的dev->header_ops为NULL，就调用arp_direct_ops
 		//output->neigh_direct_output->dev_queue_xmit,因此不需要构造
 		//L2头部，比如点对点的设备，其中tun设备就属于这种情况

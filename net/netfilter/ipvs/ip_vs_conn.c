@@ -140,7 +140,7 @@ static unsigned int ip_vs_conn_hashkey_param(const struct ip_vs_conn_param *p,
 		addr = p->vaddr;
 		port = p->vport;
 	}
-
+	//L4协议，端口，IP 三元组为hash key
 	return ip_vs_conn_hashkey(p->net, p->af, p->protocol, addr, port);
 }
 

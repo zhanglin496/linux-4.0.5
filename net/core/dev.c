@@ -2626,6 +2626,7 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	//对于ETH_P_ALL类型的报文回收
 	//dev->ptype_all 只接收绑定到指定接口的数据包
 	//ptype_all接收所有接口的数据包
+	//传递副本给嗅探器
 	if (!list_empty(&ptype_all) || !list_empty(&dev->ptype_all))
 		dev_queue_xmit_nit(skb, dev);
 

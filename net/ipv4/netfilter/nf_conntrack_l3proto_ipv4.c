@@ -174,7 +174,7 @@ static unsigned int ipv4_conntrack_local(const struct nf_hook_ops *ops,
 
 /* Connection tracking may drop packets, but never alters them, so
    make it the first hook. */
-static struct nf_hook_ops ipv4_conntrack_ops[] __read_mostly = {
+static struct nf_hook_ops ipv4_conntrack_ops[] = {
 	{
 		.hook		= ipv4_conntrack_in,
 		.owner		= THIS_MODULE,

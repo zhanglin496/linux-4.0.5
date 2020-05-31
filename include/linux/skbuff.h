@@ -736,7 +736,7 @@ struct sk_buff {
 	__u16			inner_transport_header;
 	__u16			inner_network_header;
 	__u16			inner_mac_header;
-
+	//指代L3协议
 	__be16			protocol;
 	__u16			transport_header;
 	__u16			network_header;

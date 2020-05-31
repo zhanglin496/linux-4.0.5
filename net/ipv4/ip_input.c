@@ -441,6 +441,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 		goto csum_error;
 
 	len = ntohs(iph->tot_len);
+	//大于实际接收的数据，意味出错，丢弃数据包
 	if (skb->len < len) {
 		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
@@ -451,6 +452,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	 * is IP we can trim to the true length of the frame.
 	 * Note this now means skb->len holds ntohs(iph->tot_len).
 	 */
+	//len < skb->len 
+	//nic 可能对发出的数据包填充以满足64字节的要求，
+	//可能出现len < skb->len的情况，这里予以纠正
 	if (pskb_trim_rcsum(skb, len)) {
 		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INDISCARDS);
 		goto drop;
