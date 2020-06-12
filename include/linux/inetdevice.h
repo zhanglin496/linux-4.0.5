@@ -94,7 +94,9 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	(max(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr), \
 	     IN_DEV_CONF_GET((in_dev), attr)))
 
+//ip单播转发开关
 #define IN_DEV_FORWARD(in_dev)		IN_DEV_CONF_GET((in_dev), FORWARDING)
+//ip组播转发开关
 #define IN_DEV_MFORWARD(in_dev)		IN_DEV_ANDCONF((in_dev), MC_FORWARDING)
 //反向路径过滤，用于防止基于源地址欺骗的网络攻击行为
 #define IN_DEV_RPFILTER(in_dev)		IN_DEV_MAXCONF((in_dev), RP_FILTER)

@@ -111,7 +111,8 @@ struct ipv6_destopt_hao {
  *	are glued to priority now, forming "class".
  */
 
-// 40 bytes
+//ipv6固定头部为40 bytes
+//相对于ipv4更利于解析
 struct ipv6hdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8			priority:4,
@@ -124,8 +125,11 @@ struct ipv6hdr {
 #endif
 	__u8			flow_lbl[3];
 
+	//负载长度,不包括ipv6头部40字节长度
 	__be16			payload_len;
+	//下一个头部类型或者L4协议
 	__u8			nexthdr;
+	//ttl限制
 	__u8			hop_limit;
 
 	struct	in6_addr	saddr;

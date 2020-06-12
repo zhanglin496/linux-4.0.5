@@ -109,6 +109,7 @@ static inline bool is_zero_ether_addr(const u8 *addr)
  * Return true if the address is a multicast address.
  * By definition the broadcast address is also a multicast address.
  */
+//第一个字节的第一位为1，0001
 static inline bool is_multicast_ether_addr(const u8 *addr)
 {
 	return 0x01 & addr[0];
@@ -120,7 +121,7 @@ static inline bool is_multicast_ether_addr(const u8 *addr)
  *
  * Return true if the address is a local address.
  */
- //第一个字节的第二位为1，0010
+//第一个字节的第二位为1，0010
 static inline bool is_local_ether_addr(const u8 *addr)
 {
 	return 0x02 & addr[0];

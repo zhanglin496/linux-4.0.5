@@ -234,6 +234,7 @@ ip_vs_dh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 
 	s = (struct ip_vs_dh_state *) svc->sched_data;
 	//这里根据目的地址hash选择一个dest
+	//如果目的地址相同，并且hash桶未移动过，那么始终会选者到同一个dest
 	dest = ip_vs_dh_get(svc->af, s, &iph->daddr);
 	if (!dest
 	    || !(dest->flags & IP_VS_DEST_F_AVAILABLE)

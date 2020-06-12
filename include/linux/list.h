@@ -58,9 +58,16 @@ extern void __list_add(struct list_head *new,
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
  */
+//head->a->b->c
+//假设插入d,list_add(d, head);
+//变为head->d->a->b->c
+//如果是list_add(d, c);
+//变为head->a->b->c->d，d不在头
+//并不是我们认为的一定加入到头
+
 //插入new 节点在head 节点之后，不是head节点之前
-//注意head 如果不是头部哑结点,则new节点不是最开始的节点
-//就是插入到head next 指向的节点前面
+//注意head 如果不是头部哑结点,则new节点不是插入到头节点
+//而是插入到head next 指向的节点前面，也就是head的后面
 static inline void list_add(struct list_head *new, struct list_head *head)
 {
 	__list_add(new, head, head->next);
@@ -81,9 +88,10 @@ static inline void list_add(struct list_head *new, struct list_head *head)
  //如果是list_add_tail(d, c);
  //变为head->a->b->d->c，d不在末尾
  //并不是我们认为的一定加入到末尾
+ 
  //插入new 节点在head 节点之前，不是head节点之后
  //注意head 如果不是头部哑结点,则new节点不是末尾的节点
- //就是插入到head prev 指向的节点后面
+ //而是插入到head prev 指向的节点后面，也就是head的前面
 static inline void list_add_tail(struct list_head *new, struct list_head *head)
 {
 	__list_add(new, head->prev, head);

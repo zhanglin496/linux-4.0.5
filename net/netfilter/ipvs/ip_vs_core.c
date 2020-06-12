@@ -468,6 +468,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 		return NULL;
 	}
 
+	//根据调度算法选择一个真实的server
 	sched = rcu_dereference(svc->scheduler);
 	dest = sched->schedule(svc, skb, iph);
 	if (dest == NULL) {

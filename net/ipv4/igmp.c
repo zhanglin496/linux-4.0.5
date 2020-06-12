@@ -2395,6 +2395,7 @@ int ip_check_mc_rcu(struct in_device *in_dev, __be32 mc_addr, __be32 src_addr, u
 	struct ip_sf_list *psf;
 	int rv = 0;
 
+	//遍历多播地址列表,IP_ADD_MEMBERSHIP
 	mc_hash = rcu_dereference(in_dev->mc_hash);
 	if (mc_hash) {
 		u32 hash = hash_32((__force u32)mc_addr, MC_HASH_SZ_LOG);

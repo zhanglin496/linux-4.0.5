@@ -105,7 +105,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		goto err;
 
 	hdr = ipv6_hdr(skb);
-
+	//当前只支持版本6
 	if (hdr->version != 6)
 		goto err;
 
@@ -118,6 +118,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	 * A packet received on an interface with a destination address
 	 * of loopback must be dropped.
 	 */
+	//如果不是回环设备，但是目的地址是回环地址，则丢弃数据包
 	if (!(dev->flags & IFF_LOOPBACK) &&
 	    ipv6_addr_loopback(&hdr->daddr))
 		goto err;
@@ -170,6 +171,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		hdr = ipv6_hdr(skb);
 	}
 
+	//中介节点路由器只解析NEXTHDR_HOP选项
 	if (hdr->nexthdr == NEXTHDR_HOP) {
 		if (ipv6_parse_hopopts(skb) < 0) {
 			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);

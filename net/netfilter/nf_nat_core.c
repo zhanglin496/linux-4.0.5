@@ -432,6 +432,11 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		//并且范围相等或者tuple不冲突
 		//NF_NAT_RANGE_PROTO_SPECIFIED 意思是需要检查端口是否在配置的范围内
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
+			//如果端口不在配置的端口范围内，则需要修改端口
+			//调用unique_tuple选这一个端口
+			//nf_nat_l4proto_in_range
+			//如果端口在配置的端口范围内,并且只有一个端口可以选择
+			//或者tuple不冲突，那就不需要调用unique_tuple
 			if (l4proto->in_range(tuple, maniptype,
 					      &range->min_proto,
 					      &range->max_proto) &&
@@ -445,6 +450,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	}
 	//前面的尝试都失败，或者设置了NF_NAT_RANGE_PROTO_RANDOM_ALL标志
 	//则做随机化的端口选择
+	//tcp_unique_tuple
 	/* Last change: get protocol to try to obtain unique tuple. */
 	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
 out:

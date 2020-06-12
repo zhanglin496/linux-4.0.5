@@ -187,7 +187,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	struct nf_conntrack_tuple t;
 	struct nf_conn *ct;
 	int ret = -EOPNOTSUPP;
-
+	//NOTRACK情况
 	if (info->flags & XT_CT_NOTRACK) {
 		ct = NULL;
 		goto out;
@@ -201,7 +201,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	ret = nf_ct_l3proto_try_module_get(par->family);
 	if (ret < 0)
 		goto err1;
-
+	//创建ct模板
 	memset(&t, 0, sizeof(t));
 	ct = nf_conntrack_alloc(par->net, info->zone, &t, &t, GFP_KERNEL);
 	ret = PTR_ERR(ct);
@@ -341,7 +341,8 @@ static void xt_ct_tg_destroy_v1(const struct xt_tgdtor_param *par)
 {
 	xt_ct_tg_destroy(par, par->targinfo);
 }
-
+//打zone标记
+//iptables -t raw -A PREROUTING -p tcp -i ens33  -j CT --zone 1
 static struct xt_target xt_ct_tg_reg[] __read_mostly = {
 	{
 		.name		= "CT",

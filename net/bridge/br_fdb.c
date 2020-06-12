@@ -582,6 +582,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 	//所以要建立多个net_bridge_fdb_entry数据库条目来记录数据包来自哪个net_bridge_port
 		spin_lock(&br->hash_lock);
 		if (likely(!fdb_find(head, addr, vid))) {
+			//这里linux内核没有对条目做限制，只依赖与实际可用内存
 			fdb = fdb_create(head, source, addr, vid);
 			if (fdb) {
 				if (unlikely(added_by_user))

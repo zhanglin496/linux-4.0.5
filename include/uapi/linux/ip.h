@@ -82,6 +82,7 @@
 
 #define IPV4_BEET_PHMAXLEN 8
 
+//20字节
 struct iphdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8	ihl:4,
@@ -93,6 +94,7 @@ struct iphdr {
 #error	"Please fix <asm/byteorder.h>"
 #endif
 	__u8	tos;
+	//tot_len包含ipv4头部的负载长度
 	//tot_len代表的是当前报文的长度，对于分片报文也是如此
 	//因此对于接收到分片报文，是无法判断整个实际报文的
 	//大小，只有等到报文重组成功后才知道实际的大小

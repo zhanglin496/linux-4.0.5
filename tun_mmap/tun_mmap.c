@@ -976,6 +976,19 @@ static int tun_mmap_xmit(struct sk_buff *skb, struct tun_file *tfile)
 			snaplen = 0;
 	}
 
+	//注意patch中的skb_copy_bits这个调用
+	//这个调用事实上是把本应该由skb往
+	//用户态read调用缓冲区的拷贝提前到hard-xmit回调中往ring buffer拷贝，
+	//仅仅可能节省了一次切换开销
+	//(如果用户态正在busy polling的话，则无需唤醒/切换，
+	//如果用户态没有在busy polling，那么唤醒/切换还是必须的！)，
+	//内存拷贝的开销并没有省却。
+	//这一点和物理网卡不一致。
+	//物理网卡可以通过DMA机制可以直接将收到的数据包
+	//从网卡mem无CPU开销地直接传输到系统mem，
+	//而该系统mem是mmap到用户态的，用户态便可以直接操作该mem，
+	//从网卡收到数据包到用户进程操作该数据包，全程无需任何数据拷贝。
+	//虚拟网卡则无法做到这一点，因为虚拟网卡没有硬件辅助来完成类似DMA的功能。
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
 
 	switch (tfile->tp_version) {

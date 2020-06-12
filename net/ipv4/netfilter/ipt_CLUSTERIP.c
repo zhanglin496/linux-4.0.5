@@ -329,6 +329,7 @@ clusterip_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 	switch (ctinfo) {
 	case IP_CT_NEW:
+		//记录hash值，new状态的不再更新
 		ct->mark = hash;
 		break;
 	case IP_CT_RELATED:
@@ -549,8 +550,9 @@ arp_mangle(const struct nf_hook_ops *ops,
 
 	return NF_ACCEPT;
 }
-
-static struct nf_hook_ops cip_arp_ops __read_mostly = {
+
+//根据配置的IP地址和mac地址，修改arp的源mac地址
+static struct nf_hook_ops cip_arp_ops  = {
 	.hook = arp_mangle,
 	.pf = NFPROTO_ARP,
 	.hooknum = NF_ARP_OUT,
@@ -745,6 +747,14 @@ static struct pernet_operations clusterip_net_ops = {
 	.size = sizeof(struct clusterip_net),
 };
 
+//你可能会发现，和以往我们认识到的负载均衡集群不同的是，
+//iptables CLUSTERIP集群中的每一台机器将会收到所有的流量，
+//差异仅仅在于收到后是否继续处理这些数据，这会不会带来洪泛的问题呢？
+//那就是，流量最好是不对称的，
+//即外部流向集群所有服务器的组播流量要远小于从集群服务器中的
+//某一台(即认领该请求的那确定的一台)流出的业务流量。
+//这样一来，在目前的最后一跳均千兆，万兆的环境中，上述引发疑虑的洪泛就不再是个事儿了…
+//iptables -I INPUT -d 192.168.44.3 -p tcp -i ens33 --dport 80 -j CLUSTERIP --new --hashmode sourceip --clustermac 01:00:9A:1E:40:0A --total-nodes 3 --local-node 1
 static int __init clusterip_tg_init(void)
 {
 	int ret;

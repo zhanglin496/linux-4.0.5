@@ -93,6 +93,7 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 			//映射范围[1024, 65535]
 		}
 	} else {
+	//iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination 192.168.121.131-192.168.101.140:80-8080
 	//如果用户自己配置了端口范围	
 	//这里可以随机选择目的端口
 	//这是因为这是用户自己选择的配置
