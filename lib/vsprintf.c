@@ -1615,10 +1615,12 @@ int format_decode(const char *fmt, struct printf_spec *spec)
 			break;
 	}
 
+	//如果fmt != start，表示还没找到%格式化字符串
 	/* Return the current non-format string */
 	if (fmt != start || !*fmt)
 		return fmt - start;
 
+	//找到了%格式化字符串
 	/* Process flags */
 	spec->flags = 0;
 
@@ -1644,8 +1646,10 @@ int format_decode(const char *fmt, struct printf_spec *spec)
 	spec->field_width = -1;
 
 	if (isdigit(*fmt))
+		//处理宽度控制符，比如%4d
 		spec->field_width = skip_atoi(&fmt);
 	else if (*fmt == '*') {
+		//如果是*表示宽度是由参数来控制
 		/* it's the next argument */
 		spec->type = FORMAT_TYPE_WIDTH;
 		return ++fmt - start;
@@ -1699,6 +1703,7 @@ qualifier:
 		spec->type = FORMAT_TYPE_PTR;
 		return ++fmt - start;
 
+	//两个%表示要显示%
 	case '%':
 		spec->type = FORMAT_TYPE_PERCENT_CHAR;
 		return ++fmt - start;
@@ -1825,10 +1830,12 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	if (WARN_ON_ONCE(size > INT_MAX))
 		return 0;
 
+	//计算buffer的上下边界
 	str = buf;
 	end = buf + size;
 
 	/* Make sure end is always >= buf */
+	//处理end溢出情况
 	if (end < buf) {
 		end = ((void *)-1);
 		size = end - buf;
@@ -1836,6 +1843,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 	while (*fmt) {
 		const char *old_fmt = fmt;
+		//读取格式化字符串
 		int read = format_decode(fmt, &spec);
 
 		fmt += read;
@@ -1895,6 +1903,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			break;
 
 		case FORMAT_TYPE_PERCENT_CHAR:
+			//向buf写入一个字符%
 			if (str < end)
 				*str = '%';
 			++str;

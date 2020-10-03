@@ -22,23 +22,27 @@
 #include <linux/init.h>
 #include <uapi/linux/netfilter_ipv4/ip_tables.h>
 
-extern void ipt_init(void) __init;
+extern void ipt_init(void) //__init;
 
 extern struct xt_table *ipt_register_table(struct net *net,
 					   const struct xt_table *table,
 					   const struct ipt_replace *repl);
 extern void ipt_unregister_table(struct net *net, struct xt_table *table);
 
-/* Standard entry. */
-struct ipt_standard {
-	struct ipt_entry entry;
-	struct xt_standard_target target;
-};
+
+
+//xt_standard_targetºÍxt_error_target ¶¼¼Ì³Ðxt_entry_target
 
 struct ipt_error {
 	struct ipt_entry entry;
 	struct xt_error_target target;
 };
+
+struct ipt_standard {
+	struct ipt_entry entry;
+	struct xt_standard_target target;
+};
+
 
 #define IPT_ENTRY_INIT(__size)						       \
 {									       \

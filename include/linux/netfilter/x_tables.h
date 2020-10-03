@@ -224,6 +224,7 @@ struct xt_table_info {
 	void ***jumpstack;
 	/* ipt_entry tables: one per CPU */
 	/* Note : this field MUST be the last one, see XT_TABLE_INFO_SZ */
+	//每个cpu一个
 	void *entries[1];
 };
 

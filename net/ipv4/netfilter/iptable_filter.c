@@ -64,6 +64,9 @@ static int __net_init iptable_filter_net_init(struct net *net)
 	if (repl == NULL)
 		return -ENOMEM;
 	/* Entry 1 is the FORWARD hook */
+	//
+	//设置默认的target策略filter表可以配置，
+	//其他表默认都初始化为-NF_ACCEPT - 1
 	((struct ipt_standard *)repl->entries)[1].target.verdict =
 		forward ? -NF_ACCEPT - 1 : -NF_DROP - 1;
 

@@ -349,6 +349,7 @@ ipt_do_table(struct sk_buff *skb,
 
 		IP_NF_ASSERT(e);
 		//标准匹配，IP地址，入\出口设备，协议号
+		//类似-p tcp -i eth0 -dip 这些选项
 		if (!ip_packet_match(ip, indev, outdev,
 		    &e->ip, acpar.fragoff)) {
  no_match:
@@ -365,6 +366,7 @@ ipt_do_table(struct sk_buff *skb,
 				goto no_match;
 		}
 
+		//命中规则，执行target
 		ADD_COUNTER(e->counters, skb->len, 1);
 
 		t = ipt_get_target(e);
@@ -378,6 +380,8 @@ ipt_do_table(struct sk_buff *skb,
 #endif
 		/* Standard target? */
 		//标准target，比如NF_ACCEPT, NF_DROP
+		//默认链的最后一条规则都初始化为-NF_ACCEPT - 1
+		//ipt_alloc_initial_table 中设置的
 		if (!t->u.kernel.target->target) {
 			int v;
 
@@ -423,6 +427,8 @@ ipt_do_table(struct sk_buff *skb,
 		verdict = t->u.kernel.target->target(skb, &acpar);
 		/* Target might have changed stuff. */
 		ip = ip_hdr(skb);
+		//verdict是XT_CONTINUE，继续匹配下一跳规则
+		//否则结束匹配流程
 		if (verdict == XT_CONTINUE)
 			e = ipt_next_entry(e);
 		else
@@ -1166,6 +1172,7 @@ get_entries(struct net *net, struct ipt_get_entries __user *uptr,
 			ret = copy_entries_to_user(private->size,
 						   t, uptr->entrytable);
 		else {
+			//用户空间提供的内存不足，提示用户增大空间重试
 			duprintf("get_entries: I've got %u not %u!\n",
 				 private->size, get.size);
 			ret = -EAGAIN;
@@ -1998,6 +2005,8 @@ do_ipt_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
+	//现在iptables 加规则都是先从内核获取所有的规则
+	//然后在用户空间把规则组织好再下发到内核
 	switch (cmd) {
 	case IPT_SO_SET_REPLACE:
 		ret = do_replace(sock_net(sk), user, len);
@@ -2022,13 +2031,15 @@ do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
-
+	//iptables这个实现太丑陋了
 	switch (cmd) {
 	case IPT_SO_GET_INFO:
+		//第一步先获取table大小，用户分配内存空间
 		ret = get_info(sock_net(sk), user, len, 0);
 		break;
 
 	case IPT_SO_GET_ENTRIES:
+		//第二步，获取所有规则，如果中间有其他用户插入导致table大小改变，可能会获取失败
 		ret = get_entries(sock_net(sk), user, len);
 		break;
 
@@ -2170,7 +2181,7 @@ static int icmp_checkentry(const struct xt_mtchk_param *par)
 	return (icmpinfo->invflags & ~IPT_ICMP_INV) ? -EINVAL : 0;
 }
 
-static struct xt_target ipt_builtin_tg[] __read_mostly = {
+static struct xt_target ipt_builtin_tg[]  = {
 	{
 		.name             = XT_STANDARD_TARGET,
 		.targetsize       = sizeof(int),
@@ -2206,7 +2217,7 @@ static struct nf_sockopt_ops ipt_sockopts = {
 	.owner		= THIS_MODULE,
 };
 
-static struct xt_match ipt_builtin_mt[] __read_mostly = {
+static struct xt_match ipt_builtin_mt[]  = {
 	{
 		.name       = "icmp",
 		.match      = icmp_match,
