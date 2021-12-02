@@ -552,6 +552,10 @@ void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 		//设置硬件计算校验和保存的地址偏移;保存在tcp->check处
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
+		//硬件没有offload能;则需要在计算checksum
+        	//skb->csum为skb_do_copy_data_nocache里计算的数据部分校验和
+        	//csum_partial为计算tcp头部数据的检验和;
+        	//tcp_v4_check再将算出来的tcp头部与数据的检验和再加上伪头部校验和
 		th->check = tcp_v4_check(skb->len, saddr, daddr,
 					 csum_partial(th,
 						      th->doff << 2,
