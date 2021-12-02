@@ -2707,10 +2707,12 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 		 * checksumming here.
 		 */
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+            //对于vxlan封装过后的报文，设置内层l4指针
 			if (skb->encapsulation)
 				skb_set_inner_transport_header(skb,
 							       skb_checksum_start_offset(skb));
 			else
+                //设置正确l4指针，指向外层的l4层
 				skb_set_transport_header(skb,
 							 skb_checksum_start_offset(skb));
 			if (!(features & NETIF_F_ALL_CSUM) &&

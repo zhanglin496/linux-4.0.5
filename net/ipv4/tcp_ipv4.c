@@ -543,19 +543,21 @@ void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
 	struct tcphdr *th = tcp_hdr(skb);
 
+    //ipv4µÄÐ£ÑéºÍÖ»¸²¸ÇipÍ·²¿£¬ËùÒÔ¶¼ÊÇÓÉÈí¼þÖ±½Ó¼ÆËãµÄ
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		//ä»…ä»…ä¿å­˜ä¼ªå¤´éƒ¨çš„æ ¡éªŒå’Œå€¼
-		//tcpå¤´éƒ¨åŠæ•°æ®äº¤ç»™ç¡¬ä»¶è®¡ç®—
-		th->check = ~tcp_v4_check(skb->len, saddr, daddr, 0);
-		//è®¾ç½®ç¡¬ä»¶è®¡ç®—æ ¡éªŒå’Œå¼€å§‹çš„åœ°å€åç§»,csum_startæŒ‡å‘tcpå¤´éƒ¨çš„èµ·å§‹åœ°å€å¤„
+		//Ó²¼þÓÐoffloadÄÜÁ¦
+		//½ö½ö±£´æÎ±Í·²¿µÄÐ£ÑéºÍÖµ
+		//tcpÍ·²¿¼°Êý¾Ý½»¸øÓ²¼þ¼ÆËã
+		th->check = ~ tcp_v4_check(skb->len, saddr, daddr, 0);
+        //ÉèÖÃÓ²¼þ¼ÆËãÐ£ÑéºÍ¿ªÊ¼µÄµØÖ·Æ«ÒÆ,csum_startÖ¸ÏòtcpÍ·²¿µÄÆðÊ¼µØÖ·´¦
 		skb->csum_start = skb_transport_header(skb) - skb->head;
-		//è®¾ç½®ç¡¬ä»¶è®¡ç®—æ ¡éªŒå’Œä¿å­˜çš„åœ°å€åç§»;ä¿å­˜åœ¨tcp->checkå¤„
+		//ÉèÖÃÓ²¼þ¼ÆËãÐ£ÑéºÍ±£´æµÄµØÖ·Æ«ÒÆ;±£´æÔÚtcp->check´¦
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
-		//ç¡¬ä»¶æ²¡æœ‰offloadèƒ½;åˆ™éœ€è¦åœ¨è®¡ç®—checksum
-        	//skb->csumä¸ºskb_do_copy_data_nocacheé‡Œè®¡ç®—çš„æ•°æ®éƒ¨åˆ†æ ¡éªŒå’Œ
-        	//csum_partialä¸ºè®¡ç®—tcpå¤´éƒ¨æ•°æ®çš„æ£€éªŒå’Œ;
-        	//tcp_v4_checkå†å°†ç®—å‡ºæ¥çš„tcpå¤´éƒ¨ä¸Žæ•°æ®çš„æ£€éªŒå’Œå†åŠ ä¸Šä¼ªå¤´éƒ¨æ ¡éªŒå’Œ
+        //Ó²¼þÃ»ÓÐoffloadÄÜÁ¦;ÔòÐèÒªÔÚ¼ÆËãchecksum
+        //skb->csumÎªskb_do_copy_data_nocacheÀï¼ÆËãµÄÊý¾Ý²¿·ÖÐ£ÑéºÍ
+        //csum_partialÎª¼ÆËãtcpÍ·²¿Êý¾ÝµÄ¼ìÑéºÍ;
+        //tcp_v4_checkÔÙ½«Ëã³öÀ´µÄtcpÍ·²¿ÓëÊý¾ÝµÄ¼ìÑéºÍÔÙ¼ÓÉÏÎ±Í·²¿Ð£ÑéºÍ
 		th->check = tcp_v4_check(skb->len, saddr, daddr,
 					 csum_partial(th,
 						      th->doff << 2,
