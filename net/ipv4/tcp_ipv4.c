@@ -178,8 +178,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
 		return err;
 	}
-	//ÃüÖÐµÄÂ·ÓÉ²»ÄÜÊÇ¹ã²¥»òÕß¶à²¥
-	//Ò²¾ÍÊÇËµÄ¿µÄIP µØÖ·²»ÄÜÊÇ¹ã²¥µØÖ·
+	//å‘½ä¸­çš„è·¯ç”±ä¸èƒ½æ˜¯å¹¿æ’­æˆ–è€…å¤šæ’­
+	//ä¹Ÿå°±æ˜¯è¯´ç›®çš„IP åœ°å€ä¸èƒ½æ˜¯å¹¿æ’­åœ°å€
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
 		ip_rt_put(rt);
 		return -ENETUNREACH;
@@ -187,8 +187,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	if (!inet_opt || !inet_opt->opt.srr)
 		daddr = fl4->daddr;
-	//Èç¹ûÃ»ÓÐÖ¸¶¨Ô´µØÖ·£¬±ÈÈç¿Í»§¶ËÃ»µ÷ÓÃbind
-	//ÄÇ¾ÍÊ¹ÓÃÂ·ÓÉÑ¡ÔñµÄÔ´µØÖ·
+	//å¦‚æžœæ²¡æœ‰æŒ‡å®šæºåœ°å€ï¼Œæ¯”å¦‚å®¢æˆ·ç«¯æ²¡è°ƒç”¨bind
+	//é‚£å°±ä½¿ç”¨è·¯ç”±é€‰æ‹©çš„æºåœ°å€
 	if (!inet->inet_saddr)
 		inet->inet_saddr = fl4->saddr;
 	inet->inet_rcv_saddr = inet->inet_saddr;
@@ -544,8 +544,12 @@ void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 	struct tcphdr *th = tcp_hdr(skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		//ä»…ä»…ä¿å­˜ä¼ªå¤´éƒ¨çš„æ ¡éªŒå’Œå€¼
+		//tcpå¤´éƒ¨åŠæ•°æ®äº¤ç»™ç¡¬ä»¶è®¡ç®—
 		th->check = ~tcp_v4_check(skb->len, saddr, daddr, 0);
+		//è®¾ç½®ç¡¬ä»¶è®¡ç®—æ ¡éªŒå’Œå¼€å§‹çš„åœ°å€åç§»,csum_startæŒ‡å‘tcpå¤´éƒ¨çš„èµ·å§‹åœ°å€å¤„
 		skb->csum_start = skb_transport_header(skb) - skb->head;
+		//è®¾ç½®ç¡¬ä»¶è®¡ç®—æ ¡éªŒå’Œä¿å­˜çš„åœ°å€åç§»;ä¿å­˜åœ¨tcp->checkå¤„
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
 		th->check = tcp_v4_check(skb->len, saddr, daddr,
@@ -1558,16 +1562,16 @@ bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 	if (likely(sk->sk_rx_dst))
 		skb_dst_drop(skb);
 	else
-		//ip_rcvÖÐ²éÕÒµÄÂ·ÓÉÊÇnorefµÄ£¬ÓÉrcuÀ´±£»¤
-		//ÕâÀïskbÈë¶ÓÖ®ºó£¬¼´½«Àë¿ªrcuÁÙ½çÇø
-		//ËùÒÔÒªÇ¿ÖÆdstµÄÒýÓÃ¼ÆÊý
+		//ip_rcvä¸­æŸ¥æ‰¾çš„è·¯ç”±æ˜¯norefçš„ï¼Œç”±rcuæ¥ä¿æŠ¤
+		//è¿™é‡Œskbå…¥é˜Ÿä¹‹åŽï¼Œå³å°†ç¦»å¼€rcuä¸´ç•ŒåŒº
+		//æ‰€ä»¥è¦å¼ºåˆ¶dstçš„å¼•ç”¨è®¡æ•°
 		skb_dst_force(skb);
 	
-	//sk_backlog_rcv Ò²Ö¸Ïòtcp_v4_do_rcv
+	//sk_backlog_rcv ä¹ŸæŒ‡å‘tcp_v4_do_rcv
 	__skb_queue_tail(&tp->ucopy.prequeue, skb);
 	tp->ucopy.memory += skb->truesize;
-	//ÄÚ´æ³¬ÏÞ£¬Ö±½Óµ÷ÓÃsk_backlog_rcv
-	//Çå¿Õprequeue¶ÓÁÐ
+	//å†…å­˜è¶…é™ï¼Œç›´æŽ¥è°ƒç”¨sk_backlog_rcv
+	//æ¸…ç©ºprequeueé˜Ÿåˆ—
 	if (tp->ucopy.memory > sk->sk_rcvbuf) {
 		struct sk_buff *skb1;
 
@@ -1580,9 +1584,9 @@ bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 		}
 
 		tp->ucopy.memory = 0;
-		//skb_queue_len == 1£¬ËµÃ÷ÊÇ±¾´Î__skb_queue_tail
-		//ÖÐ¼ÓÈëµÄ£¬ÐèÒªwait_up ½ø³Ì
-		//·ñ²à±íÊ¾½ø³ÌÒÑ±»»½ÐÑ£¬ÎÞÐèÔÙ´Î»½ÐÑ
+		//skb_queue_len == 1ï¼Œè¯´æ˜Žæ˜¯æœ¬æ¬¡__skb_queue_tail
+		//ä¸­åŠ å…¥çš„ï¼Œéœ€è¦wait_up è¿›ç¨‹
+		//å¦ä¾§è¡¨ç¤ºè¿›ç¨‹å·²è¢«å”¤é†’ï¼Œæ— éœ€å†æ¬¡å”¤é†’
 	} else if (skb_queue_len(&tp->ucopy.prequeue) == 1) {
 		wake_up_interruptible_sync_poll(sk_sleep(sk),
 					   POLLIN | POLLRDNORM | POLLRDBAND);
@@ -1676,7 +1680,7 @@ process:
 	if (tcp_v4_inbound_md5_hash(sk, skb))
 		goto discard_and_relse;
 #endif
-	//ÊÍ·Å¸úconntrackÏà¹ØµÄÒýÓÃ
+	//é‡Šæ”¾è·Ÿconntrackç›¸å…³çš„å¼•ç”¨
 	nf_reset(skb);
 
 	if (sk_filter(sk, skb))
@@ -2394,7 +2398,7 @@ void tcp4_proc_exit(void)
 	unregister_pernet_subsys(&tcp4_net_ops);
 }
 #endif /* CONFIG_PROC_FS */
-//ÏÎ½Ó´«Êä²ãµ½ÍøÂç²ã
+//è¡”æŽ¥ä¼ è¾“å±‚åˆ°ç½‘ç»œå±‚
 struct proto tcp_prot = {
 	.name			= "TCP",
 	.owner			= THIS_MODULE,
