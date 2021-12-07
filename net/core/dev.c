@@ -3885,7 +3885,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 
 		//把skb 排入到指定cpu 的队列中
 		//保证同一条数据流都由同一个CPU 来处理
-		//以最大化利用cpu
+		//以最大化利用cpu cache
 		if (cpu >= 0) {
 			ret = enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
 			rcu_read_unlock();
