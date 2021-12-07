@@ -1666,7 +1666,7 @@ struct net_device {
  * Cache lines mostly used on transmit path
  */
  	//·¢ËÍ¶ÓÁĞ
-	struct netdev_queue	*_tx ____cacheline_aligned_in_smp;
+	struct netdev_queue	*_tx; ____cacheline_aligned_in_smp;
 	unsigned int		num_tx_queues;
 	unsigned int		real_num_tx_queues;
 	struct Qdisc		*qdisc;

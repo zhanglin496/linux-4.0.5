@@ -605,6 +605,7 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 
 	/* TCP/UDP checksum error bit or IP checksum error bit is set */
 	if (errors & (E1000_RXD_ERR_TCPE | E1000_RXD_ERR_IPE)) {
+        //硬件发现校验和错误
 		/* let the stack verify checksum errors */
 		adapter->hw_csum_err++;
 		return;
@@ -615,6 +616,7 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 		return;
 
 	/* It must be a TCP or UDP packet with a valid checksum */
+    //硬件已经验证过校验和，所以协议栈不需要再验证
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	adapter->hw_csum_good++;
 }
@@ -688,6 +690,10 @@ static void e1000_alloc_rx_buffers(struct e1000_ring *rx_ring,
 
 		buffer_info->skb = skb;
 map_skb:
+        //注意，在map的时候要指定一个参数，来指明数据的方向是从外设到内存还是从内存到外设：
+        //从内存到外设：CPU会做cache的flush操作，将cache中新的数据刷到内存。
+        //从外设到内存：CPU将cache置无效，这样CPU读的时候不命中，就会从内存去读新的数据。
+        //DMA_FROM_DEVICE, 指明从设备到内存
 		buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 						  adapter->rx_buffer_len,
 						  DMA_FROM_DEVICE);
@@ -963,6 +969,8 @@ static bool e1000_clean_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 
 		cleaned = true;
 		cleaned_count++;
+        //buffer_info->dma是一个dma物理地址，不是内核的虚拟地址
+        //内核不能直接访问
 		dma_unmap_single(&pdev->dev, buffer_info->dma,
 				 adapter->rx_buffer_len, DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
@@ -995,6 +1003,7 @@ static bool e1000_clean_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 			goto next_desc;
 		}
 
+        //移除frame末尾的crc
 		/* adjust length to remove Ethernet CRC */
 		if (!(adapter->flags2 & FLAG2_CRC_STRIPPING)) {
 			/* If configured to store CRC, don't subtract FCS,
@@ -1037,7 +1046,7 @@ static bool e1000_clean_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 		e1000_rx_checksum(adapter, staterr, skb);
 
 		e1000_rx_hash(netdev, rx_desc->wb.lower.hi_dword.rss, skb);
-
+        //将skb上送协议栈
 		e1000_receive_skb(adapter, netdev, skb, staterr,
 				  rx_desc->wb.upper.vlan);
 
@@ -1060,6 +1069,8 @@ next_desc:
 	rx_ring->next_to_clean = i;
 
 	cleaned_count = e1000_desc_unused(rx_ring);
+    //前面处理过的那些 buffer 的 skb 被上层拿走了，下面要重新给这些 buffer 挂 skb
+    //重新执行dma map
 	if (cleaned_count)
 		adapter->alloc_rx_buf(rx_ring, cleaned_count, GFP_ATOMIC);
 
@@ -2324,6 +2335,12 @@ static int e1000_alloc_ring_dma(struct e1000_adapter *adapter,
 {
 	struct pci_dev *pdev = adapter->pdev;
 
+    //void *dma_alloc_cohrent(struct device *dev, size_t size, dma_addr_t *dma_handle, int flag);
+    //功能：分配一致性dma内存，返回这块内存的虚拟地址EA， 这块内存的物理地址保存在 dma_handle
+    //dev:  NULL也行
+    //size: 分配空间的大小
+    //dma_handle: 用来保存内存的总线地址（物理地址）
+    //注意：一致性DMA映射，BD所占内存就是靠dma_alloc_cohrent来分配的。
 	ring->desc = dma_alloc_coherent(&pdev->dev, ring->size, &ring->dma,
 					GFP_KERNEL);
 	if (!ring->desc)
@@ -6821,7 +6838,9 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* construct the net_device struct */
 	netdev->netdev_ops = &e1000e_netdev_ops;
+    //设置ethtool ops操作接口，e1000_ethtool_ops
 	e1000e_set_ethtool_ops(netdev);
+
 	netdev->watchdog_timeo = 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, e1000e_poll, 64);
 	strlcpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
@@ -6834,6 +6853,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	e1000e_check_options(adapter);
 
 	/* setup adapter struct */
+    //分配rx_ring 和tx_ring
 	err = e1000_sw_init(adapter);
 	if (err)
 		goto err_sw_init;

@@ -228,6 +228,7 @@ extern int _cond_resched(void);
  *
  * Return: a result based on val in interval [0, ep_ro).
  */
+ //计算后的hash值在[0, ep_ro)范围内
 static inline u32 reciprocal_scale(u32 val, u32 ep_ro)
 {
 	return (u32)(((u64) val * ep_ro) >> 32);

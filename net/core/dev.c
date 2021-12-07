@@ -3131,7 +3131,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
-
+        //计算rx 队列
 		if (unlikely(index >= dev->real_num_rx_queues)) {
 			WARN_ONCE(dev->real_num_rx_queues > 1,
 				  "%s received packet on queue %u, but number "
@@ -3139,6 +3139,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 				  dev->name, index, dev->real_num_rx_queues);
 			goto done;
 		}
+        //根据index获取对应的rx队列
 		rxqueue += index;
 	}
 
@@ -6338,6 +6339,7 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 {
 	unsigned int count = dev->num_tx_queues;
 	struct netdev_queue *tx;
+    //分配数组，指向netdev_queue数组
 	size_t sz = count * sizeof(*tx);
 
 	BUG_ON(count < 1 || count > 0xffff);
