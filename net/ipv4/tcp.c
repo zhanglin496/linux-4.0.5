@@ -1081,7 +1081,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		else if (err)
 			goto out_err;
 	}
-
+    //是否要阻塞发送
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 
 	/* Wait for a connection to finish. One exception is TCP Fast Open
@@ -1110,6 +1110,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	/* This should be in poll */
 	clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
 
+    //计算允许的最大值size_goal
 	mss_now = tcp_send_mss(sk, &size_goal, flags);
 
 	/* Ok commence sending. */
@@ -1124,14 +1125,19 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	while (iov_iter_count(&msg->msg_iter)) {
 		int copy = 0;
 		int max = size_goal;
-
+        
+        //取队尾的skb，发送数据都是fifo
 		skb = tcp_write_queue_tail(sk);
+        
+        //队头非空,指向下一个要发送的skb
 		if (tcp_send_head(sk)) {
 			if (skb->ip_summed == CHECKSUM_NONE)
 				max = mss_now;
+            //计算还有多少剩余空间
 			copy = max - skb->len;
 		}
 
+        //假设是第一次发送数据
 		if (copy <= 0) {
 new_segment:
 			/* Allocate new segment. If the interface is SG,
@@ -1152,6 +1158,7 @@ new_segment:
 			if (sk->sk_route_caps & NETIF_F_ALL_CSUM)
 				skb->ip_summed = CHECKSUM_PARTIAL;
 
+            //将skb挂入sk->sk_write_queue 队尾
 			skb_entail(sk, skb);
 			copy = size_goal;
 			max = size_goal;
@@ -1169,26 +1176,32 @@ new_segment:
 			copy = iov_iter_count(&msg->msg_iter);
 
 		/* Where to copy to? */
+        //先看线性数据区是否还有空间，如果有的话，先拷贝到线性区
+        //这样设计的原因是如果应用发送小的数据段，不需要在sg中再分配空间
 		if (skb_availroom(skb) > 0) {
+            //如果skb tail还有空间可以拷贝
 			/* We have some space in skb head. Superb! */
 			copy = min_t(int, copy, skb_availroom(skb));
 			err = skb_add_data_nocache(sk, skb, &msg->msg_iter, copy);
 			if (err)
 				goto do_fault;
 		} else {
+		    //线性区已经没有空间了，拷贝到分散聚合页中
 			bool merge = true;
 			int i = skb_shinfo(skb)->nr_frags;
 			struct page_frag *pfrag = sk_page_frag(sk);
-
+            //检查pfrag是否已经分配好了page页,如果没有，就再分配好页
 			if (!sk_page_frag_refill(sk, pfrag))
 				goto wait_for_memory;
 
 			if (!skb_can_coalesce(skb, i, pfrag->page,
 					      pfrag->offset)) {
+				//*如果设备不支持SG，或者非线性区frags已经达到最大，则创建新的skb分段*/	      
 				if (i == MAX_SKB_FRAGS || !sg) {
 					tcp_mark_push(tp, skb);
 					goto new_segment;
 				}
+                //*说明和之前frags中不是同一个page，不需要merge
 				merge = false;
 			}
 
@@ -1196,7 +1209,7 @@ new_segment:
 
 			if (!sk_wmem_schedule(sk, copy))
 				goto wait_for_memory;
-
+            //拷贝数据到sg中
 			err = skb_copy_to_page_nocache(sk, &msg->msg_iter, skb,
 						       pfrag->page,
 						       pfrag->offset,
@@ -1206,12 +1219,15 @@ new_segment:
 
 			/* Update the skb. */
 			if (merge) {
+                //如果是上一次的page，直接增加size即可
 				skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
 			} else {
+			    //新分配的page，page记录到skb的skb_shared_info中
 				skb_fill_page_desc(skb, i, pfrag->page,
 						   pfrag->offset, copy);
 				get_page(pfrag->page);
 			}
+            //增加拷贝的字节数
 			pfrag->offset += copy;
 		}
 
@@ -1234,7 +1250,7 @@ new_segment:
 		if (forced_push(tp)) {
 			tcp_mark_push(tp, skb);
 			__tcp_push_pending_frames(sk, mss_now, TCP_NAGLE_PUSH);
-		} else if (skb == tcp_send_head(sk))
+		} else if (skb == tcp_send_head(sk))/*第一个包，直接发送*/
 			tcp_push_one(sk, mss_now);
 		continue;
 

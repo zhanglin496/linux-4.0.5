@@ -554,7 +554,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 	 */
 	if (skb_has_frag_list(skb)) {
 		struct sk_buff *frag, *frag2;
-		//第一个分片的长度，包括分页的数据长度，不包括fraglist长度
+		//第一个分片的长度，包括分页的数据长度，不包括fraglist类型skb的长度
 		int first_len = skb_pagelen(skb);
 
 		//验证数据包是否满足快速条件
@@ -564,6 +564,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 		    ip_is_fragment(iph) ||
 		    skb_cloned(skb))
 			goto slow_path;
+        
 		//验证数据包是否满足快速条件
 		//否则只能走slow_path拷贝数据包
 		skb_walk_frags(skb, frag) {
@@ -595,15 +596,21 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 		err = 0;
 		offset = 0;
+        //获取第一个frag
 		frag = skb_shinfo(skb)->frag_list;
+        //frag置为NULL,skb不再有frag list类型
 		skb_frag_list_init(skb);
+        //现在datalen 只包含分页的数据。不包含frag list数据
 		skb->data_len = first_len - skb_headlen(skb);
 		skb->len = first_len;
 		iph->tot_len = htons(first_len);
 		iph->frag_off = htons(IP_MF);
 		ip_send_check(iph);
-
+        //根据上面的算法，skb的数据填充规则应该先填充线性区，然后是分页区，再是frag list区
+        //如果不按照上面顺序填充，则发送的数据顺序会出错
 		for (;;) {
+            //循环遍历frag list，组装分片ip报文
+            //分片的ip报文里还能再包含frag list类型数据区吗？ 应该是可以的
 			/* Prepare header of the next frame,
 			 * before previous one went down. */
 			if (frag) {
@@ -637,6 +644,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 				break;
 
 			skb = frag;
+            //取下一个skb
 			frag = skb->next;
 			skb->next = NULL;
 		}

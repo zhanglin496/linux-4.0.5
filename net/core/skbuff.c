@@ -632,7 +632,7 @@ static void skb_release_data(struct sk_buff *skb)
 	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
 			      &shinfo->dataref))
 		return;
-	//释放分页非线性部分
+	//释放sg分页非线性部分
 	for (i = 0; i < shinfo->nr_frags; i++)
 		__skb_frag_unref(&shinfo->frags[i]);
 
@@ -1661,14 +1661,15 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 	if (skb_copy_bits(skb, skb_headlen(skb), skb_tail_pointer(skb), delta))
 		BUG();
 
-	//后面要调整非线性数据区，因为从非线性数据区中拷贝了一部分数据到线性数据区
+	//后面要调整非线性数据区，因为有可能从非线性数据区中拷贝了一部分数据到线性数据区
 	//
 	//skb_copy_bits 只是拷贝了数据到指定的地址
 	//非线性数据区的大小需要 单独调整
 	/* Optimization: no fragments, no reasons to preestimate
 	 * size of pulled pages. Superb.
 	 */
-	 //如果frag_list 为空，表示数据不会从frag_list 拷贝
+	 //如果frag_list 为空，表示数据不会从frag_list 拷贝,
+	 //因为skb_copy_bits是最后才会从frag list拷贝
 	if (!skb_has_frag_list(skb))
 		goto pull_pages;
 
@@ -1811,6 +1812,7 @@ EXPORT_SYMBOL(__pskb_pull_tail);
  *		since it is called from BPF assembly code.
  */
 	//从skb中的数据区域拷贝len字节数据到to中
+	//注意copy的顺序，是先拷贝head区，再拷贝sg区，再拷贝frag list区
 int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 {
 	int start = skb_headlen(skb);
@@ -1833,7 +1835,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		to     += copy;
 	}
 	//从非线性数据区域中拷贝
-	//先拷贝分页数据区
+	//先拷贝sg分页数据区
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];

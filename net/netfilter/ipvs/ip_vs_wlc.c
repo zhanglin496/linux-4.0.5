@@ -68,6 +68,7 @@ ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	 *    Find the destination with the least load.
 	 */
   nextstage:
+    //遍历所有rs，选择连接数最少的
 	list_for_each_entry_continue_rcu(dest, &svc->destinations, n_list) {
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;

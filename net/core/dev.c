@@ -2644,9 +2644,10 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first, struct net_device *de
 	struct sk_buff *skb = first;
 	int rc = NETDEV_TX_OK;
 	//循环发送数据包，和frag_list 有什么区别?
+	//
 	while (skb) {
 		struct sk_buff *next = skb->next;
-
+        //什么情况下会出现next不为空？ 比如gso分段的情况下会出现这种情况
 		skb->next = NULL;
 		rc = xmit_one(skb, dev, txq, next != NULL);
 		if (unlikely(!dev_xmit_complete(rc))) {

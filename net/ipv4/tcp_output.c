@@ -1056,10 +1056,13 @@ static void tcp_set_skb_tso_segs(const struct sock *sk, struct sk_buff *skb,
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
+		 //小于mss，只需要一个段
 		tcp_skb_pcount_set(skb, 1);
+        //这两个字段在这个情况下无意义
 		shinfo->gso_size = 0;
 		shinfo->gso_type = 0;
 	} else {
+	    //计算要切割的段数，除以mss
 		tcp_skb_pcount_set(skb, DIV_ROUND_UP(skb->len, mss_now));
 		shinfo->gso_size = mss_now;
 		shinfo->gso_type = sk->sk_gso_type;
@@ -1997,6 +2000,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 	}
 
 	max_segs = tcp_tso_autosize(sk, mss_now);
+    //循环遍历发送队列中的skb
 	while ((skb = tcp_send_head(sk))) {
 		unsigned int limit;
 		

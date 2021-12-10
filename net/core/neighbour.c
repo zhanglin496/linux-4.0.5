@@ -1330,6 +1330,9 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 			__skb_pull(skb, skb_network_offset(skb));
 			seq = read_seqbegin(&neigh->ha_lock);
 			//未指定源MAC地址，使用出口设备的MAC地址作为源MAC地址
+			//这里只对当前的skb建立了二层头
+			//对于skb->next不为空或者farg_list不为空的情况指向的skb这里并没有建立二层头
+			//那什么时候建立
 			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					      neigh->ha, NULL, skb->len);
 		} while (read_seqretry(&neigh->ha_lock, seq));

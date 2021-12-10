@@ -38,6 +38,7 @@
 
 
 /* A. Checksumming of received packets by device. 
+ * //接收路径，接收到数据包
  * //接收路径和输出路径的定义不一样
  *
  * CHECKSUM_NONE:
@@ -95,6 +96,9 @@
  *   packet that are after the checksum being offloaded are not considered to
  *   be verified.
  *
+ *
+ *
+ * 输出路径，发送数据包定义
  * B. Checksumming on output.
  *
  //校验和已经由协议栈计算完成，硬件无须再次计算
@@ -152,14 +156,13 @@
 //加伪头并验证校验结果。
 	
 	 
+//1)在L4层发现如果udp->check位段被设为0，那么skb->ip_summed直接设为CHECKSUM_UNNECESSARY，放行该报文。
 	
-//1） 在L4层发现如果udp->check位段被设为0，那么skb->ip_summed直接设为CHECKSUM_UNNECESSARY，放行该报文。
-	
-//2)	 如果skb->ip_summed为CHECKSUM_COMPLETE，则把skb->csum加上伪头进行校验，成功则将skb->ip_summed设为CHECKSUM_UNNECESSARY， 放行该数据包。
+//2)如果skb->ip_summed为CHECKSUM_COMPLETE，则把skb->csum加上伪头进行校验，成功则将skb->ip_summed设为CHECKSUM_UNNECESSARY， 放行该数据包。
 
-//3)	 通过上述后skb->ip_summed还不是CHECKSUM_UNNECESSARY，那么重新计算伪头赋给skb->csum。
+//3)通过上述后skb->ip_summed还不是CHECKSUM_UNNECESSARY，那么重新计算伪头赋给skb->csum。
 	
-//4)	  将还不是CHECKSUM_UNNECESSARY的数据报文的payload加上skb->csum进行checksum计算，成功将设为CHECKSUM_UNNECESSARY并放行，失败则丢弃。
+//4)将还不是CHECKSUM_UNNECESSARY的数据报文的payload加上skb->csum进行checksum计算，成功将设为CHECKSUM_UNNECESSARY并放行，失败则丢弃。
 
 
 //skb->ip_summed表示的是四层校验的状态，
@@ -377,6 +380,7 @@ struct skb_shared_info {
 	void *		destructor_arg;
 
 	//网卡支持NETIF_F_SG
+	//分散聚合io
 	//Scatter/gather IO
 	//frags代表的数据是主缓冲区中数据的扩展
 	/* must be last field, see pskb_expand_head() */
@@ -603,6 +607,9 @@ struct sk_buff {
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	struct nf_bridge_info	*nf_bridge;
 #endif
+    //如果datalen 非0，表示skb是非线性的，
+    //非线性表示数据不是放在一个连续的缓冲区内
+    //datalen包括sg和frag list类型
 	unsigned int		len,
 				data_len;
 	__u16			mac_len,
