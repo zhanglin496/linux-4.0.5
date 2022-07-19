@@ -23,6 +23,7 @@ struct timer_list {
 
 	//定时器超时回调函数
 	void (*function)(unsigned long);
+    //传给 function的 data参数
 	unsigned long data;
 
 	int slack;

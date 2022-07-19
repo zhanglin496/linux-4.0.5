@@ -5788,6 +5788,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			reqsk_fastopen_remove(sk, req, false);
 			tcp_rearm_rto(sk);
 		}
+        //还有发送的数据没有被确认
 		if (tp->snd_una != tp->write_seq)
 			break;
 

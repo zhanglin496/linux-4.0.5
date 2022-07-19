@@ -748,6 +748,9 @@ void kfree_skb(struct sk_buff *skb)
 		smp_rmb();
 	else if (likely(!atomic_dec_and_test(&skb->users)))
 		return;
+    //跟踪skb 释放的地址
+    // 通过drop_monitor驱动把调用kfree_skb的函数地址发送给应用程序，比如dropwatch
+    //__builtin_return_address(0)得到当前函数的返回地址
 	trace_kfree_skb(skb, __builtin_return_address(0));
 	__kfree_skb(skb);
 }

@@ -201,7 +201,7 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 		int raw;
 
 	resubmit:
-		//原始套接字位于L4层,投递报文到原始套接字
+		//原始套接字位于L4层,先把报文投递到原始套接字
 		raw = raw_local_deliver(skb, protocol);
 
 		ipprot = rcu_dereference(inet_protos[protocol]);

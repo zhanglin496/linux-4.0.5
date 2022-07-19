@@ -2107,6 +2107,7 @@ void tcp_close(struct sock *sk, long timeout)
 		tcp_send_fin(sk);
 	}
 
+    //SO_LINGER选项，则等待发送数据完成或者超时，如果不设置该选项，立即返回
 	sk_stream_wait_close(sk, timeout);
 
 adjudge_to_death:
@@ -2147,6 +2148,15 @@ adjudge_to_death:
 
 	if (sk->sk_state == TCP_FIN_WAIT2) {
 		struct tcp_sock *tp = tcp_sk(sk);
+        
+        //启动FIN_WAIT_2定时器两个相关逻辑差不多，所以只拿一个位置来说明；
+        //在tcp_close函数中，如果判断状态为FIN_WAIT2，则需要进一步判断linger2配置；
+        //如下所示，在linger2<0的情况下，关闭连接到CLOSE状态，并且发送rst；在linger2 >= 0的情况下，
+        //需判断该值与TIME_WAIT等待时间TCP_TIMEWAIT_LEN值的关系，如果linger2 > TCP_TIMEWAIT_LEN，
+        //则启动FIN_WAIT_2定时器，其超时时间为二者的差值；如果linger2<0，则直接进入到TIME_WAIT状态，
+        //该TIME_WAIT的子状态是FIN_WAIT2，实际上就是由TIME_WAIT控制块进行了接管，
+        //统一交给TIME_WAIT控制块来处理
+        
 		if (tp->linger2 < 0) {
 			tcp_set_state(sk, TCP_CLOSE);
 			tcp_send_active_reset(sk, GFP_ATOMIC);

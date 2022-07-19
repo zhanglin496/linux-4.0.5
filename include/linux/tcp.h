@@ -147,6 +147,7 @@ struct tcp_sock {
  //期望按序接收的第一个字节序列号
  	u32	rcv_nxt;	/* What we want to receive next 	*/
 	u32	copied_seq;	/* Head of yet unread data		*/
+    //上次收到的序列号，单还未被确认
 	u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
  	u32	snd_nxt;	/* Next sequence we send		*/
 
@@ -254,6 +255,8 @@ struct tcp_sock {
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 
  	u32	rcv_wnd;	/* Current receiver window		*/
+    //应用层在发送数据时下一次要分配的序列号，随着发送数据而递增
+    //也就是记录了应用层到内核发送的数据的最后一个字节的结尾序列号+1
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
 	u32	notsent_lowat;	/* TCP_NOTSENT_LOWAT */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */

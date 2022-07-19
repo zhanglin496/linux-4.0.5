@@ -61,19 +61,22 @@ EXPORT_SYMBOL(jiffies_64);
  */
 #define TVN_BITS (CONFIG_BASE_SMALL ? 4 : 6)
 #define TVR_BITS (CONFIG_BASE_SMALL ? 6 : 8)
-//16 或64
+//16或64
 #define TVN_SIZE (1 << TVN_BITS)
 //64或256
 #define TVR_SIZE (1 << TVR_BITS)
+
 #define TVN_MASK (TVN_SIZE - 1)
 #define TVR_MASK (TVR_SIZE - 1)
 #define MAX_TVAL ((unsigned long)((1ULL << (TVR_BITS + 4*TVN_BITS)) - 1))
 
 struct tvec {
+    //64
 	struct list_head vec[TVN_SIZE];
 };
 
 struct tvec_root {
+    //256
 	struct list_head vec[TVR_SIZE];
 };
 
@@ -86,7 +89,11 @@ struct tvec_base {
 	unsigned long active_timers;
 	unsigned long all_timers;
 	int cpu;
+    //如果精度是1ms，最长可以记录49天超时时间
+    // 256
 	struct tvec_root tv1;
+    // 64 * 4 = 256
+    // 8 + 6*4=32刚好等于32位
 	struct tvec tv2;
 	struct tvec tv3;
 	struct tvec tv4;
@@ -360,17 +367,21 @@ static bool catchup_timer_jiffies(struct tvec_base *base)
 	return false;
 }
 
+//时间轮层级如果设置的不合理，会造成无效的级联操作
 static void
 __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
-	//期望的超期时间
+	//期望的超期时间，实现上把expires划分为5个区间
 	unsigned long expires = timer->expires;
+
 	//根据节拍差值来定位索引值，用来决定该插到哪个队列中去。
 	//正常情况下，expires都是大于timer_jiffies的
 	//等到timer_jiffies 等于expires 时，就知道这个定时器超时了
 	unsigned long idx = expires - base->timer_jiffies;
 	struct list_head *vec;
-	//小于2^8=256个节拍
+
+    //这里假设HZ等于1000，也就是每1ms jiffies++
+	//小于2^8=256个节拍, 也就是255ms，第一级的时间轮最大能记录2^8-1=255ms的超时timer
 	//若idx小于2^8，则取expires的第0位到第7位的值I
 	//把timer加到tv1.vec中第I个链表的第一个表项之前。
 	if (idx < TVR_SIZE) {
@@ -380,6 +391,7 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		vec = base->tv1.vec + i;
 	//小于2^14 个节拍
 	//则取expires的第8位到第13位的值I，
+	//第二级时间轮能记录64*256 ms
 	} else if (idx < 1 << (TVR_BITS + TVN_BITS)) {
 		int i = (expires >> TVR_BITS) & TVN_MASK;
 		vec = base->tv2.vec + i;
@@ -433,6 +445,7 @@ static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		    time_before(timer->expires, base->next_timer))
 			base->next_timer = timer->expires;
 	}
+    //定时器数量计数++
 	base->all_timers++;
 
 	/*
@@ -795,6 +808,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	base = lock_timer_base(timer, &flags);
 
+    //把timer从链表上删除
 	ret = detach_if_pending(timer, base, false);
 	if (!ret && pending_only)
 		goto out_unlock;
@@ -804,6 +818,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 	cpu = get_nohz_timer_target(pinned);
 	new_base = per_cpu(tvec_bases, cpu);
 
+    //在其他cpu上mod timer
 	if (base != new_base) {
 		/*
 		 * We are trying to schedule the timer on the local CPU.
@@ -822,6 +837,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 		}
 	}
 
+    //重新把timer放入时间轮中
 	timer->expires = expires;
 	internal_add_timer(base, timer);
 
@@ -1122,13 +1138,16 @@ static int cascade(struct tvec_base *base, struct tvec *tv, int index)
 	struct timer_list *timer, *tmp;
 	struct list_head tv_list;
 
+    //把tv->vec + index,的链表移动到tv_list中，下面在重新计算遍历把tv_list中的timer插入到base中
 	list_replace_init(tv->vec + index, &tv_list);
 
 	/*
 	 * We are removing _all_ timers from the list, so we
 	 * don't have to detach them individually.
 	 */
-	 //移除所有的定时器，重新计算加入到合适的链表中
+	//移除所有的定时器，重新计算加入到合适的链表中
+	//这里有个问题，如果同一超时时间的定时器比较多的话， 这里重新插入比较花费时间
+	//这里必须重新插入，原因是slot中的定时器超时时间是在一个范围内超时，而不是相同的超时时间
 	list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
 		BUG_ON(tbase_get_base(timer->base) != base);
 		/* No accounting, while moving them */
@@ -1181,6 +1200,7 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
 	}
 }
 
+//把jiffies划分了5个区间，如果对应的区间值为0，表是已经溢出，产生了进位
 #define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
 
 /**
@@ -1209,22 +1229,29 @@ static inline void __run_timers(struct tvec_base *base)
 		/*
 		 * Cascade timers:
 		 */
-		 //如果index 为0 ，表示tv1 中没有超时的定时器
+		 //如果index 为0 ，表示tv1 中没有超时的定时器；表示第一级时间轮已经回绕
 		 //必须从tv2~tv5中获取逐级加入到tv1中
 		 //类似于时钟，要过了60秒，分钟才会增加
 		 //同样，要过了60分钟，小时才会增加
-		 //cascade 返回0 ，表示这一级的计时节拍溢出，
+		 //cascade 返回0 ，表示这一级的计时节拍溢出，需要从下一级中移动定时器
 		 //需要继续检查下一级
 		if (!index &&
 			(!cascade(base, &base->tv2, INDEX(0))) &&
 				(!cascade(base, &base->tv3, INDEX(1))) &&
 					!cascade(base, &base->tv4, INDEX(2)))
 			cascade(base, &base->tv5, INDEX(3));
-		//增加timer_jiffies的值，表示上一次节拍需要处理的定时器
-		//已经完成
+
+        //增加timer_jiffies的值，表示上一次节拍需要处理的定时器
+		//已经完成，表示已经过了1/HZ s
+		//jiffies的增加是异步的，所以在循环过程中，jiffies可能多次检测都大于timer_jiffies
 		++base->timer_jiffies;
+
+        //每次都是从tv1中获取定时器列表
+		//每个tick到来，都只会去检测最低级的tv1的时间轮，
+		//因为多级时间轮的设计决定了最低级的时间轮永远保存这最近要超时的定时器。
 		list_replace_init(base->tv1.vec + index, head);
-		//tv1 中是否有到期的定时器
+
+        //tv1 中是否有到期的定时器
 		while (!list_empty(head)) {
 			void (*fn)(unsigned long);
 			unsigned long data;

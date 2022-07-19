@@ -79,6 +79,7 @@ extern unsigned long volatile __jiffy_data jiffies;
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void);
 #else
+//64位系统下读64位数据是原子的，不用加锁
 static inline u64 get_jiffies_64(void)
 {
 	return (u64)jiffies;

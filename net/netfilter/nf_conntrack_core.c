@@ -1192,7 +1192,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
          * address X and source port P, to the internal host only if the
          * internal host had previously sent a packet to IP address X and
          * port P.
-	  * 
+	    * 
          * // 对称NAT，根据五元组来映射
          * //不同的5元组使用不同的映射
          * //和锥形NAT不一样，锥形NAT始终会把相同的内部IP地址和端口

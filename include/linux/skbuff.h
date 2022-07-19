@@ -610,6 +610,7 @@ struct sk_buff {
     //如果datalen 非0，表示skb是非线性的，
     //非线性表示数据不是放在一个连续的缓冲区内
     //datalen包括sg和frag list类型
+    //len包括线性和非线性的总和
 	unsigned int		len,
 				data_len;
 	__u16			mac_len,
