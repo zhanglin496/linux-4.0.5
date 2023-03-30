@@ -191,7 +191,7 @@ struct rtmsg {
 	unsigned		rtm_flags;
 };
 
-/* 可以通过ip rule命令查看路由类型
+/* 可以通过ip route命令查看路由类型
 * root@ubuntu:~/develop# ip -d ro l t local 
 * local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1 
 * local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1 
@@ -239,7 +239,9 @@ enum {
 
 
 /* rtm_protocol */
-
+//对应ip命令中显示的proto字段
+//例如对于RTPROT_KERNEL类型，内核函数fib_magic添加的路由的protocol固定为RTPROT_KERNEL。
+//在为内核接口添加IP地址时，触发此函数，用于添加相关的直连路由。
 #define RTPROT_UNSPEC	0
 #define RTPROT_REDIRECT	1	/* Route installed by ICMP redirects;
 				   not used by current IPv4 */
@@ -276,13 +278,18 @@ enum {
    Intermediate values are also possible f.e. interior routes
    could be assigned a value between UNIVERSE and LINK.
 */
-
+//对应ip命令中的scope字段。
+//host表示是本机地址
+//link表示是直连
+//global表示
 enum rt_scope_t {
+    //对应global，scope 为全域 所有远程非直连目的地，比如常见的默认网关路由
 	RT_SCOPE_UNIVERSE=0,
 /* User defined values  */
 	RT_SCOPE_SITE=200,
 	RT_SCOPE_LINK=253,
 	RT_SCOPE_HOST=254,
+	//表示目的端不存在
 	RT_SCOPE_NOWHERE=255
 };
 
