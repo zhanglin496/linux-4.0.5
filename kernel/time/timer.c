@@ -749,6 +749,7 @@ detach_expired_timer(struct timer_list *timer, struct tvec_base *base)
 static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
 			     bool clear_pending)
 {
+    //如果timer非pending状态，也就是说不在时间轮里
 	if (!timer_pending(timer))
 		return 0;
 

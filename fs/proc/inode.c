@@ -157,7 +157,7 @@ static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 		pdeo->closing = 1;
 		spin_unlock(&pde->pde_unload_lock);
 		file = pdeo->file;
-		//调用用户自定义的release函数
+		//调用用户自定义的release函数,这里release函数不能为空
 		pde->proc_fops->release(file_inode(file), file);
 		spin_lock(&pde->pde_unload_lock);
 		//删除opener
@@ -199,6 +199,7 @@ static loff_t proc_reg_llseek(struct file *file, loff_t offset, int whence)
 	loff_t rv = -EINVAL;
 	if (use_pde(pde)) {
 		loff_t (*llseek)(struct file *, loff_t, int);
+        //实例可以不提供llseek方法，如果不提供使用默认的方法
 		llseek = pde->proc_fops->llseek;
 		if (!llseek)
 			llseek = default_llseek;
@@ -215,6 +216,7 @@ static ssize_t proc_reg_read(struct file *file, char __user *buf, size_t count, 
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
 	if (use_pde(pde)) {
+        //实例可以不提供read方法，如果不提供直接报错返回
 		read = pde->proc_fops->read;
 		if (read)
 			rv = read(file, buf, count, ppos);
@@ -229,6 +231,7 @@ static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t 
 	struct proc_dir_entry *pde = PDE(file_inode(file));
 	ssize_t rv = -EIO;
 	if (use_pde(pde)) {
+        //实例可以不提供write方法，如果不提供直接报错返回
 		write = pde->proc_fops->write;
 		if (write)
 			rv = write(file, buf, count, ppos);

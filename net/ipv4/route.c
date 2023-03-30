@@ -1717,7 +1717,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	/* Accept zero addresses only to limited broadcast;
 	 * I even do not know to fix it or not. Waiting for complains :-)
 	 */
-	 //0.x.x.x地址
+	 //0.x.x.x地址, 认为是无效地址
 	if (ipv4_is_zeronet(saddr))
 		goto martian_source;
 

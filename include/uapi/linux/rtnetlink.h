@@ -191,6 +191,22 @@ struct rtmsg {
 	unsigned		rtm_flags;
 };
 
+/* 可以通过ip rule命令查看路由类型
+* root@ubuntu:~/develop# ip -d ro l t local 
+* local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1 
+* local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1 
+* broadcast 127.255.255.255 dev lo proto kernel scope link src 127.0.0.1 
+* local 192.168.43.128 dev ens33 proto kernel scope host src 192.168.43.128 
+* local 192.168.43.139 dev ens33 proto kernel scope host src 192.168.43.139 
+* broadcast 192.168.43.255 dev ens33 proto kernel scope link src 192.168.43.128 
+* root@ubuntu:~/develop# cat /proc/sys/net/
+root@ubuntu:~/develop# ip -d  ro l t main 
+unicast default via 192.168.43.2 dev ens33 proto dhcp scope global metric 100 
+unicast 169.254.0.0/16 dev ens33 proto boot scope link metric 1000 
+unicast 192.168.43.0/24 dev ens33 proto kernel scope link src 192.168.43.128 metric 100 
+root@ubuntu:~/develop# 
+*/
+
 /* rtm_type */
 //inet_addr_type函数返回的地址类型
 enum {

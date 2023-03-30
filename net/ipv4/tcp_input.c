@@ -5647,6 +5647,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (th->syn) {
 			if (th->fin)
 				goto discard;
+            //ipv4_specific
 			if (icsk->icsk_af_ops->conn_request(sk, skb) < 0)
 				return 1;
 
@@ -6009,7 +6010,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		 */
 		if (tcp_death_row.sysctl_tw_recycle) {
 			bool strict;
-
+            //tcp_request_sock_ipv4_ops，找回向路由
 			dst = af_ops->route_req(sk, &fl, req, &strict);
 
 			if (dst && strict &&
@@ -6039,6 +6040,8 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 
 		isn = af_ops->init_seq(skb);
 	}
+
+    //回向路由没找到，丢弃报文
 	if (!dst) {
 		dst = af_ops->route_req(sk, &fl, req, NULL);
 		if (!dst)

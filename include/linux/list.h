@@ -673,6 +673,7 @@ static inline void hlist_del_init(struct hlist_node *n)
 	}
 }
 
+//把节点n插入到对头头节点
 static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 {
 	struct hlist_node *first = h->first;
@@ -683,6 +684,7 @@ static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 	n->pprev = &h->first;
 }
 
+//把节点n插入到next的接点前面，next不能为空
 /* next must be != NULL */
 static inline void hlist_add_before(struct hlist_node *n,
 					struct hlist_node *next)
@@ -693,6 +695,8 @@ static inline void hlist_add_before(struct hlist_node *n,
 	*(n->pprev) = n;
 }
 
+//把节点n插入到prev的结点后面
+//prev不能为空
 static inline void hlist_add_behind(struct hlist_node *n,
 				    struct hlist_node *prev)
 {

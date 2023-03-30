@@ -589,6 +589,7 @@ bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst,
 	tm = __tcp_get_metrics_req(req, dst);
 	if (paws_check) {
 		if (tm &&
+            //utc ÃëÊý
 		    (u32)get_seconds() - tm->tcpm_ts_stamp < TCP_PAWS_MSL &&
 		    ((s32)(tm->tcpm_ts - req->ts_recent) > TCP_PAWS_WINDOW ||
 		     !timestamps))

@@ -162,7 +162,9 @@ struct sock_common {
 	union {
 		__addrpair	skc_addrpair;
 		struct {
+            //对端ip地址
 			__be32	skc_daddr;
+            //本端的ip地址
 			__be32	skc_rcv_saddr;
 		};
 	};
