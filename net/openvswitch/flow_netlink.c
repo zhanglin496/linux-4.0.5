@@ -51,13 +51,39 @@
 #include "flow_netlink.h"
 #include "vport-vxlan.h"
 
+/*
+ * 本文件是 Open vSwitch 控制面协议的“编解码层”：负责在
+ * 用户态 (ovs-vswitchd) 使用的 netlink 属性 (OVS_KEY_ATTR_* /
+ * OVS_ACTION_ATTR_* / OVS_TUNNEL_KEY_ATTR_*) 与内核内部的流表结构
+ * (sw_flow_key / sw_flow_mask / sw_flow_actions) 之间做双向转换。
+ *
+ * 两个方向：
+ *  1) 属性 -> 内核结构（解析）：ovs_nla_get_match / ovs_key_from_nlattrs
+ *     等。除了填字段，还要做严格的合法性校验，并记录“被触及字段”的
+ *     字节范围 (sw_flow_key_range)，供 megaflow 掩码匹配使用。
+ *  2) 内核结构 -> 属性（序列化）：__ovs_nla_put_key / ovs_nla_put_actions
+ *     等，用于向用户态 dump 流表。序列化会省略默认值（如全 0 字段）
+ *     以减小报文体积。
+ */
+
+/* 属性长度校验表的元素：len 为期望字节数；若为 OVS_ATTR_NESTED 表示
+ * 该属性是嵌套的（长度不定），next 指向其内层属性的长度表。 */
 struct ovs_len_tbl {
 	int len;
 	const struct ovs_len_tbl *next;
 };
 
+/* len 字段取此值表示“嵌套属性”，长度不做固定校验 */
 #define OVS_ATTR_NESTED -1
 
+/*
+ * update_range - 扩展 match 中“被写过的字段”范围。
+ *
+ * OVS 的 megaflow 机制只对 key 中实际参与匹配的字节做哈希/比较，
+ * 因此每写一个字段都要把该字段占据的字节区间并入 range。范围按
+ * sizeof(long) 对齐（向下取整 start，向上取整 end），便于后续以字长
+ * 为单位做批量比较。is_mask 决定更新的是 key 的范围还是 mask 的范围。
+ */
 static void update_range(struct sw_flow_match *match,
 			 size_t offset, size_t size, bool is_mask)
 {
@@ -70,12 +96,14 @@ static void update_range(struct sw_flow_match *match,
 	else
 		range = &match->mask->range;
 
+	/* range 尚未初始化（start==end）时直接置为本次区间 */
 	if (range->start == range->end) {
 		range->start = start;
 		range->end = end;
 		return;
 	}
 
+	/* 否则把新区间并入已有区间（取并集） */
 	if (range->start > start)
 		range->start = start;
 
@@ -83,6 +111,10 @@ static void update_range(struct sw_flow_match *match,
 		range->end = end;
 }
 
+/* 以下三个宏是解析阶段往 sw_flow_key 写字段的统一入口：既写值，又通过
+ * update_range 记录字段范围。is_mask 为真时写 mask->key，否则写 key。 */
+
+/* 写单个标量字段（by value） */
 #define SW_FLOW_KEY_PUT(match, field, value, is_mask) \
 	do { \
 		update_range(match, offsetof(struct sw_flow_key, field),    \
@@ -93,6 +125,7 @@ static void update_range(struct sw_flow_match *match,
 			(match)->key->field = value;		            \
 	} while (0)
 
+/* 按“字节偏移”拷贝一段数据到 key（用于变长/隧道选项等场景） */
 #define SW_FLOW_KEY_MEMCPY_OFFSET(match, offset, value_p, len, is_mask)	    \
 	do {								    \
 		update_range(match, offset, len, is_mask);		    \
@@ -103,10 +136,12 @@ static void update_range(struct sw_flow_match *match,
 			memcpy((u8 *)(match)->key + offset, value_p, len);  \
 	} while (0)
 
+/* 按“字段名”拷贝一段数据（如 MAC 地址、IPv6 地址） */
 #define SW_FLOW_KEY_MEMCPY(match, field, value_p, len, is_mask)		      \
 	SW_FLOW_KEY_MEMCPY_OFFSET(match, offsetof(struct sw_flow_key, field), \
 				  value_p, len, is_mask)
 
+/* 把某字段整块置为同一字节值（如把 mask 字段整体设为 0xff 做精确匹配） */
 #define SW_FLOW_KEY_MEMSET_FIELD(match, field, value, is_mask)		    \
 	do {								    \
 		update_range(match, offsetof(struct sw_flow_key, field),    \
@@ -119,14 +154,29 @@ static void update_range(struct sw_flow_match *match,
 			       sizeof((match)->key->field));                \
 	} while (0)
 
+/*
+ * match_validate - 校验解析出来的 key/mask 属性组合是否自洽。
+ *
+ * 调用者：ovs_nla_get_match 在解析完 key 和 mask 后调用。
+ * 思路：
+ *  - key_expected：根据已解析出的 eth.type / ip.proto 推导出“这个流按理
+ *    应该出现哪些属性”。例如以太类型是 IPv4 且上层是 TCP，就应该带
+ *    OVS_KEY_ATTR_IPV4 和 OVS_KEY_ATTR_TCP。缺了就报错。
+ *  - mask_allowed：哪些属性允许出现在 mask 中。L3/L4 掩码只有在对应的
+ *    以太类型/协议做了精确匹配 (mask==0xffff/0xff) 时才允许通配，否则
+ *    掩码含义不明确。TUNNEL/IN_PORT/ETHERTYPE 总是允许。
+ * 返回值：合法返回 true，否则打印错误并返回 false。
+ */
 static bool match_validate(const struct sw_flow_match *match,
 			   u64 key_attrs, u64 mask_attrs, bool log)
 {
+	/* 以太头是最基本的，任何流都必须有 */
 	u64 key_expected = 1 << OVS_KEY_ATTR_ETHERNET;
 	u64 mask_allowed = key_attrs;  /* At most allow all key attributes */
 
 	/* The following mask attributes allowed only if they
 	 * pass the validation tests. */
+	/* 先把所有 L3/L4 掩码从允许集合中去掉，下面按需重新放行 */
 	mask_allowed &= ~((1 << OVS_KEY_ATTR_IPV4)
 			| (1 << OVS_KEY_ATTR_IPV6)
 			| (1 << OVS_KEY_ATTR_TCP)
@@ -145,6 +195,7 @@ static bool match_validate(const struct sw_flow_match *match,
 		       | (1 << OVS_KEY_ATTR_ETHERTYPE));
 
 	/* Check key attributes. */
+	/* ARP/RARP：应带 ARP 属性；仅当以太类型做了精确匹配才允许 ARP 掩码 */
 	if (match->key->eth.type == htons(ETH_P_ARP)
 			|| match->key->eth.type == htons(ETH_P_RARP)) {
 		key_expected |= 1 << OVS_KEY_ATTR_ARP;
@@ -158,6 +209,9 @@ static bool match_validate(const struct sw_flow_match *match,
 			mask_allowed |= 1 << OVS_KEY_ATTR_MPLS;
 	}
 
+	/* IPv4：需要 IPV4 属性；非分片后续包时，再根据 L4 协议要求 TCP/UDP/
+	 * SCTP/ICMP 属性。OVS_FRAG_TYPE_LATER 表示 IP 分片的非首片，此时没有
+	 * L4 头，故不要求 L4 属性。 */
 	if (match->key->eth.type == htons(ETH_P_IP)) {
 		key_expected |= 1 << OVS_KEY_ATTR_IPV4;
 		if (match->mask && (match->mask->key.eth.type == htons(0xffff)))
@@ -225,6 +279,7 @@ static bool match_validate(const struct sw_flow_match *match,
 				if (match->mask && (match->mask->key.ip.proto == 0xff))
 					mask_allowed |= 1 << OVS_KEY_ATTR_ICMPV6;
 
+				/* 邻居请求/通告 (NS/NA) 才携带 ND 属性 */
 				if (match->key->tp.src ==
 						htons(NDISC_NEIGHBOUR_SOLICITATION) ||
 				    match->key->tp.src == htons(NDISC_NEIGHBOUR_ADVERTISEMENT)) {
@@ -238,6 +293,7 @@ static bool match_validate(const struct sw_flow_match *match,
 
 	if ((key_attrs & key_expected) != key_expected) {
 		/* Key attributes check failed. */
+		/* 缺少必需的 key 属性 */
 		OVS_NLERR(log, "Missing key (keys=%llx, expected=%llx)",
 			  (unsigned long long)key_attrs,
 			  (unsigned long long)key_expected);
@@ -246,6 +302,7 @@ static bool match_validate(const struct sw_flow_match *match,
 
 	if ((mask_attrs & mask_allowed) != mask_attrs) {
 		/* Mask attributes check failed. */
+		/* mask 中出现了不允许通配的属性 */
 		OVS_NLERR(log, "Unexpected mask (mask=%llx, allowed=%llx)",
 			  (unsigned long long)mask_attrs,
 			  (unsigned long long)mask_allowed);
@@ -255,6 +312,12 @@ static bool match_validate(const struct sw_flow_match *match,
 	return true;
 }
 
+/*
+ * ovs_tun_key_attr_size - 计算序列化一个隧道 key 到 netlink 所需的最大字节数。
+ * 调用者用它预留 skb 空间。每一项对应一个 OVS_TUNNEL_KEY_ATTR_* 属性，
+ * nla_total_size(n) 含属性头 + n 字节 payload 的对齐后大小。
+ * 新增隧道字段时需同步更新此函数。
+ */
 size_t ovs_tun_key_attr_size(void)
 {
 	/* Whenever adding new OVS_TUNNEL_KEY_ FIELDS, we should consider
@@ -276,11 +339,17 @@ size_t ovs_tun_key_attr_size(void)
 		+ nla_total_size(2);   /* OVS_TUNNEL_KEY_ATTR_TP_DST */
 }
 
+/*
+ * ovs_key_attr_size - 计算序列化一个完整 flow key 到 netlink 的最大字节数。
+ * 同样用于预留 skb 空间。注意此处只累加“同一报文可能同时出现”的属性子集
+ * （例如 IPv6 与 ICMPv6/ND 是最大组合），并非把所有 OVS_KEY_ATTR_* 相加。
+ */
 size_t ovs_key_attr_size(void)
 {
 	/* Whenever adding new OVS_KEY_ FIELDS, we should consider
 	 * updating this function.
 	 */
+	/* 编译期断言：确认枚举值未被意外改动 */
 	BUILD_BUG_ON(OVS_KEY_ATTR_TUNNEL_INFO != 22);
 
 	return    nla_total_size(4)   /* OVS_KEY_ATTR_PRIORITY */
@@ -300,6 +369,8 @@ size_t ovs_key_attr_size(void)
 		+ nla_total_size(28); /* OVS_KEY_ATTR_ND */
 }
 
+/* 隧道内层属性 (OVS_TUNNEL_KEY_ATTR_*) 的期望长度表。GENEVE/VXLAN 选项
+ * 是嵌套/变长的，标记为 OVS_ATTR_NESTED。 */
 static const struct ovs_len_tbl ovs_tunnel_key_lens[OVS_TUNNEL_KEY_ATTR_MAX + 1] = {
 	[OVS_TUNNEL_KEY_ATTR_ID]	    = { .len = sizeof(u64) },
 	[OVS_TUNNEL_KEY_ATTR_IPV4_SRC]	    = { .len = sizeof(u32) },
@@ -316,6 +387,8 @@ static const struct ovs_len_tbl ovs_tunnel_key_lens[OVS_TUNNEL_KEY_ATTR_MAX + 1]
 };
 
 /* The size of the argument for each %OVS_KEY_ATTR_* Netlink attribute.  */
+/* 每种 key 属性的期望 payload 长度，解析时用它做长度校验。ENCAP/TUNNEL
+ * 是嵌套属性；TUNNEL 的 next 指向上面的隧道内层长度表。 */
 static const struct ovs_len_tbl ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 	[OVS_KEY_ATTR_ENCAP]	 = { .len = OVS_ATTR_NESTED },
 	[OVS_KEY_ATTR_PRIORITY]	 = { .len = sizeof(u32) },
@@ -341,6 +414,8 @@ static const struct ovs_len_tbl ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 	[OVS_KEY_ATTR_MPLS]	 = { .len = sizeof(struct ovs_key_mpls) },
 };
 
+/* 判断一段内存是否全 0。用于 mask 解析：全 0 掩码字段等价于“通配”，
+ * 可以不记录（见 __parse_flow_nlattrs 的 nz 参数）。fp 为 NULL 返回 false。 */
 static bool is_all_zero(const u8 *fp, size_t size)
 {
 	int i;
@@ -355,6 +430,15 @@ static bool is_all_zero(const u8 *fp, size_t size)
 	return true;
 }
 
+/*
+ * __parse_flow_nlattrs - 遍历一串嵌套的 OVS_KEY_ATTR_* 属性，做基础校验，
+ * 并把每个属性按类型索引存入 a[]，同时在位图 *attrsp 里置位记录“出现了哪些”。
+ *
+ * 校验内容：类型是否越界、是否重复出现、长度是否符合 ovs_key_lens 表。
+ * nz (non-zero)：为真时（mask 解析）跳过全 0 的属性——全 0 掩码即通配，
+ * 不必记录，从而让上层生成更宽的 megaflow。
+ * 返回 0 成功，负值失败。
+ */
 static int __parse_flow_nlattrs(const struct nlattr *attr,
 				const struct nlattr *a[],
 				u64 *attrsp, bool log, bool nz)
@@ -368,17 +452,20 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 		u16 type = nla_type(nla);
 		int expected_len;
 
+		/* 类型越界 */
 		if (type > OVS_KEY_ATTR_MAX) {
 			OVS_NLERR(log, "Key type %d is out of range max %d",
 				  type, OVS_KEY_ATTR_MAX);
 			return -EINVAL;
 		}
 
+		/* 同一属性重复出现视为非法 */
 		if (attrs & (1 << type)) {
 			OVS_NLERR(log, "Duplicate key (type %d).", type);
 			return -EINVAL;
 		}
 
+		/* 长度校验：嵌套属性 (OVS_ATTR_NESTED) 长度不定，跳过检查 */
 		expected_len = ovs_key_lens[type].len;
 		if (nla_len(nla) != expected_len && expected_len != OVS_ATTR_NESTED) {
 			OVS_NLERR(log, "Key %d has unexpected len %d expected %d",
@@ -386,11 +473,13 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 			return -EINVAL;
 		}
 
+		/* nz 时跳过全 0 属性（通配），否则记录该属性 */
 		if (!nz || !is_all_zero(nla_data(nla), expected_len)) {
 			attrs |= 1 << type;
 			a[type] = nla;
 		}
 	}
+	/* nla_for_each_nested 结束后仍有剩余字节，说明消息被截断/畸形 */
 	if (rem) {
 		OVS_NLERR(log, "Message has %d unknown bytes.", rem);
 		return -EINVAL;
@@ -400,6 +489,7 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 	return 0;
 }
 
+/* mask 属性解析入口：nz=true，全 0 掩码字段（通配）不记录 */
 static int parse_flow_mask_nlattrs(const struct nlattr *attr,
 				   const struct nlattr *a[], u64 *attrsp,
 				   bool log)
@@ -407,6 +497,7 @@ static int parse_flow_mask_nlattrs(const struct nlattr *attr,
 	return __parse_flow_nlattrs(attr, a, attrsp, log, true);
 }
 
+/* key 属性解析入口：nz=false，所有出现的属性都要记录 */
 static int parse_flow_nlattrs(const struct nlattr *attr,
 			      const struct nlattr *a[], u64 *attrsp,
 			      bool log)
@@ -414,6 +505,13 @@ static int parse_flow_nlattrs(const struct nlattr *attr,
 	return __parse_flow_nlattrs(attr, a, attrsp, log, false);
 }
 
+/*
+ * genev_tun_opt_from_nlattr - 解析 Geneve 隧道选项属性到 key->tun_opts。
+ * 校验：总长不超过 tun_opts 空间、必须 4 字节对齐。
+ * 关键点：必须记录选项长度 tun_opts_len，否则相同前缀但携带更多选项的
+ * 报文会被错误匹配。mask 侧比较特殊——它同时查看 key 和 mask（假定 key
+ * 已先解析），因为选项是变长的，无法在后续 validate 阶段核对。
+ */
 static int genev_tun_opt_from_nlattr(const struct nlattr *a,
 				     struct sw_flow_match *match, bool is_mask,
 				     bool log)
@@ -465,10 +563,15 @@ static int genev_tun_opt_from_nlattr(const struct nlattr *a,
 	return 0;
 }
 
+/* VXLAN 扩展选项的 netlink 属性策略：目前仅 GBP (Group Based Policy) */
 static const struct nla_policy vxlan_opt_policy[OVS_VXLAN_EXT_MAX + 1] = {
 	[OVS_VXLAN_EXT_GBP]	= { .type = NLA_U32 },
 };
 
+/*
+ * vxlan_tun_opt_from_nlattr - 解析 VXLAN 扩展选项到 key->tun_opts。
+ * 与 Geneve 类似，也要记录 tun_opts_len；mask 侧 tun_opts_len 置 0xff。
+ */
 static int vxlan_tun_opt_from_nlattr(const struct nlattr *a,
 				     struct sw_flow_match *match, bool is_mask,
 				     bool log)
@@ -500,6 +603,15 @@ static int vxlan_tun_opt_from_nlattr(const struct nlattr *a,
 	return 0;
 }
 
+/*
+ * ipv4_tun_from_nlattr - 解析 OVS_KEY_ATTR_TUNNEL 嵌套里的各 IPv4 隧道属性
+ * 到 match 的 tun_key/tun_opts。
+ * 调用者：metadata_from_nlattrs（key/mask 解析）以及
+ * validate_and_copy_set_tun（set tunnel 动作）。
+ * 边遍历边把出现过的标志累积到 tun_flags（TUNNEL_KEY/CSUM/OAM 等），最后
+ * 一次性写入。GENEVE/VXLAN 选项互斥（只能有一种 metadata 块）。
+ * 返回值：>=0 表示 opts_type（选项类型，0 表示没有选项），<0 为错误码。
+ */
 static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 				struct sw_flow_match *match, bool is_mask,
 				bool log)
@@ -602,12 +714,14 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 
 	SW_FLOW_KEY_PUT(match, tun_key.tun_flags, tun_flags, is_mask);
 
+	/* 遍历后仍有剩余字节表示属性畸形 */
 	if (rem > 0) {
 		OVS_NLERR(log, "IPv4 tunnel attribute has %d unknown bytes.",
 			  rem);
 		return -EINVAL;
 	}
 
+	/* 只有真实 key（非 mask）才强制要求隧道目的地址和 TTL 存在 */
 	if (!is_mask) {
 		if (!match->key->tun_key.ipv4_dst) {
 			OVS_NLERR(log, "IPv4 tunnel dst address is zero");
@@ -623,6 +737,10 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 	return opts_type;
 }
 
+/*
+ * vxlan_opt_to_nlattr - 序列化 VXLAN 选项到 skb（嵌套一层
+ * OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS，内含 GBP）。dump 方向使用。
+ */
 static int vxlan_opt_to_nlattr(struct sk_buff *skb,
 			       const void *tun_opts, int swkey_tun_opts_len)
 {
@@ -640,6 +758,13 @@ static int vxlan_opt_to_nlattr(struct sk_buff *skb,
 	return 0;
 }
 
+/*
+ * __ipv4_tun_to_nlattr - 把内核的 ovs_key_ipv4_tunnel 序列化成一串
+ * OVS_TUNNEL_KEY_ATTR_* 属性写入 skb。
+ * 序列化遵循“省略默认/零值”原则：源地址、TOS、端口等为 0 时不输出，
+ * 以缩小报文；TTL 总是输出（0 也可能有意义）。标志位对应 nla_put_flag。
+ * tun_opts 非空时按 GENEVE/VXLAN 追加选项。
+ */
 static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 				const struct ovs_key_ipv4_tunnel *output,
 				const void *tun_opts, int swkey_tun_opts_len)
@@ -686,6 +811,8 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 	return 0;
 }
 
+/* ipv4_tun_to_nlattr - 在外层再包一个 OVS_KEY_ATTR_TUNNEL 嵌套属性，
+ * 内部调用 __ipv4_tun_to_nlattr 填充。用于 flow key 的 dump。 */
 static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 			      const struct ovs_key_ipv4_tunnel *output,
 			      const void *tun_opts, int swkey_tun_opts_len)
@@ -705,6 +832,8 @@ static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 	return 0;
 }
 
+/* ovs_nla_put_egress_tunnel_key - 序列化出口隧道信息（不含外层 TUNNEL 嵌套），
+ * 供 userspace 动作携带 egress tunnel 端口信息时使用。 */
 int ovs_nla_put_egress_tunnel_key(struct sk_buff *skb,
 				  const struct ovs_tunnel_info *egress_tun_info)
 {
@@ -713,6 +842,12 @@ int ovs_nla_put_egress_tunnel_key(struct sk_buff *skb,
 				    egress_tun_info->options_len);
 }
 
+/*
+ * metadata_from_nlattrs - 解析“元数据”类 key 属性（无法从报文本身提取，
+ * 只能由用户态显式提供的字段）：dp_hash、recirc_id、priority、in_port、
+ * skb_mark、tunnel。逐个解析并从 *attrs 位图里清除，供上层校验残余。
+ * 被 ovs_key_from_nlattrs 和 ovs_nla_get_flow_metadata 复用。
+ */
 static int metadata_from_nlattrs(struct sw_flow_match *match,  u64 *attrs,
 				 const struct nlattr **a, bool is_mask,
 				 bool log)
@@ -743,6 +878,7 @@ static int metadata_from_nlattrs(struct sw_flow_match *match,  u64 *attrs,
 		if (is_mask) {
 			in_port = 0xffffffff; /* Always exact match in_port. */
 		} else if (in_port >= DP_MAX_PORTS) {
+			/* 端口号越界 */
 			OVS_NLERR(log, "Port %d exceeds max allowable %d",
 				  in_port, DP_MAX_PORTS);
 			return -EINVAL;
@@ -751,6 +887,7 @@ static int metadata_from_nlattrs(struct sw_flow_match *match,  u64 *attrs,
 		SW_FLOW_KEY_PUT(match, phy.in_port, in_port, is_mask);
 		*attrs &= ~(1 << OVS_KEY_ATTR_IN_PORT);
 	} else if (!is_mask) {
+		/* key 未指定 in_port 时置为哨兵值 DP_MAX_PORTS（表示未知） */
 		SW_FLOW_KEY_PUT(match, phy.in_port, DP_MAX_PORTS, is_mask);
 	}
 
@@ -769,6 +906,13 @@ static int metadata_from_nlattrs(struct sw_flow_match *match,  u64 *attrs,
 	return 0;
 }
 
+/*
+ * ovs_key_from_nlattrs - 把已解析入 a[] 的各 OVS_KEY_ATTR_* 属性写入
+ * sw_flow_key（或 mask->key）。先处理元数据，再按以太/网络/传输层
+ * 逐类写入并从 attrs 清位，最后若 attrs 仍有残余则报“未知属性”错。
+ * is_mask 决定写 key 还是 mask，且部分字段在 mask 侧强制精确匹配
+ * （如 EtherType、in_port 恒为全 1）。
+ */
 static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 				const struct nlattr **a, bool is_mask,
 				bool log)
@@ -794,6 +938,7 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 		__be16 tci;
 
 		tci = nla_get_be16(a[OVS_KEY_ATTR_VLAN]);
+		/* OVS 约定 VLAN TCI 必须带 VLAN_TAG_PRESENT 位 */
 		if (!(tci & htons(VLAN_TAG_PRESENT))) {
 			if (is_mask)
 				OVS_NLERR(log, "VLAN TCI mask does not have exact match for VLAN_TAG_PRESENT bit.");
@@ -823,6 +968,7 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 		SW_FLOW_KEY_PUT(match, eth.type, eth_type, is_mask);
 		attrs &= ~(1 << OVS_KEY_ATTR_ETHERTYPE);
 	} else if (!is_mask) {
+		/* key 未给 EtherType：默认按 802.2（无 EtherType 的 LLC 帧） */
 		SW_FLOW_KEY_PUT(match, eth.type, htons(ETH_P_802_2), is_mask);
 	}
 
@@ -902,6 +1048,7 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 				arp_key->arp_sip, is_mask);
 		SW_FLOW_KEY_PUT(match, ipv4.addr.dst,
 			arp_key->arp_tip, is_mask);
+		/* ARP opcode 借用 ip.proto 字段存储（复用 key 布局） */
 		SW_FLOW_KEY_PUT(match, ip.proto,
 				ntohs(arp_key->arp_op), is_mask);
 		SW_FLOW_KEY_MEMCPY(match, ipv4.arp.sha,
@@ -994,6 +1141,7 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 	}
 
 	if (attrs != 0) {
+		/* 解析完仍有未清除的属性，说明存在不支持/多余的 key */
 		OVS_NLERR(log, "Unknown key attributes %llx",
 			  (unsigned long long)attrs);
 		return -EINVAL;
@@ -1002,6 +1150,11 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 	return 0;
 }
 
+/*
+ * nlattr_set - 递归地把一串（可能嵌套的）属性的 payload 全部 memset 为 val。
+ * 用于从 key 属性流克隆出“精确匹配掩码”：把值全置 0xff。tbl 提供嵌套判定，
+ * 遇到嵌套属性则带上其内层长度表递归下去。
+ */
 static void nlattr_set(struct nlattr *attr, u8 val,
 		       const struct ovs_len_tbl *tbl)
 {
@@ -1009,6 +1162,7 @@ static void nlattr_set(struct nlattr *attr, u8 val,
 	int rem;
 
 	/* The nlattr stream should already have been validated */
+	/* 此前已校验过属性流，这里不再检查长度 */
 	nla_for_each_nested(nla, attr, rem) {
 		if (tbl && tbl[nla_type(nla)].len == OVS_ATTR_NESTED)
 			nlattr_set(nla, val, tbl[nla_type(nla)].next);
@@ -1017,6 +1171,7 @@ static void nlattr_set(struct nlattr *attr, u8 val,
 	}
 }
 
+/* mask_set_nlattr - 以顶层 key 长度表为起点，把属性流整体设为 val */
 static void mask_set_nlattr(struct nlattr *attr, u8 val)
 {
 	nlattr_set(attr, val, ovs_key_lens);
@@ -1054,6 +1209,8 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 	if (err)
 		return err;
 
+	/* 处理 802.1Q VLAN 帧：VLAN 帧的内层 key 属性被再包一层
+	 * OVS_KEY_ATTR_ENCAP，需要先展开这层嵌套后继续解析。 */
 	if ((key_attrs & (1 << OVS_KEY_ATTR_ETHERNET)) &&
 	    (key_attrs & (1 << OVS_KEY_ATTR_ETHERTYPE)) &&
 	    (nla_get_be16(a[OVS_KEY_ATTR_ETHERTYPE]) == htons(ETH_P_8021Q))) {
@@ -1072,11 +1229,13 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 		encap_valid = true;
 
 		if (tci & htons(VLAN_TAG_PRESENT)) {
+			/* 正常带 tag：解析 encap 内的内层 key 属性 */
 			err = parse_flow_nlattrs(encap, a, &key_attrs, log);
 			if (err)
 				return err;
 		} else if (!tci) {
 			/* Corner case for truncated 802.1Q header. */
+			/* tci 为 0：802.1Q 头被截断的边角情况，encap 必须为空 */
 			if (nla_len(encap)) {
 				OVS_NLERR(log, "Truncated 802.1Q header has non-zero encap attribute.");
 				return -EINVAL;
@@ -1087,6 +1246,7 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 		}
 	}
 
+	/* 先解析 key（is_mask=false） */
 	err = ovs_key_from_nlattrs(match, key_attrs, a, false, log);
 	if (err)
 		return err;
@@ -1126,8 +1286,10 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 			goto free_newmask;
 
 		/* Always match on tci. */
+		/* VLAN TCI 恒做精确匹配 */
 		SW_FLOW_KEY_PUT(match, eth.tci, htons(0xffff), true);
 
+		/* mask 侧同样要展开 VLAN encap 嵌套；且要求对 TPID 精确匹配 */
 		if (mask_attrs & 1 << OVS_KEY_ATTR_ENCAP) {
 			__be16 eth_type = 0;
 			__be16 tci = 0;
@@ -1172,6 +1334,7 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 			goto free_newmask;
 	}
 
+	/* key/mask 组合的最终自洽性校验 */
 	if (!match_validate(match, key_attrs, mask_attrs, log))
 		err = -EINVAL;
 
@@ -1180,6 +1343,8 @@ free_newmask:
 	return err;
 }
 
+/* get_ufid_len - 读取并校验 UFID 属性长度（1..MAX_UFID_LENGTH），
+ * 非法返回 0。UFID 是用户态给流分配的唯一标识，可替代整条 key 作索引。 */
 static size_t get_ufid_len(const struct nlattr *attr, bool log)
 {
 	size_t len;
@@ -1210,6 +1375,10 @@ bool ovs_nla_get_ufid(struct sw_flow_id *sfid, const struct nlattr *attr,
 	return sfid->ufid_len;
 }
 
+/*
+ * ovs_nla_get_identifier - 确定流的标识 (sw_flow_id)。
+ * 若用户态提供了合法 UFID 则用之；否则回退为“存一份未掩码的 key”作标识。
+ */
 int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
 			   const struct sw_flow_key *key, bool log)
 {
@@ -1219,6 +1388,7 @@ int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
 		return 0;
 
 	/* If UFID was not provided, use unmasked key. */
+	/* 没有 UFID：复制一份未掩码 key 作为标识 */
 	new_key = kmalloc(sizeof(*new_key), GFP_KERNEL);
 	if (!new_key)
 		return -ENOMEM;
@@ -1228,6 +1398,7 @@ int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
 	return 0;
 }
 
+/* 读取 UFID 标志属性（如 dump 时的过滤标志），缺省为 0 */
 u32 ovs_nla_get_ufid_flags(const struct nlattr *attr)
 {
 	return attr ? nla_get_u32(attr) : 0;
@@ -1264,11 +1435,19 @@ int ovs_nla_get_flow_metadata(const struct nlattr *attr,
 	memset(&match, 0, sizeof(match));
 	match.key = key;
 
+	/* 默认 in_port 为未知哨兵，metadata_from_nlattrs 可能覆盖它 */
 	key->phy.in_port = DP_MAX_PORTS;
 
 	return metadata_from_nlattrs(&match, &attrs, a, false, log);
 }
 
+/*
+ * __ovs_nla_put_key - 把一个 sw_flow_key（key 或 mask）序列化成一串
+ * OVS_KEY_ATTR_* 属性写入 skb。这是 dump 方向的核心。
+ * swkey 提供“类型判定”依据（如以太类型决定要不要输出 IPv4/IPv6 子属性），
+ * output 提供实际输出的值（is_mask 时是掩码值）。
+ * 任一 nla_put 失败即跳到 nla_put_failure 返回 -EMSGSIZE。
+ */
 static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 			     const struct sw_flow_key *output, bool is_mask,
 			     struct sk_buff *skb)
@@ -1285,6 +1464,8 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	if (nla_put_u32(skb, OVS_KEY_ATTR_PRIORITY, output->phy.priority))
 		goto nla_put_failure;
 
+	/* 有隧道目的地址（或正在输出 mask）时才输出隧道 key。
+	 * TUNNEL_OPTIONS_PRESENT 表示带 GENEVE/VXLAN 选项，需一并序列化。 */
 	if ((swkey->tun_key.ipv4_dst || is_mask)) {
 		const void *opts = NULL;
 
@@ -1297,11 +1478,13 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	}
 
 	if (swkey->phy.in_port == DP_MAX_PORTS) {
+		/* in_port 为哨兵（未知）：仅当 mask 精确匹配时输出全 1 */
 		if (is_mask && (output->phy.in_port == 0xffff))
 			if (nla_put_u32(skb, OVS_KEY_ATTR_IN_PORT, 0xffffffff))
 				goto nla_put_failure;
 	} else {
 		u16 upper_u16;
+		/* mask 侧高 16 位补 0xffff，表示对 in_port 精确匹配 */
 		upper_u16 = !is_mask ? 0 : 0xffff;
 
 		if (nla_put_u32(skb, OVS_KEY_ATTR_IN_PORT,
@@ -1320,6 +1503,8 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	ether_addr_copy(eth_key->eth_src, output->eth.src);
 	ether_addr_copy(eth_key->eth_dst, output->eth.dst);
 
+	/* 带 VLAN 时输出 8021Q 的 ETHERTYPE + VLAN TCI，并开一层 ENCAP 嵌套
+	 * 以承载内层 key。tci 为 0 是截断 VLAN 的边角情况，直接收尾。 */
 	if (swkey->eth.tci || swkey->eth.type == htons(ETH_P_8021Q)) {
 		__be16 eth_type;
 		eth_type = !is_mask ? htons(ETH_P_8021Q) : htons(0xffff);
@@ -1349,6 +1534,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	if (nla_put_be16(skb, OVS_KEY_ATTR_ETHERTYPE, output->eth.type))
 		goto nla_put_failure;
 
+	/* 根据以太类型输出对应的 L3 key 子属性（互斥的一组） */
 	if (swkey->eth.type == htons(ETH_P_IP)) {
 		struct ovs_key_ipv4 *ipv4_key;
 
@@ -1406,6 +1592,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	     swkey->eth.type == htons(ETH_P_IPV6)) &&
 	     swkey->ip.frag != OVS_FRAG_TYPE_LATER) {
 
+		/* 非分片后续片才有 L4 头，按协议输出 TCP/UDP/SCTP/ICMP 子属性 */
 		if (swkey->ip.proto == IPPROTO_TCP) {
 			struct ovs_key_tcp *tcp_key;
 
@@ -1475,6 +1662,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	}
 
 unencap:
+	/* 收尾 VLAN 的 ENCAP 嵌套 */
 	if (encap)
 		nla_nest_end(skb, encap);
 
@@ -1484,6 +1672,10 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+/*
+ * ovs_nla_put_key - 在外层加一个属性 (attr, 如 OVS_FLOW_ATTR_KEY/MASK) 的
+ * 嵌套，把 key 序列化进去。是 __ovs_nla_put_key 的对外包装。
+ */
 int ovs_nla_put_key(const struct sw_flow_key *swkey,
 		    const struct sw_flow_key *output, int attr, bool is_mask,
 		    struct sk_buff *skb)
@@ -1503,6 +1695,7 @@ int ovs_nla_put_key(const struct sw_flow_key *swkey,
 }
 
 /* Called with ovs_mutex or RCU read lock. */
+/* dump 流标识：有 UFID 用 UFID，否则输出未掩码 key 作为 OVS_FLOW_ATTR_KEY */
 int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb)
 {
 	if (ovs_identifier_is_ufid(&flow->id))
@@ -1514,6 +1707,7 @@ int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb)
 }
 
 /* Called with ovs_mutex or RCU read lock. */
+/* dump 已掩码的 key（即真正参与匹配的 key），作为 OVS_FLOW_ATTR_KEY */
 int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb)
 {
 	return ovs_nla_put_key(&flow->key, &flow->key,
@@ -1521,14 +1715,20 @@ int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb)
 }
 
 /* Called with ovs_mutex or RCU read lock. */
+/* dump 掩码：swkey 用 flow->key 判类型，output 用 mask->key 输出掩码值 */
 int ovs_nla_put_mask(const struct sw_flow *flow, struct sk_buff *skb)
 {
 	return ovs_nla_put_key(&flow->key, &flow->mask->key,
 				OVS_FLOW_ATTR_MASK, true, skb);
 }
 
+/* actions 缓冲的最大字节数（32KB），防止用户态构造过大动作链 */
 #define MAX_ACTIONS_BUFSIZE	(32 * 1024)
 
+/*
+ * nla_alloc_flow_actions - 分配一个 sw_flow_actions 缓冲（含 size 字节动作区）。
+ * 动作以“打平的 netlink 属性流”形式存放在 sfa->actions 中。
+ */
 static struct sw_flow_actions *nla_alloc_flow_actions(int size, bool log)
 {
 	struct sw_flow_actions *sfa;
@@ -1548,11 +1748,18 @@ static struct sw_flow_actions *nla_alloc_flow_actions(int size, bool log)
 
 /* Schedules 'sf_acts' to be freed after the next RCU grace period.
  * The caller must hold rcu_read_lock for this to be sensible. */
+/* 通过 RCU 延迟释放 actions 缓冲，保证并发读者在宽限期内安全访问 */
 void ovs_nla_free_flow_actions(struct sw_flow_actions *sf_acts)
 {
 	kfree_rcu(sf_acts, rcu);
 }
 
+/*
+ * reserve_sfa_size - 在 actions 缓冲末尾预留 attr_len（对齐后）字节空间。
+ * 空间不足时按 2 倍扩容（上限 MAX_ACTIONS_BUFSIZE），拷贝旧内容并释放旧缓冲。
+ * 返回指向新预留区起始处的 nlattr 指针；调用者随后填充属性头和数据。
+ * 注意 *sfa 可能被替换，故用二级指针。
+ */
 static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 				       int attr_len, bool log)
 {
@@ -1563,11 +1770,13 @@ static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 	int next_offset = offsetof(struct sw_flow_actions, actions) +
 					(*sfa)->actions_len;
 
+	/* 现有 slab 对象剩余空间够用则直接使用 */
 	if (req_size <= (ksize(*sfa) - next_offset))
 		goto out;
 
 	new_acts_size = ksize(*sfa) * 2;
 
+	/* 扩容不超过上限；若翻倍超限则尽量取到上限，仍不够则报错 */
 	if (new_acts_size > MAX_ACTIONS_BUFSIZE) {
 		if ((MAX_ACTIONS_BUFSIZE - next_offset) < req_size)
 			return ERR_PTR(-EMSGSIZE);
@@ -1588,6 +1797,11 @@ out:
 	return  (struct nlattr *) ((unsigned char *)(*sfa) + next_offset);
 }
 
+/*
+ * __add_action - 在 actions 缓冲里追加一个属性 (attrtype + data)，
+ * 返回新属性的 nlattr 指针（失败返回 ERR_PTR）。data 为 NULL 时只留头，
+ * 尾部填充字节清零。
+ */
 static struct nlattr *__add_action(struct sw_flow_actions **sfa,
 				   int attrtype, void *data, int len, bool log)
 {
@@ -1607,6 +1821,7 @@ static struct nlattr *__add_action(struct sw_flow_actions **sfa,
 	return a;
 }
 
+/* add_action - __add_action 的简化包装，只返回错误码（不关心 nlattr 指针） */
 static int add_action(struct sw_flow_actions **sfa, int attrtype,
 		      void *data, int len, bool log)
 {
@@ -1617,6 +1832,11 @@ static int add_action(struct sw_flow_actions **sfa, int attrtype,
 	return PTR_ERR_OR_ZERO(a);
 }
 
+/*
+ * add_nested_action_start - 开始一个嵌套动作：先写一个长度暂为 0 的头，
+ * 返回该头在 actions 区中的偏移，供 add_nested_action_end 回填长度。
+ * 类似 nla_nest_start，但作用在 sw_flow_actions 缓冲上。
+ */
 static inline int add_nested_action_start(struct sw_flow_actions **sfa,
 					  int attrtype, bool log)
 {
@@ -1630,6 +1850,7 @@ static inline int add_nested_action_start(struct sw_flow_actions **sfa,
 	return used;
 }
 
+/* add_nested_action_end - 回填嵌套头的长度（当前总长减去起始偏移） */
 static inline void add_nested_action_end(struct sw_flow_actions *sfa,
 					 int st_offset)
 {
@@ -1639,11 +1860,19 @@ static inline void add_nested_action_end(struct sw_flow_actions *sfa,
 	a->nla_len = sfa->actions_len - st_offset;
 }
 
+/* __ovs_nla_copy_actions 的前置声明：与 validate_and_copy_sample 相互递归
+ * （sample 动作内部还能嵌套动作链），故需先声明。 */
 static int __ovs_nla_copy_actions(const struct nlattr *attr,
 				  const struct sw_flow_key *key,
 				  int depth, struct sw_flow_actions **sfa,
 				  __be16 eth_type, __be16 vlan_tci, bool log);
 
+/*
+ * validate_and_copy_sample - 校验并拷贝 sample 动作。
+ * sample = 概率 (OVS_SAMPLE_ATTR_PROBABILITY) + 一组嵌套动作
+ * (OVS_SAMPLE_ATTR_ACTIONS)。递归调用 __ovs_nla_copy_actions 处理内层动作，
+ * depth+1 用于限制嵌套深度防止栈溢出/环。
+ */
 static int validate_and_copy_sample(const struct nlattr *attr,
 				    const struct sw_flow_key *key, int depth,
 				    struct sw_flow_actions **sfa,
@@ -1655,6 +1884,7 @@ static int validate_and_copy_sample(const struct nlattr *attr,
 	int rem, start, err, st_acts;
 
 	memset(attrs, 0, sizeof(attrs));
+	/* 遍历 sample 的两个子属性并去重存入 attrs[] */
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
 		if (!type || type > OVS_SAMPLE_ATTR_MAX || attrs[type])
@@ -1664,6 +1894,7 @@ static int validate_and_copy_sample(const struct nlattr *attr,
 	if (rem)
 		return -EINVAL;
 
+	/* 概率属性必须存在且为 u32 */
 	probability = attrs[OVS_SAMPLE_ATTR_PROBABILITY];
 	if (!probability || nla_len(probability) != sizeof(u32))
 		return -EINVAL;
@@ -1673,6 +1904,7 @@ static int validate_and_copy_sample(const struct nlattr *attr,
 		return -EINVAL;
 
 	/* validation done, copy sample action. */
+	/* 校验通过，开始把 sample 动作拷进 sfa 缓冲 */
 	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_SAMPLE, log);
 	if (start < 0)
 		return start;
@@ -1689,12 +1921,17 @@ static int validate_and_copy_sample(const struct nlattr *attr,
 	if (err)
 		return err;
 
+	/* 依次回填内层 actions 与外层 sample 的长度 */
 	add_nested_action_end(*sfa, st_acts);
 	add_nested_action_end(*sfa, start);
 
 	return 0;
 }
 
+/*
+ * ovs_match_init - 初始化 sw_flow_match，清零 key（及 mask）并绑定指针。
+ * 是外部构造 match 前的标准入口（datapath.c 在解析前调用）。
+ */
 void ovs_match_init(struct sw_flow_match *match,
 		    struct sw_flow_key *key,
 		    struct sw_flow_mask *mask)
@@ -1711,6 +1948,10 @@ void ovs_match_init(struct sw_flow_match *match,
 	}
 }
 
+/*
+ * validate_geneve_opts - 校验 Geneve 选项 TLV 链的自洽性（逐个 option 的
+ * 长度不越界），并检测是否含 critical 选项，置 TUNNEL_CRIT_OPT 标志。
+ */
 static int validate_geneve_opts(struct sw_flow_key *key)
 {
 	struct geneve_opt *option;
@@ -1739,6 +1980,13 @@ static int validate_geneve_opts(struct sw_flow_key *key)
 	return 0;
 }
 
+/*
+ * validate_and_copy_set_tun - 校验并拷贝 “set tunnel” 动作。
+ * 复用 ipv4_tun_from_nlattr 解析隧道属性到临时 key，再把隧道信息
+ * (ovs_tunnel_info + 选项) 作为 OVS_KEY_ATTR_TUNNEL_INFO 动作存入 sfa。
+ * 由于流建立后原始属性会释放，选项数据被复制到 tun_info 之后并让
+ * options 指向它，实现自包含存储。
+ */
 static int validate_and_copy_set_tun(const struct nlattr *attr,
 				     struct sw_flow_actions **sfa, bool log)
 {
@@ -1798,6 +2046,9 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 /* Return false if there are any non-masked bits set.
  * Mask follows data immediately, before any netlink padding.
  */
+/* validate_masked - 掩码合法性检查：数据区紧跟着同长的掩码区，若数据里
+ * 存在“掩码未覆盖 (~mask)”却被置位的比特，则非法。防止用户设置了掩码外
+ * 的比特（这些比特不会真正生效，属于错误用法）。 */
 static bool validate_masked(u8 *data, int len)
 {
 	u8 *mask = data + len;
@@ -1809,6 +2060,15 @@ static bool validate_masked(u8 *data, int len)
 	return true;
 }
 
+/*
+ * validate_set - 校验一个 set / set_masked 动作里被设置的 key 字段是否合法。
+ * masked 为真时属性含“值+掩码”两段，key_len 取一半。
+ * 校验点：字段类型/长度、目标字段必须与当前流的 L3/L4 类型匹配（如
+ * 只有 IP+TCP 流才能 set TCP 字段）、不可写字段（proto/frag）不得被改。
+ * 另外把“非掩码的普通 set”转换成“掩码 set (SET_TO_MASKED)”统一存储：
+ * 掩码全 0xff 表示整字段覆盖，从而内核只需实现一种 masked-set 语义。
+ * skip_copy 置真表示本动作已被本函数自行写入 sfa，外层不要再原样拷贝。
+ */
 static int validate_set(const struct nlattr *a,
 			const struct sw_flow_key *flow_key,
 			struct sw_flow_actions **sfa,
@@ -1819,6 +2079,7 @@ static int validate_set(const struct nlattr *a,
 	size_t key_len;
 
 	/* There can be only one key in a action */
+	/* 一个 set 动作只能包含一个 key 属性 */
 	if (nla_total_size(nla_len(ovs_key)) != nla_len(a))
 		return -EINVAL;
 
@@ -1826,11 +2087,13 @@ static int validate_set(const struct nlattr *a,
 	if (masked)
 		key_len /= 2;
 
+	/* 类型越界或长度与期望不符则非法 */
 	if (key_type > OVS_KEY_ATTR_MAX ||
 	    (ovs_key_lens[key_type].len != key_len &&
 	     ovs_key_lens[key_type].len != OVS_ATTR_NESTED))
 		return -EINVAL;
 
+	/* masked：检查数据未越出掩码范围 */
 	if (masked && !validate_masked(nla_data(ovs_key), key_len))
 		return -EINVAL;
 
@@ -1851,6 +2114,7 @@ static int validate_set(const struct nlattr *a,
 		if (masked)
 			return -EINVAL; /* Masked tunnel set not supported. */
 
+		/* 隧道 set 由 validate_and_copy_set_tun 自行写入，跳过外层拷贝 */
 		*skip_copy = true;
 		err = validate_and_copy_set_tun(a, sfa, log);
 		if (err)
@@ -1940,6 +2204,8 @@ static int validate_set(const struct nlattr *a,
 	}
 
 	/* Convert non-masked non-tunnel set actions to masked set actions. */
+	/* 把非掩码的普通 set 统一转成 SET_TO_MASKED：拷贝原值作 key，掩码
+	 * 全填 0xff 表示整字段覆盖，内核执行时只需一种 masked-set 逻辑。 */
 	if (!masked && key_type != OVS_KEY_ATTR_TUNNEL) {
 		int start, len = key_len * 2;
 		struct nlattr *at;
@@ -1959,6 +2225,7 @@ static int validate_set(const struct nlattr *a,
 		memcpy(nla_data(at), nla_data(ovs_key), key_len); /* Key. */
 		memset(nla_data(at) + key_len, 0xff, key_len);    /* Mask. */
 		/* Clear non-writeable bits from otherwise writeable fields. */
+		/* IPv6 flow label 只有低 20 位可写，清掉掩码中不可写的高位 */
 		if (key_type == OVS_KEY_ATTR_IPV6) {
 			struct ovs_key_ipv6 *mask = nla_data(at) + key_len;
 
@@ -1970,6 +2237,8 @@ static int validate_set(const struct nlattr *a,
 	return 0;
 }
 
+/* validate_userspace - 校验 userspace 动作：必须带非零的目标 PID
+ * (OVS_USERSPACE_ATTR_PID)，用于把报文上送到指定用户态套接字。 */
 static int validate_userspace(const struct nlattr *attr)
 {
 	static const struct nla_policy userspace_policy[OVS_USERSPACE_ATTR_MAX + 1] = {
@@ -1992,6 +2261,7 @@ static int validate_userspace(const struct nlattr *attr)
 	return 0;
 }
 
+/* copy_action - 把一个已校验的动作属性原样（含头，对齐后长度）拷入 sfa */
 static int copy_action(const struct nlattr *from,
 		       struct sw_flow_actions **sfa, bool log)
 {
@@ -2006,6 +2276,15 @@ static int copy_action(const struct nlattr *from,
 	return 0;
 }
 
+/*
+ * __ovs_nla_copy_actions - 遍历、校验并拷贝一条动作链到 sfa 缓冲。
+ * 这是动作解析的核心：逐个 OVS_ACTION_ATTR_* 检查长度、语义合法性，
+ * 大多数动作原样拷贝，少数（set/sample/set tunnel）经转换后由子函数写入
+ * （置 skip_copy 跳过原样拷贝）。
+ * 通过跟踪 eth_type/vlan_tci 的“沿动作链演化”来校验 push/pop MPLS/VLAN 的
+ * 合法性（例如 push MPLS 只允许在已知标签顺序的报文上）。
+ * depth 限制 sample 嵌套深度 (SAMPLE_ACTION_DEPTH) 防止无限递归。
+ */
 static int __ovs_nla_copy_actions(const struct nlattr *attr,
 				  const struct sw_flow_key *key,
 				  int depth, struct sw_flow_actions **sfa,
@@ -2014,11 +2293,13 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 	const struct nlattr *a;
 	int rem, err;
 
+	/* 嵌套过深（sample 套 sample）直接拒绝 */
 	if (depth >= SAMPLE_ACTION_DEPTH)
 		return -EOVERFLOW;
 
 	nla_for_each_nested(a, attr, rem) {
 		/* Expected argument lengths, (u32)-1 for variable length. */
+		/* 各动作的期望参数长度；(u32)-1 表示变长 */
 		static const u32 action_lens[OVS_ACTION_ATTR_MAX + 1] = {
 			[OVS_ACTION_ATTR_OUTPUT] = sizeof(u32),
 			[OVS_ACTION_ATTR_RECIRC] = sizeof(u32),
@@ -2053,6 +2334,7 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 			break;
 
 		case OVS_ACTION_ATTR_OUTPUT:
+			/* 输出端口号必须在合法范围内 */
 			if (nla_get_u32(a) >= DP_MAX_PORTS)
 				return -EINVAL;
 			break;
@@ -2071,11 +2353,13 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 		}
 
 		case OVS_ACTION_ATTR_POP_VLAN:
+			/* pop VLAN 后当前 vlan_tci 清零，供后续动作判定 */
 			vlan_tci = htons(0);
 			break;
 
 		case OVS_ACTION_ATTR_PUSH_VLAN:
 			vlan = nla_data(a);
+			/* 只支持 802.1Q，且必须带 present 位 */
 			if (vlan->vlan_tpid != htons(ETH_P_8021Q))
 				return -EINVAL;
 			if (!(vlan->vlan_tci & htons(VLAN_TAG_PRESENT)))
@@ -2123,6 +2407,7 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 			break;
 
 		case OVS_ACTION_ATTR_SET:
+			/* 普通 set：masked=false，validate_set 内会转成 masked 存储 */
 			err = validate_set(a, key, sfa,
 					   &skip_copy, eth_type, false, log);
 			if (err)
@@ -2130,6 +2415,7 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 			break;
 
 		case OVS_ACTION_ATTR_SET_MASKED:
+			/* 用户态直接给出带掩码的 set */
 			err = validate_set(a, key, sfa,
 					   &skip_copy, eth_type, true, log);
 			if (err)
@@ -2141,6 +2427,7 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 						       eth_type, vlan_tci, log);
 			if (err)
 				return err;
+			/* sample 已由子函数写入，跳过原样拷贝 */
 			skip_copy = true;
 			break;
 
@@ -2155,6 +2442,7 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 		}
 	}
 
+	/* 遍历结束仍有剩余字节说明动作链畸形 */
 	if (rem > 0)
 		return -EINVAL;
 
@@ -2162,6 +2450,12 @@ static int __ovs_nla_copy_actions(const struct nlattr *attr,
 }
 
 /* 'key' must be the masked key. */
+/*
+ * ovs_nla_copy_actions - 动作解析对外入口。
+ * 先按输入长度分配 sfa 缓冲，再调 __ovs_nla_copy_actions 从 depth 0 开始
+ * 校验并拷贝，初始 eth_type/vlan_tci 取自流的 key。失败时释放缓冲。
+ * 注意 key 必须是“已掩码的 key”（真正参与匹配的 key）。
+ */
 int ovs_nla_copy_actions(const struct nlattr *attr,
 			 const struct sw_flow_key *key,
 			 struct sw_flow_actions **sfa, bool log)
@@ -2180,6 +2474,10 @@ int ovs_nla_copy_actions(const struct nlattr *attr,
 	return err;
 }
 
+/*
+ * sample_action_to_attr - 把内部存储的 sample 动作序列化回 netlink（dump）。
+ * 概率原样输出；ACTIONS 子属性递归调用 ovs_nla_put_actions 序列化内层动作。
+ */
 static int sample_action_to_attr(const struct nlattr *attr, struct sk_buff *skb)
 {
 	const struct nlattr *a;
@@ -2216,6 +2514,11 @@ static int sample_action_to_attr(const struct nlattr *attr, struct sk_buff *skb)
 	return err;
 }
 
+/*
+ * set_action_to_attr - 把内部 set 动作序列化回 netlink（dump）。
+ * 隧道信息 (OVS_KEY_ATTR_TUNNEL_INFO) 需展开成隧道属性；其余 key 类型
+ * 直接原样放回一个 OVS_ACTION_ATTR_SET 属性。
+ */
 static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 {
 	const struct nlattr *ovs_key = nla_data(a);
@@ -2249,6 +2552,12 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 	return 0;
 }
 
+/*
+ * masked_set_action_to_set_action_attr - 把内部的 SET_TO_MASKED 动作在 dump
+ * 时还原成普通 SET 动作（去掉掩码部分，只输出前半段的 key）。这是
+ * validate_set 中“普通 set -> masked set”转换的逆操作，保证 dump 出的
+ * 动作与用户态原始下发的形态一致。
+ */
 static int masked_set_action_to_set_action_attr(const struct nlattr *a,
 						struct sk_buff *skb)
 {
@@ -2270,6 +2579,11 @@ static int masked_set_action_to_set_action_attr(const struct nlattr *a,
 	return 0;
 }
 
+/*
+ * ovs_nla_put_actions - 把内部存储的整条动作链序列化回 netlink 属性（dump）。
+ * 大多数动作原样输出；set/set_to_masked/sample 需要经专门函数还原成用户态
+ * 可识别的形态（与解析时的转换互逆）。
+ */
 int ovs_nla_put_actions(const struct nlattr *attr, int len, struct sk_buff *skb)
 {
 	const struct nlattr *a;

@@ -36,21 +36,43 @@
 
 #include "flow.h"
 
+// table_instance：一次具体的哈希表实例（bucket 数组 + 元数据）。
+// flow_table 通过 RCU 指针指向当前的 table_instance；rehash（扩容/收缩/换种子）
+// 时会新建一个 table_instance、把所有流搬过去，再原子替换指针，旧实例经 RCU 延迟释放。
+// 这样查表侧（读者）在替换过程中始终能看到一份完整一致的哈希表，无需加锁。
 struct table_instance {
+	// 桶数组：用 flex_array 分配，每个元素是一个 hlist_head（哈希冲突链表头）。
+	// flex_array 便于分配很大的连续逻辑数组而不要求物理连续。
 	struct flex_array *buckets;
+	// 桶数量，始终是 2 的幂，故取模可用 hash & (n_buckets - 1)。
 	unsigned int n_buckets;
+	// 用于 call_rcu 延迟释放本实例。
 	struct rcu_head rcu;
+	// 节点版本 0/1：sw_flow 内每条链的 hlist_node 有两套（node[0]/node[1]），
+	// rehash 时新实例用另一套版本挂链，从而在搬迁期间新旧两个哈希表可同时挂着
+	// 同一批流而互不干扰（双缓冲）。
 	int node_ver;
+	// 每个实例独立的哈希扰动种子，每次 rehash 重新随机，用于打散分布、抗碰撞攻击。
 	u32 hash_seed;
+	// 销毁本实例时是否跳过释放其中的流：rehash 后旧实例的流已被新实例接管，
+	// 置 true 表示“只拆表、别把流也释放了”。
 	bool keep_flows;
 };
 
+// flow_table：OVS 数据路径的整张流表对外结构。
+// 采用“掩码链表 + 哈希表”实现通配（megaflow）匹配，见 flow_table.c 顶部说明。
 struct flow_table {
+	// 主哈希表实例：以“掩码后的 key”为索引，供报文快速路径查表。
 	struct table_instance __rcu *ti;
+	// UFID 哈希表实例：以用户空间下发的唯一流标识（UFID）为索引，供控制面按 UFID 查流。
 	struct table_instance __rcu *ufid_ti;
+	// 掩码链表：表中出现过的所有不同掩码（去重后）。查表时需对每个掩码各查一次。
 	struct list_head mask_list;
+	// 上次 rehash 的时间戳（jiffies），配合 REHASH_INTERVAL 做周期性重哈希。
 	unsigned long last_rehash;
+	// 主表中的流数量。
 	unsigned int count;
+	// UFID 表中的流数量（只有带 UFID 的流才计入）。
 	unsigned int ufid_count;
 };
 

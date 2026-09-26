@@ -22,8 +22,11 @@
 #include "datapath.h"
 #include "vport.h"
 
+// 判断一个网络设备是否为 OVS 内部设备(通过其 netdev_ops 是否等于内部设备的 ops)。
 int ovs_is_internal_dev(const struct net_device *);
+// 由内部设备的 net_device 反查其对应的 vport；非内部设备返回 NULL。
 struct vport *ovs_internal_dev_get_vport(struct net_device *);
+// 向 rtnetlink 注册/注销 "openvswitch" 这类内部设备的 link 类型。
 int ovs_internal_dev_rtnl_link_register(void);
 void ovs_internal_dev_rtnl_link_unregister(void);
 
